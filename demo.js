@@ -82,6 +82,7 @@ const tot = () => {
   const k = 1 + setInfo(S.eq).bonus + aMast(); t.atk = Math.round(t.atk * k); t.spd = +(t.spd * k).toFixed(1); t.crit = +(t.crit * k).toFixed(1);
   return t;
 };
+const statsAt = (it, plus) => stats({ ...it, plus });
 const itemTxt = it => { const s = stats(it); return [s.atk && `ATK +${s.atk}`, s.spd && `Szybkość +${s.spd}%`, s.crit && `Krytyk +${s.crit}%`].filter(Boolean).join(' · '); };
 const sellPrice = it => Math.round(val(it) * 3 * (1 + lv('Handel') * 0.01));
 const selItem = () => { for (const it of [...Object.values(S.eq), ...S.inv]) if (it && it.id === S.sel) return it; return null; };
@@ -159,21 +160,134 @@ function gainXp(x) {
   while (S.xp >= xpNeed(S.lvl)) { S.xp -= xpNeed(S.lvl); S.lvl++; S.points += 1; log(`🎉 Awans na poziom ${S.lvl}! (+1 punkt umiejętności)`, 'loot'); }
 }
 
+// ================= KOWAL: wybór przedmiotu, koszty, szanse i animacja kucia =================
+const smith = { busy: false, hist: [] };
 const upChance = it => Math.min(100, CHANCE[it.plus] + lv('Kowalstwo') * 0.5);
-const upCost = it => ({ gold: Math.round(50 * (it.plus + 1) ** 2 * (1 + it.tier * 1.2)), ore: (it.plus + 1) * 2 });
+const BOOST = 10; // Kamień Przemiany dodaje tyle punktów procentowych szansy
+// koszt kolejnego poziomu: złoto + materiały (im wyżej, tym więcej i bardziej zaawansowane)
+const upCost = it => {
+  const n = it.plus + 1, mats = { 'Ruda': n * 2 };
+  if (n >= 4) mats['Złom'] = (n - 2) * 3;
+  if (n >= 7) mats['Części'] = (n - 5) * 2;
+  return { gold: Math.round(50 * n * n * (1 + it.tier * 1.2)), mats };
+};
+const auraOf = p => p >= 9 ? 'a4' : p >= 7 ? 'a3' : p >= 4 ? 'a2' : p >= 1 ? 'a1' : '';
+const equippedKey = it => Object.keys(S.eq).find(k => S.eq[k] && S.eq[k].id === it.id);
+
+function canAfford(it) { const c = upCost(it); return S.gold >= c.gold && Object.entries(c.mats).every(([k, v]) => (S.bag[k] || 0) >= v); }
+
+function renderSmith() {
+  const pick1 = it => () => { if (!smith.busy) { S.sel = it.id; render(); } };
+  const g = $('#sm-grid'); g.replaceChildren();
+  for (const sl of SLOTS) { const it = S.eq[sl.k]; g.append(cell(it, { area: sl.k, label: sl.n, color: it && QUAL[it.q].c, plus: it && it.plus, sel: it && S.sel === it.id, title: it && itemTitle(it), onclick: it && pick1(it) })); }
+  const inv = $('#sm-inv'); inv.replaceChildren();
+  for (const it of S.inv) inv.append(cell(it, { color: QUAL[it.q].c, plus: it.plus, sel: S.sel === it.id, title: itemTitle(it), onclick: pick1(it) }));
+  if (!S.inv.length) { const p = document.createElement('p'); p.className = 'muted small'; p.style.gridColumn = '1 / -1'; p.textContent = 'Plecak pusty. Przedmioty zdobywasz w lochach i na mapach EXP.'; inv.append(p); }
+  const hist = $('#sm-hist'); hist.replaceChildren();
+  for (const h of smith.hist) { const d = document.createElement('div'); d.className = 'hrow ' + (h.ok ? 'w' : 'l'); d.textContent = `${h.ok ? '✅' : h.prot ? '🛡️' : '❌'} ${h.name} +${h.from} → +${h.to}`; hist.append(d); }
+  if (smith.busy) return; // w trakcie kucia nie ruszamy kuźni
+  fillForge(selItem());
+}
+
+function fillForge(it) {
+  const fi = $('#fg-item'), fp = $('#fg-plus'), fn = $('#fg-name'), aura = $('#fg-aura');
+  const info = $('#sm-info'), costs = $('#sm-costs'), btn = $('#b-upgrade');
+  info.replaceChildren(); costs.replaceChildren();
+  if (!it) {
+    fi.textContent = '⚒️'; fp.textContent = ''; fn.textContent = 'Wybierz przedmiot'; aura.className = 'fgaura';
+    info.textContent = 'Kliknij przedmiot z ekwipunku lub plecaka po lewej, aby zobaczyć koszt i szansę ulepszenia.';
+    $('#sm-chance').textContent = '—'; $('#sm-gauge').style.width = '0'; $('#sm-fail').textContent = '';
+    btn.disabled = true; btn.textContent = '🔨 ULEPSZ'; return;
+  }
+  fi.textContent = it.icon; fp.textContent = it.plus ? '+' + it.plus : ''; fn.textContent = it.name; fn.style.color = QUAL[it.q].c; aura.className = 'fgaura ' + auraOf(it.plus);
+  const max = it.plus >= 9;
+  // podgląd statystyk przed i po
+  const now = stats(it), nxt = max ? now : statsAt(it, it.plus + 1);
+  const head = document.createElement('div'); head.className = 'smhead'; head.textContent = `${it.name} +${it.plus}${max ? '' : ' → +' + (it.plus + 1)}`; head.style.color = QUAL[it.q].c; info.append(head);
+  const sub = document.createElement('div'); sub.className = 'muted small'; sub.textContent = `${QUAL[it.q].n} · tier T${it.tier + 1} · ${equippedKey(it) ? 'założony' : 'w plecaku'}`; info.append(sub);
+  const rows = document.createElement('div'); rows.className = 'kv';
+  const stat = (n, a, b, suf = '') => { if (!a && !b) return; const d = document.createElement('div'); const x = document.createElement('span'); x.textContent = n; const y = document.createElement('b'); y.textContent = max || a === b ? `${a}${suf}` : `${a}${suf} → ${b}${suf}  (+${+(b - a).toFixed(1)}${suf})`; if (!max && b > a) y.style.color = '#3ecf8e'; d.append(x, y); rows.append(d); };
+  stat('⚔️ ATK', now.atk, nxt.atk); stat('⚡ Szybkość ataku', now.spd, nxt.spd, '%'); stat('🎯 Krytyk', now.crit, nxt.crit, '%');
+  const k = equippedKey(it);
+  if (k && !max) { const eq2 = { ...S.eq, [k]: { ...it, plus: it.plus + 1 } }, d = powerWith(eq2) - power(); const r = document.createElement('div'); const x = document.createElement('span'); x.textContent = '💪 SIŁA'; const y = document.createElement('b'); y.textContent = `${power()} → ${power() + d}  (+${d})`; y.style.color = '#ffd24d'; r.append(x, y); rows.append(r); }
+  info.append(rows);
+  if (max) {
+    $('#sm-chance').textContent = 'MAKSYMALNY POZIOM'; $('#sm-gauge').style.width = '100%'; $('#sm-fail').textContent = 'Ten przedmiot jest już ulepszony do +9.';
+    btn.disabled = true; btn.textContent = '✨ +9 MAKSYMALNIE'; return;
+  }
+  // koszty
+  const c = upCost(it), chip = (ic, txt, ok) => { const e = document.createElement('div'); e.className = 'costchip ' + (ok ? 'ok' : 'no'); e.textContent = `${ic} ${txt}`; costs.append(e); };
+  chip('🪙', `${c.gold} / ${S.gold}`, S.gold >= c.gold);
+  for (const [m, v] of Object.entries(c.mats)) chip(MAT_ICON[m] || '📦', `${m} ${v} / ${S.bag[m] || 0}`, (S.bag[m] || 0) >= v);
+  // szansa
+  const base = upChance(it), useBoost = $('#use-boost').checked && S.bag['Kamień Przemiany'] > 0, chance = Math.min(100, base + (useBoost ? BOOST : 0));
+  $('#sm-gauge').style.width = chance + '%'; $('#sm-gauge').className = chance >= 70 ? 'g-hi' : chance >= 40 ? 'g-mid' : 'g-lo';
+  $('#sm-chance').textContent = `Szansa sukcesu: ${+chance.toFixed(1)}%${useBoost ? ` (w tym +${BOOST}% z kamienia)` : ''}`;
+  $('#sm-fail').textContent = chance >= 100 ? 'Ulepszenie pewne, bez ryzyka.' : `Porażka ${+(100 - chance).toFixed(1)}%: przedmiot spada do +${Math.max(0, it.plus - 1)}${S.bag['Kamień Ochrony'] > 0 ? ' (chyba że użyjesz Kamienia Ochrony)' : ''}.`;
+  $('#opt-prot-n').textContent = `(masz ${S.bag['Kamień Ochrony']})`; $('#opt-boost-n').textContent = `(masz ${S.bag['Kamień Przemiany']})`;
+  btn.disabled = !canAfford(it); btn.textContent = canAfford(it) ? '🔨  ULEPSZ  🔨' : 'BRAK MATERIAŁÓW';
+}
+
+// ---- animacja kucia ----
+function forgeEl(cls, css, ms = 700, text = '') {
+  const el = document.createElement('div'); el.className = 'fx ' + cls; if (text) el.textContent = text;
+  for (const [k, v] of Object.entries(css || {})) k.startsWith('--') ? el.style.setProperty(k, v) : (el.style[k] = v);
+  $('#fg-field').append(el); setTimeout(() => el.remove(), ms); return el;
+}
+function forgeInit() {
+  const e = $('#embers'); if (!e || e.children.length) return;
+  for (let k = 0; k < 26; k++) { const i = document.createElement('i'); i.style.left = rnd(4, 96) + '%'; i.style.animationDelay = rnd(0, 5) + 's'; i.style.animationDuration = rnd(3, 6) + 's'; e.append(i); }
+}
+function strike(big) {
+  const h = $('#fg-hammer'), f = $('#forge'); h.classList.remove('swing'); void h.offsetWidth; h.classList.add('swing');
+  setTimeout(() => {
+    const n = big ? 20 : 9;
+    for (let k = 0; k < n; k++) { const a = rnd(-Math.PI, 0), d = rnd(50, big ? 200 : 120); forgeEl('spark', { left: '50%', bottom: '104px', '--dx': Math.cos(a) * d + 'px', '--dy': Math.sin(a) * d + 'px', background: pick(['#ffd24d', '#ff9a3c', '#fff3b0']) }, 600); }
+    forgeEl('impact' + (big ? ' crit' : ''), { left: '50%', bottom: '104px', top: 'auto' }, 600);
+    f.classList.remove('shake'); void f.offsetWidth; f.classList.add('shake');
+    $('#fg-item').classList.remove('hotpulse'); void $('#fg-item').offsetWidth; $('#fg-item').classList.add('hotpulse');
+  }, 230);
+}
 function upgrade() {
-  const it = selItem(), msg = $('#smith-msg');
-  if (!it) { msg.textContent = 'Wybierz przedmiot z ekwipunku lub plecaka.'; return; }
-  if (it.plus >= 9) { msg.textContent = 'Maksymalne ulepszenie +9.'; return; }
+  const it = selItem(), msg = $('#smith-msg'); msg.textContent = '';
+  if (!it) { msg.textContent = 'Wybierz przedmiot.'; return; }
+  if (smith.busy || it.plus >= 9) return;
+  if (!canAfford(it)) { msg.textContent = 'Brakuje materiałów lub złota.'; return; }
   const c = upCost(it);
-  if (S.gold < c.gold) { msg.textContent = 'Za mało złota.'; return; }
-  if (S.bag['Ruda'] < c.ore) { msg.textContent = 'Za mało rudy.'; return; }
-  const prot = $('#use-prot').checked && S.bag['Kamień Ochrony'] > 0;
-  S.gold -= c.gold; S.bag['Ruda'] -= c.ore;
-  if (Math.random() * 100 < upChance(it)) { it.plus++; msg.textContent = `✅ Sukces! ${it.name} +${it.plus}`; }
-  else if (prot) { S.bag['Kamień Ochrony']--; msg.textContent = '🛡️ Porażka, ale Kamień Ochrony uratował przedmiot.'; }
-  else { it.plus = Math.max(0, it.plus - 1); msg.textContent = `❌ Porażka. Spadek do +${it.plus}`; }
-  render();
+  S.gold -= c.gold; for (const [k, v] of Object.entries(c.mats)) S.bag[k] -= v;
+  const boost = $('#use-boost').checked && S.bag['Kamień Przemiany'] > 0; if (boost) S.bag['Kamień Przemiany']--;
+  const hasProt = $('#use-prot').checked && S.bag['Kamień Ochrony'] > 0;
+  const chance = Math.min(100, upChance(it) + (boost ? BOOST : 0)), ok = Math.random() * 100 < chance, from = it.plus;
+  smith.busy = true; $('#b-upgrade').disabled = true; $('#b-upgrade').textContent = '⚒️ KUJĘ…';
+  const label = $('#fg-state'); label.textContent = `Szansa ${+chance.toFixed(1)}%`;
+  const hot = $('#forge'); hot.classList.add('hot');
+  strike(false); label.textContent = 'Uderzenie 1/3…';
+  setTimeout(() => { strike(false); label.textContent = 'Uderzenie 2/3…'; }, 760);
+  setTimeout(() => { strike(false); label.textContent = 'Uderzenie 3/3…'; }, 1520);
+  setTimeout(() => { label.textContent = '…'; $('#forge').classList.add('tense'); }, 2250);
+  setTimeout(() => { strike(true); }, 3000);
+  setTimeout(() => { // wynik
+    $('#forge').classList.remove('tense'); hot.classList.remove('hot');
+    const flash = $('#fg-flash'), ban = $('#fg-banner'); let prot = false;
+    flash.className = 'xflash'; void flash.offsetWidth;
+    if (ok) {
+      it.plus++; flash.classList.add('gold', 'go'); ban.className = 'fgbanner show ok'; ban.textContent = `SUKCES!  +${it.plus}`;
+      forgeEl('shock', { left: '50%', bottom: '104px', top: 'auto' }, 800);
+      for (let k = 0; k < 24; k++) { const a = rnd(0, Math.PI * 2), d = rnd(90, 240); forgeEl('burst', { left: '50%', top: '44%', '--dx': Math.cos(a) * d + 'px', '--dy': Math.sin(a) * d + 'px', '--rs': rnd(-200, 200) + 'deg' }, 1000, pick(['✨', '⭐', '💫', '✦'])); }
+      log(`🔨 Kowal: ${it.name} → +${it.plus}`, it.plus >= 7 ? 'crit' : 'loot');
+    } else if (hasProt) {
+      prot = true; S.bag['Kamień Ochrony']--; flash.classList.add('blue', 'go'); ban.className = 'fgbanner show prot'; ban.textContent = '🛡️ OCHRONA! Przedmiot ocalony';
+      for (let k = 0; k < 10; k++) { const a = rnd(0, Math.PI * 2), d = rnd(70, 170); forgeEl('burst', { left: '50%', top: '44%', '--dx': Math.cos(a) * d + 'px', '--dy': Math.sin(a) * d + 'px', '--rs': '0deg' }, 900, '🛡️'); }
+    } else {
+      it.plus = Math.max(0, it.plus - 1); flash.classList.add('red', 'go'); ban.className = 'fgbanner show bad'; ban.textContent = `PORAŻKA  +${it.plus}`;
+      $('#fg-item').classList.add('crack'); setTimeout(() => $('#fg-item').classList.remove('crack'), 1200);
+      for (let k = 0; k < 12; k++) { const a = rnd(0, Math.PI * 2), d = rnd(60, 160); forgeEl('burst', { left: '50%', top: '44%', '--dx': Math.cos(a) * d + 'px', '--dy': Math.sin(a) * d + 'px', '--rs': rnd(-300, 300) + 'deg' }, 900, pick(['💥', '🔥', '💔'])); }
+    }
+    smith.hist.unshift({ name: it.name, from, to: it.plus, ok, prot }); if (smith.hist.length > 8) smith.hist.pop();
+    $('#fg-plus').textContent = it.plus ? '+' + it.plus : ''; $('#fg-aura').className = 'fgaura ' + auraOf(it.plus);
+    $('#fg-state').textContent = ok ? '🎉 Udało się!' : prot ? 'Ocalony!' : 'Nie udało się…';
+  }, 3500);
+  setTimeout(() => { $('#fg-banner').className = 'fgbanner'; smith.busy = false; render(); }, 5600);
 }
 
 const MAT_ICON = { 'Ruda': '🪨', 'Skóra': '🟤', 'Kamień Ochrony': '💎', 'Kamień Przemiany': '🔮', 'Złom': '⚙️', 'Szmaty': '🧵', 'Drewno': '🪵', 'Zioła': '🌿', 'Mięso': '🍖', 'Ryba': '🐟', 'Perła': '🦪', 'Części': '🔩', 'Mechanizm': '⚙️', 'Miód': '🍯', 'Wosk': '🕯️' };
@@ -247,12 +361,7 @@ function renderEq() {
   $('#b-sellm').classList.toggle('hidden', !S.markMode);
   $('#b-sellm').textContent = `Sprzedaj zaznaczone (${n})`; $('#b-sellm').disabled = !n;
 
-  // kowal
-  $('#weapon').textContent = it ? `${it.name} +${it.plus}` : 'Nie wybrano przedmiotu';
-  $('#weapon').style.color = it ? QUAL[it.q].c : '';
-  if (!it) $('#smith-info').textContent = 'Kliknij przedmiot, aby go ulepszyć.';
-  else if (it.plus >= 9) $('#smith-info').textContent = 'Maksymalnie ulepszony (+9).';
-  else { const c = upCost(it); $('#smith-info').textContent = `Następne: +${it.plus + 1} · szansa ${upChance(it).toFixed(1).replace('.0', '')}% · koszt ${c.gold} 🪙 + ${c.ore} Rudy`; }
+
 }
 
 // ================= POJEDYNKI 1v1 + LIGI (jak dywizje w EA FC) =================
@@ -1080,6 +1189,7 @@ function render() {
   document.querySelectorAll('.pts-val').forEach(x => x.textContent = S.points); $('#top-power').textContent = power();
 
   renderEq();
+  renderSmith();
   renderChar();
   renderSkills();
   renderWar();
@@ -1112,6 +1222,7 @@ $('#b-sellm').onclick = () => {
   S.marked.clear(); render();
 };
 $('#b-upgrade').onclick = upgrade;
+forgeInit();
 setInterval(() => { if (!S.paused) { for (let i = 0; i < S.speed; i++) timersTick(); render(); } }, 1000);
 setInterval(() => {
   const now = new Date(); const t = new Date(now); t.setHours(19, 0, 0, 0); if (t <= now) t.setDate(t.getDate() + 1);

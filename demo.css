@@ -411,3 +411,59 @@ main.wide{max-width:1200px}
 @keyframes wshake{0%,100%{transform:translate(0,0)}15%{transform:translate(-9px,5px)}35%{transform:translate(8px,-6px)}55%{transform:translate(-6px,-4px)}75%{transform:translate(5px,4px)}}
 .xploot{position:absolute;right:4%;top:104px;display:flex;flex-direction:column;gap:5px;align-items:flex-end;z-index:11;pointer-events:none}
 .xmaps-h{margin:6px 0 6px;font-size:13px;color:#d8c27a;letter-spacing:.1em;text-transform:uppercase}
+
+/* --- Kowal --- */
+.smithcols{align-items:start}
+.eqg.lg{grid-template-rows:repeat(5,60px);gap:6px}
+.eqg.lg .ico{font-size:28px}
+.smInv{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;max-height:330px;overflow:auto}
+.forge{position:relative;height:340px;border-radius:16px;overflow:hidden;border:2px solid #6a3a1a;background:#0a0807;box-shadow:inset 0 0 70px #000,0 0 30px #ff7a2a22}
+.forge .fbg{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 100%,#6a2a0f 0,#2a1208 38%,#0a0605 75%),repeating-linear-gradient(90deg,transparent 0 60px,#00000044 60px 63px)}
+.forge.hot .fbg{background:radial-gradient(ellipse at 50% 100%,#c2491a 0,#5a200a 42%,#0a0605 78%),repeating-linear-gradient(90deg,transparent 0 60px,#00000044 60px 63px);animation:forgepulse .5s ease-in-out infinite alternate}
+@keyframes forgepulse{from{filter:brightness(.9)}to{filter:brightness(1.25)}}
+.forge.tense .fbg{animation:tense .18s linear infinite}
+@keyframes tense{0%,100%{filter:brightness(.7)}50%{filter:brightness(1.6) hue-rotate(-15deg)}}
+.forge::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 55%,transparent 45%,#000000dd 100%);pointer-events:none;z-index:9}
+.furnace{position:absolute;left:6%;bottom:0;width:90px;height:110px;border-radius:10px 10px 0 0;background:linear-gradient(#1a1008,#2d1a0c);border:2px solid #4a2a12;box-shadow:inset 0 -30px 40px #ff6a1a99}
+.embers{position:absolute;inset:0;pointer-events:none}
+.embers i{position:absolute;bottom:-6px;width:4px;height:4px;border-radius:50%;background:#ffb04a;box-shadow:0 0 8px 2px #ff7a2a;opacity:0;animation:ember 4s ease-in infinite}
+@keyframes ember{0%{opacity:0;transform:translate(0,0)}15%{opacity:1}100%{opacity:0;transform:translate(24px,-300px)}}
+.anvil{position:absolute;left:50%;bottom:34px;width:190px;height:54px;margin-left:-95px;background:linear-gradient(#7b8396,#2c313e 70%);clip-path:polygon(0 0,100% 0,92% 40%,72% 52%,78% 100%,22% 100%,28% 52%,8% 40%);z-index:3;filter:drop-shadow(0 6px 8px #000)}
+.fgitem{position:absolute;left:50%;bottom:92px;width:110px;margin-left:-55px;text-align:center;z-index:4}
+.fgitem #fg-item{font-size:86px;line-height:1;display:block;filter:drop-shadow(0 8px 8px #000);transition:filter .3s}
+.fgitem #fg-plus{position:absolute;top:-8px;right:-2px;font-size:22px;font-weight:900;color:#ffd24d;text-shadow:0 0 10px #ff9a00,0 2px 0 #000}
+#fg-item.hotpulse{animation:hotp .35s ease-out;filter:drop-shadow(0 0 22px #ff8a2a) brightness(1.7)}
+@keyframes hotp{0%{transform:scale(1)}30%{transform:scale(1.14)}100%{transform:scale(1)}}
+#fg-item.crack{animation:crack .6s linear;filter:grayscale(.7) drop-shadow(0 0 14px #ff3a1a)}
+@keyframes crack{0%,100%{transform:translateX(0) rotate(0)}15%{transform:translateX(-10px) rotate(-6deg)}35%{transform:translateX(10px) rotate(6deg)}55%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.fgaura{position:absolute;left:50%;bottom:78px;width:190px;height:190px;margin-left:-95px;border-radius:50%;z-index:2;opacity:0;transition:opacity .4s}
+.fgaura.a1{opacity:.55;background:radial-gradient(circle,#ffffff55,transparent 68%)}
+.fgaura.a2{opacity:.8;background:radial-gradient(circle,#4da3ff88,transparent 68%)}
+.fgaura.a3{opacity:.9;background:radial-gradient(circle,#b979ffaa,transparent 68%)}
+.fgaura.a4{opacity:1;background:radial-gradient(circle,#ffc34dcc,transparent 68%);animation:aura9 1.4s ease-in-out infinite alternate}
+@keyframes aura9{from{transform:scale(.92)}to{transform:scale(1.12)}}
+.hammer{position:absolute;left:50%;bottom:150px;margin-left:34px;font-size:78px;line-height:1;transform-origin:85% 90%;transform:rotate(-65deg);z-index:5;filter:drop-shadow(0 6px 6px #000)}
+.hammer.swing{animation:hswing .52s cubic-bezier(.5,0,.8,.4)}
+@keyframes hswing{0%{transform:rotate(-65deg)}65%{transform:rotate(-65deg) translateY(-6px)}85%{transform:rotate(18deg)}100%{transform:rotate(-65deg)}}
+.fgname{position:absolute;left:0;right:0;top:12px;text-align:center;font-size:19px;font-weight:900;letter-spacing:.06em;text-shadow:0 2px 0 #000,0 0 12px #000;z-index:10}
+.fgstate{position:absolute;left:0;right:0;top:42px;text-align:center;color:#ffd24d;font-weight:800;letter-spacing:.12em;text-transform:uppercase;text-shadow:0 0 12px #000;z-index:10;font-size:14px}
+.forge .ffield{z-index:7}
+.forge.shake{animation:wshake .35s linear}
+.fgbanner{position:absolute;left:0;right:0;top:46%;transform:translateY(-50%) scale(.2);text-align:center;font-size:52px;font-weight:900;letter-spacing:.1em;opacity:0;z-index:12;text-shadow:0 4px 0 #000,0 0 30px currentColor;pointer-events:none}
+.fgbanner.show{animation:kopop .55s cubic-bezier(.2,1.8,.4,1) forwards}
+.fgbanner.ok{color:#ffd24d}.fgbanner.bad{color:#ff5a4a}.fgbanner.prot{color:#7db4ff;font-size:36px}
+.xflash.gold{background:#ffd24d}.xflash.blue{background:#4da3ff}
+.sminfo{margin:12px 0 4px}
+.smhead{font-size:20px;font-weight:900}
+.costs{display:flex;flex-wrap:wrap;gap:8px}
+.costchip{padding:7px 12px;border-radius:999px;font-weight:700;font-size:14px;background:var(--bg);border:1px solid var(--line)}
+.costchip.ok{border-color:#3ecf8e;color:#8ff0b8}.costchip.no{border-color:#ff6b6b;color:#ff9a9a}
+.gaugewrap{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.gauge{flex:1;min-width:180px;height:20px;border-radius:10px;background:#12141c;border:1px solid #3a4163;overflow:hidden;position:relative}
+#sm-gauge{height:100%;transition:width .4s ease-out}
+#sm-gauge.g-hi{background:linear-gradient(90deg,#2fbf71,#7be39b)}
+#sm-gauge.g-mid{background:linear-gradient(90deg,#d6a31f,#ffd24d)}
+#sm-gauge.g-lo{background:linear-gradient(90deg,#c93030,#ff7a5a)}
+.gtxt{font-weight:800;color:#ffd24d}
+.smopts{margin:10px 0 0;display:flex;flex-direction:column}
+#view-smith .epicbtn{padding:16px 40px;font-size:20px}

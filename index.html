@@ -182,14 +182,43 @@
 
     <!-- KOWAL -->
     <section id="view-smith" class="view hidden">
-      <div class="card">
-        <h2>Kowal</h2>
-        <p class="muted small">Wybierz przedmiot w zakładce Postać (ekwipunek lub inwentarz), a tutaj go ulepszysz.</p>
-        <p id="weapon" class="weapon"></p>
-        <p class="muted" id="smith-info"></p>
-        <label class="chk"><input type="checkbox" id="use-prot"> Użyj Kamienia Ochrony (chroni przed spadkiem)</label>
-        <button id="b-upgrade">🔨 Ulepsz</button>
-        <p id="smith-msg" class="muted"></p>
+      <div class="cols2 smithcols">
+        <div class="card">
+          <h2>Twój ekwipunek</h2>
+          <div id="sm-grid" class="eqg lg"></div>
+          <h3 class="xmaps-h">Plecak</h3>
+          <div id="sm-inv" class="smInv"></div>
+          <p class="muted small">Kliknij przedmiot, aby go ulepszyć.</p>
+        </div>
+        <div class="card">
+          <h2>⚒️ Kowal</h2>
+          <div id="forge" class="forge">
+            <div class="fbg"></div><div id="embers" class="embers"></div><div class="furnace"></div>
+            <div id="fg-aura" class="fgaura"></div>
+            <div class="fgitem"><span id="fg-item">⚒️</span><b id="fg-plus"></b></div>
+            <div class="anvil"></div>
+            <div id="fg-hammer" class="hammer">🔨</div>
+            <div id="fg-name" class="fgname"></div>
+            <div id="fg-state" class="fgstate"></div>
+            <div id="fg-field" class="ffield"></div>
+            <div id="fg-banner" class="fgbanner"></div>
+            <div id="fg-flash" class="xflash"></div>
+          </div>
+          <div id="sm-info" class="sminfo"></div>
+          <h3 class="xmaps-h">Koszt ulepszenia</h3>
+          <div id="sm-costs" class="costs"></div>
+          <h3 class="xmaps-h">Szansa</h3>
+          <div class="gaugewrap"><div class="gauge"><div id="sm-gauge" class="g-hi"></div></div><div id="sm-chance" class="gtxt"></div></div>
+          <div id="sm-fail" class="muted small"></div>
+          <div class="smopts">
+            <label class="chk"><input type="checkbox" id="use-prot"> 🛡️ Kamień Ochrony: chroni przed spadkiem <span id="opt-prot-n" class="muted"></span></label>
+            <label class="chk"><input type="checkbox" id="use-boost"> 🔮 Kamień Przemiany: +10% szansy <span id="opt-boost-n" class="muted"></span></label>
+          </div>
+          <button id="b-upgrade" class="epicbtn">🔨  ULEPSZ  🔨</button>
+          <p id="smith-msg" class="muted center small"></p>
+          <h3 class="xmaps-h">Ostatnie próby</h3>
+          <div id="sm-hist"></div>
+        </div>
       </div>
     </section>
 
