@@ -93,6 +93,7 @@ const S = {
   eq: {}, inv: [], sel: null,
   duel: { phase: 'idle', opp: null, day: '', used: 0, div: 0, pts: 0, streak: 0, wins: 0, losses: 0, hist: [], last: null },
   dung: { active: null, report: '', sel: 0, dur: 0, used: 0, day: '', got: {}, recent: [], last: null }, gather: { active: null, day: '', used: 0, report: '', loc: 0, dur: 0, interval: 9, queue: [], recent: [], got: {} },
+  war: { signed: false, running: false, hist: [], opp: 'Warszawa' },
   exp: { on: true, map: 0, enemy: null, wait: 0, kills: 0, metins: 0, dmg: 0, recent: [] }, sub: 'dung',
   sk: {}, skOpen: null, lootOpen: {}, train: null, autoTrain: false, view: 'fight',
   sets: { main: {}, pvp: {} }, setName: 'main', markMode: false, marked: new Set(),
@@ -1177,7 +1178,170 @@ function nextSunday19() {
   const now = new Date(), t = new Date(now); t.setHours(19, 0, 0, 0);
   t.setDate(t.getDate() + ((7 - t.getDay()) % 7)); if (t <= now) t.setDate(t.getDate() + 7); return t;
 }
-function renderWar() { $('#war-power').textContent = Math.round(power() * warMult()); }
+// ================= WOJNA MIAST: symulacja 100 vs 100 =================
+// Zasada (jak w prawdziwej grze): serwer liczy bitwę RAZ z jednym ziarnem i wysyła zwartą listę zdarzeń (kto, kiedy, ile obrażeń).
+// Każdy klient odtwarza tę samą powtórkę lokalnie na jednym płótnie (canvas), więc 200 graczy nie obciąża sieci ani przeglądarki.
+const WAR_N = 100, WAR_W = 1000, WAR_H = 420, WAR_GROUND = 372, WAR_PREP = 6.2; // WAR_PREP: wejście armii + odliczanie
+const WAR_OPP = ['Warszawa', 'Kraków', 'Wrocław', 'Gdańsk', 'Łódź', 'Lublin'];
+const fmtNum = n => Math.round(n).toLocaleString('pl-PL');
+const tokenPos = (side, i) => { const c = i % 10, r = Math.floor(i / 10), x = 215 + c * 17 + (r % 2) * 6; return { x: side === 0 ? x : WAR_W - x, y: WAR_GROUND - 14 - r * 21, s: 1 - r * 0.03 }; };
+
+function genWar() {
+  const myD = dps(), used = new Set(), opp = S.war.opp;
+  const nm = () => { let n; do { n = pick(NICKS) + (Math.random() < 0.5 ? '_' + Math.floor(rnd(1, 999)) : Math.floor(rnd(1, 99))); } while (used.has(n)); used.add(n); return n; };
+  const mkTeam = isMine => { const t = []; for (let i = 0; i < WAR_N; i++) t.push({ name: nm(), dps: myD * Math.max(0.35, Math.min(3, Math.exp(rnd(-0.9, 0.9)))) }); if (isMine) t[Math.floor(rnd(0, WAR_N))] = { name: 'Ty', dps: myD, me: true }; return t; };
+  const teams = [mkTeam(true), mkTeam(false)];
+  const tot = t => t.reduce((a, p) => a + p.dps, 0), k = tot(teams[0]) * rnd(0.88, 1.18) / tot(teams[1]);
+  teams[1].forEach(p => p.dps *= k);
+  const totA = tot(teams[0]), totB = tot(teams[1]), H = (totA + totB) / 2 * 52;
+  const evs = [];
+  teams.forEach((team, side) => team.forEach((p, i) => {
+    const ip = rnd(1.5, 3.2); let t = rnd(0, ip);
+    while (t < 100) { const crit = Math.random() < 0.12, dmg = p.dps * ip * rnd(0.7, 1.3) * (crit ? 1.8 : 1), fl = rnd(0.55, 0.85); evs.push({ ts: t, arr: t + fl, fl, side, i, dmg, crit, arc: rnd(60, 150), dy: rnd(-34, 34) }); t += ip * rnd(0.9, 1.1); }
+  }));
+  const byArr = [...evs].sort((a, b) => a.arr - b.arr), dealt = [0, 0]; let endT = 100, winner = totA >= totB ? 0 : 1;
+  for (const e of byArr) { dealt[e.side] += e.dmg; if (dealt[e.side] >= H) { endT = e.arr; winner = e.side; break; } }
+  const totals = [new Array(WAR_N).fill(0), new Array(WAR_N).fill(0)];
+  for (const e of byArr) { if (e.arr > endT) break; totals[e.side][e.i] += e.dmg; }
+  evs.sort((a, b) => a.ts - b.ts);
+  return { teams, evs, H, endT, winner, totals, opp, totA, totB };
+}
+function warRewards(war) {
+  const meIdx = war.teams[0].findIndex(p => p.me), my = war.totals[0][meIdx];
+  const rank = 1 + war.totals[0].filter(v => v > my).length, win = war.winner === 0, bonus = Math.max(0, 101 - rank);
+  return { win, my, rank, gold: (win ? 300 : 100) + bonus * 2, xp: (win ? 120 : 50) + bonus, glory: win ? 40 : 10, share: my / war.totals[0].reduce((a, b) => a + b, 0) };
+}
+
+function runWar() {
+  const W = S.war; if (W.running) return; W.running = true;
+  const war = genWar(), light = (navigator.hardwareConcurrency || 4) <= 2 || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const root = $('#war-stage'); root.className = 'overlay';
+  root.innerHTML = `<div class="modal warmodal">
+    <div class="wartop">
+      <div class="wteam"><b>Poznań</b><div class="bar whp"><div id="wb-a"></div></div><small id="wt-a" class="muted"></small></div>
+      <div class="wmid"><div class="wtitle">⚔ WOJNA MIAST ⚔</div><div id="w-timer" class="wtimer">0:00</div></div>
+      <div class="wteam r"><b id="w-oppname"></b><div class="bar whp foe"><div id="wb-b"></div></div><small id="wt-b" class="muted"></small></div>
+    </div>
+    <div class="warstage"><canvas id="war-cv" width="${WAR_W}" height="${WAR_H}"></canvas><div id="w-banner" class="wbanner"></div><div id="w-feed" class="wfeed"></div></div>
+    <div id="w-board" class="wboard"></div>
+    <div id="w-result" class="wresult"></div>
+    <div class="acts center"><button id="w-skip">Pomiń ▶▶</button></div>
+  </div>`;
+  $('#w-oppname').textContent = war.opp;
+  const cv = $('#war-cv'), ctx = cv.getContext('2d'), banner = $('#w-banner');
+  const projs = [], parts = [], floats = [], hit = [new Array(WAR_N).fill(-9), new Array(WAR_N).fill(-9)];
+  const hpLost = [0, 0], dealt = [new Array(WAR_N).fill(0), new Array(WAR_N).fill(0)];
+  const said = {};
+  let clock = 0, spawn = 0, shake = 0, finale = -1, scale = 1, last = performance.now(), boardT = 0, feedT = 0, raf = 0, done = false, resultShown = false, fireT = 0;
+  const say = (t, cls = '') => { banner.className = 'wbanner'; void banner.offsetWidth; banner.textContent = t; banner.className = 'wbanner show ' + cls; };
+  const feed = (t, cls) => { const f = $('#w-feed'); if (!f) return; const d = document.createElement('div'); d.className = cls || ''; d.textContent = t; f.prepend(d); while (f.children.length > 4) f.lastChild.remove(); };
+  const puff = (x, y, n, col, sp = 160) => { for (let k = 0; k < (light ? Math.ceil(n / 2) : n); k++) { const a = rnd(0, Math.PI * 2), v = rnd(30, sp); parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 40, life: rnd(0.4, 0.9), max: 0.9, col, r: rnd(1.5, 3.5) }); } };
+  const castleX = s => s === 0 ? 92 : WAR_W - 92, impactPt = (s, dy) => ({ x: castleX(s) + (s === 0 ? 10 : -10), y: WAR_GROUND - 90 + dy });
+
+  function impact(e) { // pocisk dotarł do zamku przeciwnika
+    const tgt = 1 - e.side; hpLost[tgt] += e.dmg; dealt[e.side][e.i] += e.dmg;
+    const ip = impactPt(tgt, e.dy); puff(ip.x, ip.y, e.crit ? 14 : 5, e.crit ? '#ffd24d' : e.side === 0 ? '#9cc8ff' : '#ff9a9a');
+    shake = Math.min(14, shake + (e.crit ? 5 : 1.1));
+    if (e.crit && floats.length < 14) floats.push({ x: ip.x, y: ip.y - 20, t: '−' + fmtNum(e.dmg), life: 1.1, col: '#ffd24d', size: 22 });
+    if (e.crit && e.dmg > 0 && performance.now() - feedT > 450) { feedT = performance.now(); const p = war.teams[e.side][e.i]; feed(`💥 ${p.name}${p.me ? ' (TY!)' : ''}: KRYTYK ${fmtNum(e.dmg)}`, p.me ? 'me' : e.side === 0 ? 'a' : 'b'); }
+  }
+  function drawCastle(s, pct, falling) {
+    const x = castleX(s); ctx.save(); ctx.translate(x, WAR_GROUND + 6); if (s === 1) ctx.scale(-1, 1);
+    if (falling >= 0) { ctx.globalAlpha = Math.max(0, 1 - falling / 1.6); ctx.rotate(falling * 0.5 * (s === 0 ? -1 : 1)); ctx.translate(0, falling * 40); }
+    ctx.font = '170px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText('🏰', 0, 0);
+    ctx.restore();
+    if (falling < 0 && pct < 0.65) { ctx.font = '38px "Segoe UI Emoji","Apple Color Emoji",serif'; ctx.textAlign = 'center'; const fl = 1 + Math.sin(performance.now() / 90 + s) * 0.12; ctx.save(); ctx.translate(x - 20, WAR_GROUND - 120); ctx.scale(fl, fl); ctx.fillText('🔥', 0, 0); ctx.restore(); if (pct < 0.35) { ctx.save(); ctx.translate(x + 26, WAR_GROUND - 70); ctx.scale(fl, fl); ctx.fillText('🔥', 0, 0); ctx.restore(); } }
+  }
+  function frame(now) {
+    const dt = Math.min(0.25, (now - last) / 1000); last = now; clock += dt * scale;
+    const tb = clock - WAR_PREP;
+    // --- logika ---
+    if (tb >= 0 && finale < 0) {
+      while (spawn < war.evs.length && war.evs[spawn].ts <= tb) { const e = war.evs[spawn++]; projs.push({ e, u: 0 }); hit[e.side][e.i] = clock; }
+      if (tb >= war.endT) { finale = clock; scale = 0.35; const lose = 1 - war.winner, p = impactPt(lose, 0); puff(p.x, p.y, 60, '#ffb340', 320); puff(p.x, p.y, 40, '#ff5a2a', 240); shake = 20; say(war.winner === 0 ? 'POZNAŃ WYGRYWA!' : war.opp.toUpperCase() + ' WYGRYWA!', war.winner === 0 ? 'ok' : 'bad'); }
+    }
+    if (finale >= 0 && clock - finale > 1.0) scale = 1;
+    if (!said.start) { said.start = 1; say('ARMIE WYCHODZĄ NA POLE…'); }
+    [[3.2, '3'], [4.2, '2'], [5.2, '1']].forEach(([t, x]) => { if (clock >= t && !said[x]) { said[x] = 1; say(x, 'tmp'); } });
+    if (tb >= 0 && !said.go && finale < 0) { said.go = 1; say('WALKA!', 'go tmp'); }
+    for (let i = projs.length - 1; i >= 0; i--) { const p = projs[i]; p.u += dt * scale / p.e.fl; if (p.u >= 1) { impact(p.e); projs.splice(i, 1); } }
+    for (let i = parts.length - 1; i >= 0; i--) { const p = parts[i]; p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 260 * dt; if (p.life <= 0) parts.splice(i, 1); }
+    for (let i = floats.length - 1; i >= 0; i--) { const f = floats[i]; f.life -= dt; f.y -= 40 * dt; if (f.life <= 0) floats.splice(i, 1); }
+    const pctA = Math.max(0, 1 - hpLost[0] / war.H), pctB = Math.max(0, 1 - hpLost[1] / war.H), pa = finale >= 0 && war.winner === 1 ? 0 : pctA, pb = finale >= 0 && war.winner === 0 ? 0 : pctB;
+    // dym z uszkodzonych zamków
+    fireT += dt; if (fireT > 0.12 && finale < 0) { fireT = 0; [[0, pa], [1, pb]].forEach(([s, pc]) => { if (pc < 0.4) parts.push({ x: castleX(s) + rnd(-30, 30), y: WAR_GROUND - 130, vx: rnd(-10, 10), vy: -50, life: 1, max: 1, col: '#3a3a44', r: rnd(4, 8) }); }); }
+    // --- rysowanie ---
+    ctx.save(); ctx.clearRect(0, 0, WAR_W, WAR_H);
+    if (shake > 0.3) { ctx.translate(rnd(-shake, shake), rnd(-shake, shake)); shake *= 0.88; }
+    const sky = ctx.createLinearGradient(0, 0, 0, WAR_GROUND); sky.addColorStop(0, '#0c1224'); sky.addColorStop(0.55, '#2a2350'); sky.addColorStop(1, '#6a3a4a'); ctx.fillStyle = sky; ctx.fillRect(-20, -20, WAR_W + 40, WAR_H + 40);
+    ctx.fillStyle = '#1a1830'; ctx.beginPath(); ctx.moveTo(0, WAR_GROUND - 70); for (let x = 0; x <= WAR_W; x += 50) ctx.lineTo(x, WAR_GROUND - 70 - 36 * Math.abs(Math.sin(x * 0.011)) - 10); ctx.lineTo(WAR_W, WAR_GROUND); ctx.lineTo(0, WAR_GROUND); ctx.fill();
+    const gr = ctx.createLinearGradient(0, WAR_GROUND - 6, 0, WAR_H); gr.addColorStop(0, '#2e3a22'); gr.addColorStop(1, '#10160c'); ctx.fillStyle = gr; ctx.fillRect(-20, WAR_GROUND - 6, WAR_W + 40, WAR_H);
+    drawCastle(0, pa, finale >= 0 && war.winner === 1 ? clock - finale : -1); drawCastle(1, pb, finale >= 0 && war.winner === 0 ? clock - finale : -1);
+    // żołnierze
+    const ent = Math.min(1, clock / 2.6), ease = 1 - Math.pow(1 - ent, 3);
+    for (let side = 0; side < 2; side++) for (let r = 9; r >= 0; r--) for (let c = 0; c < 10; c++) {
+      const i = r * 10 + c, p = war.teams[side][i], q = tokenPos(side, i), ox = (side === 0 ? -1 : 1) * (1 - ease) * (320 + c * 12), j = Math.max(0, 1 - (clock - hit[side][i]) * 5) * 6;
+      const x = q.x + ox, y = q.y - j, rad = (p.me ? 8.5 : 5.2) * q.s;
+      ctx.fillStyle = p.me ? '#ffd24d' : side === 0 ? (j > 0 ? '#bfe0ff' : '#4da3ff') : (j > 0 ? '#ffc4c4' : '#ff6b6b');
+      ctx.beginPath(); ctx.arc(x, y, rad, 0, 6.283); ctx.fill();
+      if (p.me) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); ctx.fillStyle = '#ffd24d'; ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('▼ TY', x, y - 14); }
+    }
+    // pociski
+    for (const p of projs) {
+      const e = p.e, tgt = 1 - e.side, a = tokenPos(e.side, e.i), b = impactPt(tgt, e.dy), u = Math.min(1, p.u), u0 = Math.max(0, u - 0.07);
+      const pos = k => ({ x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k - Math.sin(Math.PI * k) * e.arc }), P = pos(u), P0 = pos(u0), col = e.crit ? '#ffd24d' : e.side === 0 ? '#9cc8ff' : '#ff9a9a';
+      ctx.strokeStyle = col; ctx.lineWidth = e.crit ? 3.5 : 2; ctx.globalAlpha = 0.85; ctx.beginPath(); ctx.moveTo(P0.x, P0.y); ctx.lineTo(P.x, P.y); ctx.stroke();
+      ctx.globalAlpha = 1; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(P.x, P.y, e.crit ? 4 : 2.4, 0, 6.283); ctx.fill();
+    }
+    for (const p of parts) { ctx.globalAlpha = Math.max(0, p.life / p.max); ctx.fillStyle = p.col; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.283); ctx.fill(); }
+    ctx.globalAlpha = 1; ctx.textAlign = 'center';
+    for (const f of floats) { ctx.globalAlpha = Math.min(1, f.life * 1.5); ctx.fillStyle = f.col; ctx.font = `bold ${f.size}px sans-serif`; ctx.fillText(f.t, f.x, f.y); }
+    ctx.restore();
+    // --- interfejs ---
+    $('#wb-a').style.width = (100 * pa) + '%'; $('#wb-b').style.width = (100 * pb) + '%';
+    $('#wt-a').textContent = `${Math.round(100 * pa)}% · zadano ${fmtNum(dealt[0].reduce((a, b) => a + b, 0))}`; $('#wt-b').textContent = `${Math.round(100 * pb)}% · zadano ${fmtNum(dealt[1].reduce((a, b) => a + b, 0))}`;
+    const tt = Math.max(0, Math.min(tb, war.endT)); $('#w-timer').textContent = tb < 0 ? '—' : `${Math.floor(tt / 60)}:${String(Math.floor(tt % 60)).padStart(2, '0')}`;
+    boardT += dt; if (boardT > 0.5) { boardT = 0; renderBoard(); }
+    if (finale >= 0 && clock - finale > 3.3 && !resultShown) { showResult(); }
+    if (!done) raf = requestAnimationFrame(frame);
+  }
+  function renderBoard() {
+    const all = []; for (let s = 0; s < 2; s++) war.teams[s].forEach((p, i) => all.push({ p, s, d: dealt[s][i] })); all.sort((a, b) => b.d - a.d);
+    const box = $('#w-board'); if (!box) return; box.replaceChildren();
+    const h = document.createElement('div'); h.className = 'small muted'; h.textContent = 'Najwięcej obrażeń (na żywo)'; box.append(h);
+    all.slice(0, 5).forEach((x, k) => { const r = document.createElement('div'); r.className = 'wrow ' + (x.p.me ? 'me' : x.s === 0 ? 'a' : 'b'); r.textContent = `${k + 1}. ${x.p.name}${x.p.me ? ' (TY)' : ''} · ${x.s === 0 ? 'Poznań' : war.opp}`; const b = document.createElement('b'); b.textContent = fmtNum(x.d); r.append(b); box.append(r); });
+  }
+  function showResult() {
+    if (resultShown) return; resultShown = true; done = true; cancelAnimationFrame(raf);
+    const R = warRewards(war); S.gold += R.gold; gainXp(R.xp); S.glory += R.glory;
+    W.hist.unshift({ win: R.win, opp: war.opp, my: R.my, rank: R.rank, totA: war.totals[0].reduce((a, b) => a + b, 0), totB: war.totals[1].reduce((a, b) => a + b, 0) }); if (W.hist.length > 8) W.hist.pop();
+    const all = []; for (let s = 0; s < 2; s++) war.teams[s].forEach((p, i) => all.push({ p, s, d: war.totals[s][i] })); all.sort((a, b) => b.d - a.d);
+    const box = $('#w-result'); box.className = 'wresult show'; $('#w-board').style.display = 'none'; $('#w-skip').style.display = 'none'; $('#w-banner').className = 'wbanner';
+    const lines = [`<h2 class="center ${R.win ? 'win' : 'lose'}">${R.win ? '🏆 POZNAŃ WYGRYWA!' : '💀 ' + war.opp.toUpperCase() + ' WYGRYWA'}</h2>`,
+      `<div class="chips3"><div class="chip3"><small>Twój wkład</small><b>${fmtNum(R.my)}</b></div><div class="chip3"><small>Miejsce w składzie</small><b>#${R.rank} / ${WAR_N}</b></div><div class="chip3"><small>Udział w obrażeniach</small><b>${(R.share * 100).toFixed(1)}%</b></div></div>`,
+      `<p class="center">Nagrody: <b>+${R.gold} 🪙</b> · <b>+${R.xp} XP</b> · <b>+${R.glory} chwały miasta</b></p>`,
+      `<div class="wboard">${all.slice(0, 5).map((x, k) => `<div class="wrow ${x.p.me ? 'me' : x.s === 0 ? 'a' : 'b'}">${k + 1}. ${x.p.name}${x.p.me ? ' (TY)' : ''} · ${x.s === 0 ? 'Poznań' : war.opp}<b>${fmtNum(x.d)}</b></div>`).join('')}</div>`];
+    box.innerHTML = lines.join('') + '<div class="acts center"><button id="w-close">Zamknij</button><button id="w-again" class="bigbtn">⚔ Jeszcze raz</button></div>';
+    $('#w-close').onclick = closeWar; $('#w-again').onclick = () => { closeWar(); setTimeout(runWar, 50); };
+    render();
+  }
+  function closeWar() { done = true; cancelAnimationFrame(raf); root.replaceChildren(); root.className = ''; W.running = false; render(); }
+  $('#w-skip').onclick = () => { if (finale < 0) { for (let s = 0; s < 2; s++) war.teams[s].forEach((p, i) => dealt[s][i] = war.totals[s][i]); hpLost[1 - war.winner] = war.H; hpLost[war.winner] = war.H * 0.4; finale = clock - 10; } showResult(); };
+  raf = requestAnimationFrame(frame);
+}
+
+function renderWar() {
+  const W = S.war, P = Math.round(power() * warMult());
+  $('#war-power').textContent = P; $('#war-dps').textContent = Math.round(dps());
+  $('#war-cnt-a').textContent = `${63 + (W.signed ? 1 : 0)} / ${WAR_N}`; $('#war-bar-a').style.width = (63 + (W.signed ? 1 : 0)) + '%';
+  $('#war-cnt-b').textContent = `71 / ${WAR_N}`; $('#war-bar-b').style.width = '71%'; $('#war-opp').textContent = W.opp;
+  $('#b-warsign').textContent = W.signed ? '✅ Jesteś zapisany na dzisiejszą wojnę' : '✋ Zapisz się na dzisiejszą wojnę (19:00)';
+  $('#b-war').disabled = W.running;
+  const h = $('#war-hist'); h.replaceChildren();
+  if (!W.hist.length) { const p = document.createElement('p'); p.className = 'muted small'; p.textContent = 'Brak wojen. Użyj przycisku testowego, żeby rozegrać pierwszą.'; h.append(p); }
+  for (const x of W.hist) { const d = document.createElement('div'); d.className = 'hrow ' + (x.win ? 'w' : 'l'); d.textContent = `${x.win ? '🏆' : '💀'} Poznań vs ${x.opp} · Twój wkład ${fmtNum(x.my)} (#${x.rank})`; const s = document.createElement('small'); s.textContent = `${fmtNum(x.totA)} : ${fmtNum(x.totB)}`; d.append(s); h.append(d); }
+}
+
 
 function render() {
   $('#p-name').textContent = `Gracz · poziom ${S.lvl}`;
@@ -1279,6 +1443,8 @@ document.querySelectorAll('[data-sub]').forEach(b => b.onclick = () => {
 });
 $('#b-duel').onclick = startSearch;
 $('#b-sellmat').onclick = sellMaterials;
+$('#b-war').onclick = runWar;
+$('#b-warsign').onclick = () => { S.war.signed = !S.war.signed; render(); };
 $('#b-expon').onclick = () => { S.exp.on = !S.exp.on; render(); };
 expInitBg();
 $('#b-dstart').onclick = startDungeon;

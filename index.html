@@ -224,20 +224,32 @@
 
     <!-- WOJNY -->
     <section id="view-war" class="view hidden">
-      <div class="cols2">
-        <div class="card">
-          <h2>Wojna miast</h2>
-          <p>Codziennie o <b>19:00</b>. Start za: <b class="war-city-in"></b></p>
-          <p>Twoje miasto: <b>Poznań</b> · Chwała: <b class="glory-val">0</b></p>
-          <p>Twoja moc bojowa w wojnie: <b id="war-power"></b></p>
+      <div class="card arena warcard">
+        <div class="arena-title">🏰 WOJNA MIAST 🏰</div>
+        <div class="muted small">Codziennie o <b>19:00</b> · start za <b class="war-city-in"></b> · do 100 graczy z każdego miasta</div>
+        <div class="citiesvs">
+          <div class="citybox me"><span class="cityname">Poznań</span><small>woj. wielkopolskie</small><b id="war-cnt-a"></b><div class="bar"><div id="war-bar-a"></div></div></div>
+          <div class="vsmark">VS</div>
+          <div class="citybox foe"><span class="cityname" id="war-opp">Warszawa</span><small>dzisiejszy rywal</small><b id="war-cnt-b"></b><div class="bar en"><div id="war-bar-b"></div></div></div>
         </div>
+        <div class="chips3">
+          <div class="chip3"><small>Twoja Siła w wojnie</small><b id="war-power"></b></div>
+          <div class="chip3"><small>Twoje obrażenia / s</small><b id="war-dps"></b></div>
+          <div class="chip3"><small>Chwała miasta</small><b class="glory-val">0</b></div>
+        </div>
+        <button id="b-war" class="epicbtn">⚔  WEŹ UDZIAŁ W WOJNIE  ⚔</button>
+        <button id="b-warsign" class="expbtn">✋ Zapisz się na dzisiejszą wojnę (19:00)</button>
+        <p class="muted small">Tryb testowy: przycisk powyżej rozgrywa wojnę 100 vs 100 od razu, o każdej porze. W prawdziwej grze serwer liczy bitwę raz o 19:00, a wszyscy oglądają tę samą powtórkę.</p>
+      </div>
+      <div id="war-stage"></div>
+      <div class="cols2">
+        <div class="card"><h2>📜 Historia wojen</h2><div id="war-hist"></div></div>
         <div class="card">
           <h2>Wojna województw</h2>
           <p>Co niedzielę o <b>19:00</b>. Start za: <b id="war-voiv-in"></b></p>
           <p class="muted">W składzie walczy 30 najsilniejszych graczy województwa. Nagrody ×3.</p>
         </div>
       </div>
-      <div class="card"><p class="muted">W pełnej grze: skład miasta, budynki (koszary, kuźnia, mur) i odtwarzanie przebiegu walki.</p></div>
     </section>
 
     <!-- LIGA -->
