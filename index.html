@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wojna Miast — demo gameplayu</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="demo.css">
+</head>
+<body>
+<header>
+  <h1>⚔️ Wojna Miast <span class="muted">· DEMO (bez logowania)</span></h1>
+  <div id="timers"></div>
+  
+</header>
+<main class="wide">
+<div class="shell">
+  <nav id="nav">
+    <button class="navbtn on" data-view="fight"><i>⚔️</i><span>Walka</span></button>
+    <button class="navbtn" data-view="gather"><i>⛏️</i><span>Zbieraj</span></button>
+    <button class="navbtn" data-view="char"><i>👤</i><span>Postać</span></button>
+    <button class="navbtn" data-view="skills"><i>✨</i><span>Umiejętności</span></button>
+    <button class="navbtn" data-view="smith"><i>🔨</i><span>Kowal</span></button>
+    <button class="navbtn" data-view="war"><i>🏰</i><span>Wojny</span></button>
+    <button class="navbtn" data-view="league"><i>🏆</i><span>Liga</span></button>
+  </nav>
+
+  <div class="content">
+    <!-- pasek postaci widoczny zawsze -->
+    <div class="card topstrip">
+      <div class="row"><b id="p-name"></b><span><b class="powerchip">⚡ SIŁA <span id="top-power"></span></b> · <span class="gold-val"></span> 🪙 · <span id="p-xp-pct" class="muted"></span></span></div>
+      <div class="bar"><div id="xp-bar"></div></div>
+      <div class="muted small" id="p-eta"></div>
+    </div>
+
+    <!-- WALKA (ekran startowy) -->
+    <section id="view-fight" class="view">
+      <div class="card banner">
+        <b>🏙️ Poznań</b> <span class="muted">woj. wielkopolskie</span> · Chwała miasta: <b class="glory-val">0</b>
+        · Wojna miast o <b>19:00</b> — start za <b class="war-city-in"></b>
+      </div>
+      <div class="invtabs subtabs"><button data-sub="dung" class="on">🗝️ Lochy</button><button data-sub="duel">🥊 Pojedynki 1v1</button><button data-sub="exp">⚔️ EXP</button></div>
+      <div id="sub-duel" class="hidden">
+        <div class="card arena">
+          <div class="arena-title">⚔ POJEDYNEK ⚔</div>
+          <div class="muted small">Walki dzisiaj: <b id="duel-used"></b></div>
+          <div id="duel-pips" class="pips"></div>
+          <div id="duel-emblem" class="emblem"></div>
+          <div id="duel-div" class="divname"></div>
+          <div id="duel-pts" class="muted small"></div>
+          <div class="bar arenabar"><div id="duel-bar"></div></div>
+          <div class="chips3">
+            <div class="chip3"><small>Twoja Siła (zestaw PvP)</small><b id="duel-myp"></b></div>
+            <div class="chip3"><small>Typowy rywal w lidze</small><b id="duel-refp"></b></div>
+            <div class="chip3"><small>Bilans · seria</small><b id="duel-record"></b></div>
+          </div>
+          <button id="b-duel" class="epicbtn">SZUKAJ RYWALA</button>
+          <p class="muted small">Walczysz Zestawem PvP (jeśli pusty, to głównym). Wygrywa ten, kto pierwszy zbierze pulę obrażeń. Szukanie rywala zużywa jedną z 10 dziennych walk.</p>
+        </div>
+        <div id="duel-stage"></div>
+        <div class="cols2">
+          <div class="card"><h2>🏅 Ligi</h2><div id="duel-ladder"></div>
+            <p class="muted small">Awans po zebraniu 100 pkt, spadek poniżej 0. Sezon trwa 4 tygodnie, a nagrody zależą od najwyższej dywizji.</p></div>
+          <div class="card"><h2>📜 Historia pojedynków</h2><div id="duel-hist"></div></div>
+        </div>
+      </div>
+      <div id="sub-exp" class="hidden">
+        <div class="card">
+          <div class="row"><h2>EXP</h2><button id="b-expon" class="expbtn">⏸ Wstrzymaj expienie</button></div>
+          <div id="xp-win" class="xwin forest">
+            <div class="xbg"></div><div id="xp-parts" class="xparts"></div><div class="xfog"></div>
+            <div id="xp-panel" class="xpanel hidden"><b id="xp-name"></b><div class="bar en"><div id="xe-bar"></div></div><small id="xp-txt"></small></div>
+            <div id="xp-shadow" class="xshadow"></div>
+            <div id="xp-enemy" class="xenemy gone">🐺</div>
+            <div id="xp-field" class="ffield"></div>
+            <div id="xp-loot" class="xploot"></div>
+            <div id="xp-flash" class="xflash"></div>
+          </div>
+          <h3 class="xmaps-h">Mapy</h3>
+          <div id="exp-maps" class="cattiles"></div>
+          <div id="exp-status" class="center muted small"></div>
+          <div id="exp-recent" class="recent"></div>
+        </div>
+        <div class="card" id="exp-table"></div>
+      </div>
+      <div id="sub-dung">
+        <div class="card">
+          <h2>LOCHY</h2>
+          <div id="dung-tiles" class="cattiles"></div>
+          <div id="dung-scene" class="dungwin">
+            <div class="walls"></div>
+            <div class="torch l">🔥</div><div class="torch r">🔥</div>
+            <div class="dtrackwrap">
+              <div class="dline"><div id="dline-fill"></div></div>
+              <div id="denemy" class="denemy hidden"><b id="denemy-name"></b><div class="bar en"><div id="denemy-bar"></div></div><small id="denemy-txt"></small></div>
+              <div id="dloot" class="dloot"></div>
+              <div id="dtrack" class="dtrack"></div>
+              <div id="dhero">🧙</div>
+            </div>
+            <div id="dscene-msg" class="dmsg"></div>
+          </div>
+          <div id="dung-result" class="center caseres"></div>
+          <div id="dung-status" class="center muted small"></div>
+          <div id="dung-recent" class="recent"></div>
+          <div class="casectl"><div id="dung-seg" class="seg"></div><button id="b-dstart" class="bigbtn">ZACZNIJ</button><button id="b-dstop" class="bigbtn stop hidden">⏹ ZATRZYMAJ</button></div>
+          <div class="row"><span id="dung-limit" class="muted small"></span></div>
+          <div class="bar"><div id="dung-limit-bar"></div></div>
+          <p class="muted small">Postać sama przechodzi wybrany loch (im większa Siła, tym szybciej), odpoczywa w czasie cooldownu i wchodzi ponownie, przez wybraną liczbę godzin. Sesję możesz zatrzymać w dowolnej chwili. Nagrody dostajesz po każdym przejściu.</p>
+        </div>
+        <div class="card" id="dung-table"></div>
+      </div>
+      <div class="card"><h2>Dziennik</h2><div id="log"></div></div>
+    </section>
+
+
+    <!-- ZBIERAJ -->
+    <section id="view-gather" class="view hidden">
+      <div class="card">
+        <div class="row"><h2>ZBIERAJ</h2><button id="b-sellmat">Sprzedaj surowce</button></div>
+        <div id="loc-tiles" class="cattiles"></div>
+        <div class="casewin">
+          <div id="case-view" class="caseview"><div class="marker"></div><div id="case-strip" class="strip"></div></div>
+          <div id="case-result" class="center"></div>
+          <div id="case-status" class="center muted small"></div>
+          <div id="case-recent" class="recent"></div>
+        </div>
+        <div class="casectl"><div id="dur-seg" class="seg"></div><button id="b-start" class="bigbtn">ZACZNIJ</button><button id="b-stop" class="bigbtn stop hidden">⏹ ZATRZYMAJ</button></div>
+        <div class="row"><span id="gather-limit" class="muted small"></span></div>
+        <div class="bar"><div id="gather-limit-bar"></div></div>
+        <p class="muted small">Skrzynie otwierają się same, jedna po drugiej, przez wybraną liczbę godzin, a sesję możesz zatrzymać w dowolnej chwili (niewykorzystany czas wraca do dziennego limitu). Skrzynie zdobywasz tylko grą (nie można ich kupić), a szanse na każdy przedmiot są jawne. Rzadkie przedmioty mają 0%, dopóki nie wytrenujesz odpowiedniej umiejętności, a jej kolejne poziomy tylko minimalnie zwiększają szansę.</p>
+      </div>
+      <div class="card" id="gather-list"></div>
+    </section>
+
+    <!-- POSTAĆ -->
+    <section id="view-char" class="view hidden">
+      <div class="cols2">
+        <div class="card hero">
+          <div class="portrait">🛡️</div>
+          <h2 id="c-name"></h2>
+          <p class="muted" id="c-sub"></p>
+          <p>Punkty umiejętności: <b class="pts-val">0</b></p>
+          <p class="muted small">Za każdy poziom dostajesz 1 punkt. Wydajesz go w zakładce ✨ Umiejętności, a umiejętności zwiększają Twoją Siłę. Rola postaci zależy od sprzętu, nie od klasy.</p>
+        </div>
+        <div class="card">
+          <h2>Statystyki walki</h2>
+          <div class="kv" id="char-derived"></div>
+          <h2 class="mt">Bonusy z umiejętności</h2>
+          <div class="kv" id="char-bonuses"></div>
+        </div>
+      </div>
+      <div class="cols2">
+        <div class="card">
+          <div class="row"><h2>Ekwipunek</h2></div>
+          <div id="eq-grid"></div>
+          <p class="muted" id="eq-sum"></p>
+          <div class="sets"><button data-set="main" class="on">Zestaw główny</button><button data-set="pvp">Zestaw PvP</button></div>
+        </div>
+        <div class="card">
+          <h2>Inwentarz <span class="muted" id="inv-count"></span></h2>
+          <div class="invtabs"><button class="on">I</button><button disabled>II</button><button disabled>III</button><button disabled>IV</button></div>
+          <div id="inv"></div>
+          <div id="inv-detail" class="detail"></div>
+          <div class="controls"><button id="b-sort">Sortuj</button><button id="b-mark">Zaznacz</button><button id="b-sellm" class="danger hidden">Sprzedaj zaznaczone</button></div>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- UMIEJĘTNOŚCI -->
+    <section id="view-skills" class="view hidden">
+      <div class="card">
+        <h2>Trening</h2>
+        <p>Punkty umiejętności: <b class="pts-val">0</b> <span class="muted small">(1 punkt za każdy poziom postaci, wydaj go przyciskiem „+1 pkt” przy umiejętności)</span></p>
+        <div id="sk-active"></div>
+        <label class="chk"><input type="checkbox" id="auto-train"> Po ukończeniu trenuj dalej tę samą umiejętność</label>
+        <p class="muted small">Trening trwa w tle, także gdy jesteś offline. Naraz możesz trenować jedną umiejętność. Poziom umiejętności nie może przekroczyć poziomu postaci (max 50).</p>
+      </div>
+      <div id="sk-tiles" class="cattiles"></div>
+      <div id="sk-list"></div>
+    </section>
+
+    <!-- KOWAL -->
+    <section id="view-smith" class="view hidden">
+      <div class="card">
+        <h2>Kowal</h2>
+        <p class="muted small">Wybierz przedmiot w zakładce Postać (ekwipunek lub inwentarz), a tutaj go ulepszysz.</p>
+        <p id="weapon" class="weapon"></p>
+        <p class="muted" id="smith-info"></p>
+        <label class="chk"><input type="checkbox" id="use-prot"> Użyj Kamienia Ochrony (chroni przed spadkiem)</label>
+        <button id="b-upgrade">🔨 Ulepsz</button>
+        <p id="smith-msg" class="muted"></p>
+      </div>
+    </section>
+
+    <!-- WOJNY -->
+    <section id="view-war" class="view hidden">
+      <div class="cols2">
+        <div class="card">
+          <h2>Wojna miast</h2>
+          <p>Codziennie o <b>19:00</b>. Start za: <b class="war-city-in"></b></p>
+          <p>Twoje miasto: <b>Poznań</b> · Chwała: <b class="glory-val">0</b></p>
+          <p>Twoja moc bojowa w wojnie: <b id="war-power"></b></p>
+        </div>
+        <div class="card">
+          <h2>Wojna województw</h2>
+          <p>Co niedzielę o <b>19:00</b>. Start za: <b id="war-voiv-in"></b></p>
+          <p class="muted">W składzie walczy 30 najsilniejszych graczy województwa. Nagrody ×3.</p>
+        </div>
+      </div>
+      <div class="card"><p class="muted">W pełnej grze: skład miasta, budynki (koszary, kuźnia, mur) i odtwarzanie przebiegu walki.</p></div>
+    </section>
+
+    <!-- LIGA -->
+    <section id="view-league" class="view hidden">
+      <div class="card">
+        <div class="row"><h2>Ekstraklasa miast · Sezon 1</h2><span class="muted">Kolejka 9 / 28 · koniec sezonu za 19 dni</span></div>
+        <p class="muted small">Dane przykładowe. Zwycięstwo 3 pkt, remis 1. Awans 2 najlepszych, spadek 2 ostatnich. Wiersz Twojego miasta jest podświetlony.</p>
+        <table id="league-table"></table>
+      </div>
+      <div class="cols2">
+        <div class="card">
+          <h2>Najlepsi gracze Poznania</h2>
+          <table id="city-players"></table>
+          <p class="muted small">Ranking według wkładu w wojny miast (obrażenia, MVP, chwała).</p>
+        </div>
+        <div class="card">
+          <h2>Ostatnie mecze</h2>
+          <div id="league-results"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+</main>
+<footer>Wojna Miast · wersja demonstracyjna (postęp nie jest zapisywany)</footer>
+<script src="demo.js"></script>
+</body>
+</html>
