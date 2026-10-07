@@ -51,7 +51,7 @@ const SKILLS = [
   { k: 'Łowiectwo', cat: 'Rzemiosło i zbieractwo', icon: '🦌', per: 1, unit: ' lvl', desc: 'Skóry, mięso i trofea z lasu.' },
   { k: 'Kowalstwo', cat: 'Rzemiosło i zbieractwo', icon: '⚒️', per: 0.5, unit: '% szansy ulepszeń', desc: 'Większa szansa sukcesu u kowala.' },
   { k: 'Handel', cat: 'Rzemiosło i zbieractwo', icon: '⚖️', per: 1, unit: '% ceny sprzedaży', desc: 'Lepsze ceny sprzedaży.' },
-  { k: 'Dowodzenie', cat: 'Dowodzenie miastem', icon: '🚩', per: 2, unit: '% chwały', desc: 'Więcej chwały miasta, a przy Kamieniach Wojny rzadsze łupy.' },
+  { k: 'Dowodzenie', cat: 'Dowodzenie miastem', icon: '🚩', per: 2, unit: '% chwały', desc: 'Więcej chwały miasta z wypraw i Kamieni Wojny z map EXP.' },
   { k: 'Strateg', cat: 'Dowodzenie miastem', icon: '♟️', per: 1, unit: '% mocy w wojnie', desc: 'Silniejszy w wojnach miast.' },
   { k: 'Patriotyzm', cat: 'Dowodzenie miastem', icon: '🏅', per: 1, unit: '% nagród z wojen', desc: 'Większe nagrody z wojen.' },
 ];
@@ -94,8 +94,8 @@ const S = {
   duel: { phase: 'idle', opp: null, day: '', used: 0, div: 0, pts: 0, streak: 0, wins: 0, losses: 0, hist: [], last: null },
   dung: { active: null, report: '', sel: 0, dur: 0, used: 0, day: '', got: {}, recent: [], last: null }, gather: { active: null, day: '', used: 0, report: '', loc: 0, dur: 0, interval: 9, queue: [], recent: [], got: {} },
   war: { signed: false, running: false, hist: [], opp: 'Warszawa' },
-  exp: { on: true, map: 0, enemy: null, wait: 0, kills: 0, metins: 0, dmg: 0, recent: [] }, sub: 'dung',
-  sk: {}, skOpen: null, lootOpen: {}, train: null, autoTrain: false, view: 'fight',
+  exp: { on: false, map: 0, enemy: null, wait: 0, kills: 0, metins: 0, dmg: 0, recent: [] }, sub: 'dung',
+  feed: [], sk: {}, skOpen: null, lootOpen: {}, train: null, autoTrain: false, view: 'home',
   sets: { main: {}, pvp: {} }, setName: 'main', markMode: false, marked: new Set(),
   bag: { 'Ruda': 0, 'Skóra': 0, 'Kamień Ochrony': 0, 'Kamień Przemiany': 0, 'Złom': 0, 'Szmaty': 0, 'Drewno': 0, 'Zioła': 0, 'Mięso': 0, 'Ryba': 0, 'Perła': 0, 'Części': 0, 'Mechanizm': 0, 'Miód': 0, 'Wosk': 0 },
   glory: 0, paused: false, speed: Math.min(600, +new URLSearchParams(location.search).get('szybko') || 1),
@@ -151,6 +151,7 @@ function sell(it) {
 }
 
 function log(text, cls) {
+  S.feed.unshift({ t: Date.now(), text, cls }); if (S.feed.length > 14) S.feed.pop();
   if (S.offline) return;
   const d = document.createElement('div'); d.className = cls || ''; d.textContent = text;
   const box = $('#log'); box.prepend(d);
@@ -610,7 +611,7 @@ function startDungeon() {
 function endDungeon(a, how) {
   const D = S.dung; D.active = null;
   if (how === 'stop') D.used = Math.max(0, D.used - a.left); // niewykorzystany czas wraca do limitu
-  D.report = `${how === 'stop' ? '⏹ Zatrzymano' : '🏁 Zakończono'} sesję (${DUNGEONS[a.i].k}): ${a.runs} przejść · +${a.gold} 🪙 · +${a.xp} XP`;
+  D.report = `${how === 'stop' ? '⏹ Zatrzymano' : '🏁 Sesja 4 h zakończona'}${how === 'stop' ? ' sesję' : ''} (${DUNGEONS[a.i].k}): ${a.runs} przejść · +${a.gold} 🪙 · +${a.xp} XP${how === 'stop' ? '' : '. Kliknij ZACZNIJ, aby zacząć kolejną.'}`;
   log(D.report, 'loot'); render();
 }
 function showPop(node, cards) { // wyskakujące karty z łupem nad węzłem
@@ -745,12 +746,12 @@ function renderDung() {
     t.onclick = () => { D.sel = i; render(); }; tiles.append(t);
   });
   const seg = $('#dung-seg'); seg.replaceChildren();
-  DURS.forEach((x, di) => { const b = document.createElement('button'); b.className = D.dur === di ? 'on' : ''; b.disabled = !!act; b.textContent = x.n; b.onclick = () => { D.dur = di; render(); }; seg.append(b); });
+  { const b = document.createElement('span'); b.className = 'sessbadge'; b.textContent = `⏱ Sesja: ${DURS[0].n}`; seg.append(b); }
   const st = $('#b-dstart'), left = DUNG_LIMIT - D.used, lock = S.lvl < d.lvl;
   st.disabled = lock || left < DURS[D.dur].s; st.textContent = lock ? `WYMAGA POZIOMU ${d.lvl}` : left < DURS[D.dur].s ? 'LIMIT DZIENNY' : 'ZACZNIJ';
   st.classList.toggle('hidden', !!act); $('#b-dstop').classList.toggle('hidden', !act);
   renderScene();
-  $('#dung-status').textContent = act ? `${DUNGEONS[act.i].icon} ${DUNGEONS[act.i].k} · przejść: ${act.runs} · koniec sesji za ${fmtSec(act.left)}` : 'Wybierz loch i czas, a potem kliknij ZACZNIJ. Postać sama przechodzi loch, bije wrogów (im jest silniejsza, tym szybciej), otwiera skrzynie i odpoczywa przed kolejnym przejściem.';
+  $('#dung-status').textContent = act ? `${DUNGEONS[act.i].icon} ${DUNGEONS[act.i].k} · przejść: ${act.runs} · koniec sesji za ${fmtSec(act.left)}` : 'Wybierz loch i kliknij ZACZNIJ. Sesja trwa 4 godziny, potem trzeba kliknąć ZACZNIJ ponownie. Postać sama przechodzi loch, bije wrogów (im jest silniejsza, tym szybciej), otwiera skrzynie i odpoczywa przed kolejnym przejściem.';
   $('#dung-limit').textContent = `Limit dzienny: ${fmtSec(D.used)} / ${fmtSec(DUNG_LIMIT)}`; $('#dung-limit-bar').style.width = (100 * D.used / DUNG_LIMIT) + '%';
   const rc = $('#dung-recent'); rc.replaceChildren();
   for (const x of D.recent) { const c = document.createElement('span'); c.className = 'chip ' + (x.q >= 4 ? 'legend' : x.q >= 3 ? 'epic' : x.q >= 2 ? 'rare' : ''); c.textContent = `${x.icon} ${x.k}`; rc.append(c); }
@@ -764,10 +765,9 @@ const LOCS = [
   { k: 'Opuszczona kopalnia', icon: '⛏️', skill: 'Górnictwo', hint: 'skrzynie z rudą, szlachetnymi rudami i kryształami. Rzadkie rzeczy odblokowuje umiejętność Górnictwo' },
   { k: 'Złomowisko', icon: '🏭', skill: 'Mechanika', hint: 'skrzynie ze złomem, częściami i mechanizmami. Rzadkie rzeczy odblokowuje umiejętność Mechanika' },
   { k: 'Pasieka i łąki', icon: '🐝', skill: 'Pszczelarstwo', hint: 'skrzynie z miodem, ziołami i woskiem. Rzadkie rzeczy odblokowuje umiejętność Pszczelarstwo' },
-  { k: 'Kamienie Wojny', icon: '🪨', skill: 'Dowodzenie', hint: 'skrzynie z chwałą miasta, rudą i kamieniami. Rzadkie rzeczy odblokowuje umiejętność Dowodzenie' },
   { k: 'Jezioro', icon: '🎣', skill: 'Wędkarstwo', hint: 'skrzynie z rybami, muszlami i perłami. Rzadkie rzeczy odblokowuje umiejętność Wędkarstwo' },
 ];
-const DURS = [{ n: '1 h', s: 3600 }, { n: '4 h', s: 14400 }, { n: '8 h', s: 28800 }];
+const DURS = [{ n: '4 h', s: 14400 }]; // jedna, stała długość sesji
 const boxesOf = d => Math.floor(d.s / S.gather.interval); // tempo = długość animacji (ok. 8 s na skrzynię), jedno dla wszystkich
 const MAT_SELL = 0.2; // mnożnik cen sprzedaży surowców (demo)
 const GATHER_LIMIT = 12 * 3600; // dzienny limit wypraw
@@ -796,10 +796,6 @@ const TABLES = {
   'Pasieka i łąki': [
     T('Miód', '🍯', 50, { qty: [1, 3], price: 6 }), T('Zioła', '🌿', 25, { qty: [1, 2] }), T('Wosk', '🕯️', 20, { unlock: 3, price: 7 }),
     T('Mleczko pszczele', '🥛', 3, { unlock: 15, price: 50 }), T('Propolis', '🟠', 0.8, { unlock: 30, price: 150 }), T('Królewski miód', '👑', 0.2, { unlock: 45, price: 600 }),
-  ],
-  'Kamienie Wojny': [
-    T('Chwała +5', '🚩', 70, { glory: 5 }), T('Ruda', '🪨', 20, { qty: [1, 2] }), T('Chwała +20', '🏴', 6, { unlock: 8, glory: 20 }),
-    T('Kamień Przemiany', '🔮', 2, { unlock: 15 }), T('Kamień Ochrony', '💎', 1.5, { unlock: 20 }), T('Sztandar', '🎌', 0.3, { unlock: 40, price: 500 }),
   ],
   'Jezioro': [
     T('Ryba', '🐟', 60, { qty: [1, 3], price: 4 }), T('Duża ryba', '🐠', 25, { unlock: 5, price: 9 }), T('Muszla', '🐚', 10, { price: 5 }),
@@ -861,7 +857,7 @@ function gatherTick() {
   if (a.nextIn <= 0 && a.done < a.boxes) openBox(a);
   if (a.left <= 0) {
     S.gather.active = null;
-    S.gather.report = `✅ Sesja zakończona (${LOCS[a.li].k}): otwarto ${a.done} skrzyń · ${Object.entries(S.gather.got).map(([k, v]) => `${k} ×${v}`).join(', ')} · +${a.xp} XP`;
+    S.gather.report = `✅ Sesja 4 h zakończona (${LOCS[a.li].k}): otwarto ${a.done} skrzyń · ${Object.entries(S.gather.got).map(([k, v]) => `${k} ×${v}`).join(', ')} · +${a.xp} XP. Kliknij ZACZNIJ, aby zacząć kolejną.`;
     log(S.gather.report, 'loot');
   }
 }
@@ -881,7 +877,307 @@ function idleStrip(want) {
   strip.style.transform = 'translateX(' + (-strip.children.length * TILE / 2) + 'px)';
   strip.dataset.mode = want;
 }
+const JUNK = ['🥫', '🍌', '🧦', '📰', '🦴', '🍕', '🧃', '📦', '🔩', '🪣', '🍎', '🥤', '🩴', '🧴'];
+function dEl(cls, css, ms = 800, text = '') {
+  const el = document.createElement('div'); el.className = 'fx ' + cls; if (text) el.textContent = text;
+  for (const [k, v] of Object.entries(css || {})) k.startsWith('--') ? el.style.setProperty(k, v) : (el.style[k] = v);
+  $('#dump-field').append(el); setTimeout(() => el.remove(), ms); return el;
+}
+// Przeszukiwanie śmietnika (ok. 7,5 s): wiecko się unosi, szop grzebie, lecą śmieci, potem napięcie z poświatą w kolorze rzadkości i wyskakuje znalezisko.
+function playDump(r) {
+  spin.busy = true;
+  const v = $('#dump-view'), rar = rarityOf(r.pct), glow = { common: '#cfd3e6', rare: '#4da3ff', epic: '#b979ff', legend: '#ffb340' }[rar];
+  v.style.setProperty('--glow', glow); v.className = 'dumpview open';
+  $('#dump-item').className = 'ditem'; $('#dump-item').textContent = '';
+  const res = $('#case-result'); res.className = 'center caseres'; res.textContent = '🗑️ Przeszukujesz śmietnik…';
+  setTimeout(() => v.classList.add('dig'), 550);
+  const iv = setInterval(() => {
+    const dx = rnd(-190, 190);
+    dEl('junk', { left: (50 + rnd(-7, 7)) + '%', bottom: '170px', '--dx': dx + 'px', '--up': -rnd(120, 220) + 'px', '--rs': rnd(-320, 320) + 'deg' }, 1000, pick(JUNK));
+  }, 190);
+  setTimeout(() => { clearInterval(iv); v.classList.add('tense'); res.textContent = '…coś tu jest…'; }, 4700);
+  setTimeout(() => { // wyskakuje znalezisko
+    v.classList.remove('dig', 'tense'); v.classList.add('found');
+    const it = $('#dump-item'); it.textContent = r.it.icon; it.className = 'ditem pop ' + rar;
+    if (r.q > 1) { const q = document.createElement('em'); q.textContent = '×' + r.q; it.append(q); }
+    for (let k = 0; k < (rar === 'legend' ? 30 : rar === 'epic' ? 22 : 14); k++) { const a = rnd(0, Math.PI * 2), d = rnd(90, 230); dEl('burst', { left: '50%', bottom: '280px', '--dx': Math.cos(a) * d + 'px', '--dy': Math.sin(a) * d * 0.7 + 'px', '--rs': rnd(-200, 200) + 'deg' }, 1000, pick(rar === 'common' ? ['✦', '·'] : ['✨', '⭐', '💫', '✦'])); }
+    dEl('boom', { left: '50%', bottom: '280px', top: 'auto' }, 700);
+    res.textContent = `${r.it.icon} ${r.it.k} ×${r.q} · szansa ${fmtPct(r.pct)}`; res.className = 'center caseres ' + rar;
+    S.gather.recent.unshift({ icon: r.it.icon, k: r.it.k, q: r.q, pct: r.pct }); if (S.gather.recent.length > 12) S.gather.recent.pop();
+  }, 5400);
+  setTimeout(() => { v.classList.remove('open', 'found'); }, 7000);
+  setTimeout(() => { spin.busy = false; render(); }, 7600);
+}
+// ---- Gęsty las: wędrówka przez las (paralaksa), szelest w krzakach i wybuch liści z wyskakującym znaleziskiem ----
+function fEl(cls, css, ms = 900, text = '') {
+  const el = document.createElement('div'); el.className = 'fx ' + cls; if (text) el.textContent = text;
+  for (const [k, v] of Object.entries(css || {})) k.startsWith('--') ? el.style.setProperty(k, v) : (el.style[k] = v);
+  $('#forest-field').append(el); setTimeout(() => el.remove(), ms); return el;
+}
+function forestInit() {
+  const mk = (id, n, pool, size, filt, op) => {
+    const el = $(id); if (!el || el.children.length) return;
+    for (let i = 0; i < n; i++) { const sp = document.createElement('span'); sp.textContent = pick(pool); sp.style.fontSize = (size * rnd(0.85, 1.2)) + 'px'; sp.style.marginRight = rnd(-14, 36) + 'px'; el.append(sp); }
+    el.style.opacity = op;
+  };
+  mk('#fl-far', 34, ['🌲', '🌲', '🌳'], 90, 'brightness(.38) saturate(.7)', 0.65);
+  mk('#fl-mid', 20, ['🌲', '🌳', '🌲'], 150, 'brightness(.5) saturate(.9)', 0.9);
+  mk('#fl-near', 9, ['🌲', '🌲', '🌳', '🌲', '🍄'], 260, 'brightness(.25) saturate(.8)', 1);
+  const ff = $('#fl-fire'); if (ff && !ff.children.length) for (let k = 0; k < 24; k++) { const i = document.createElement('i'); i.style.left = rnd(2, 98) + '%'; i.style.top = rnd(10, 80) + '%'; i.style.animationDelay = rnd(0, 6) + 's'; i.style.animationDuration = rnd(5, 10) + 's'; ff.append(i); }
+}
+function playForest(r) {
+  spin.busy = true;
+  const v = $('#forest-view'), rar = rarityOf(r.pct), glow = { common: '#cfd3e6', rare: '#4da3ff', epic: '#b979ff', legend: '#ffb340' }[rar];
+  v.style.setProperty('--glow', glow); v.className = 'forestview walking';
+  const item = $('#forest-item'); item.className = 'ditem'; item.textContent = '';
+  const res = $('#case-result'); res.className = 'center caseres'; res.textContent = '🌲 Wędrujesz przez las…';
+  const go = (el, dist) => { el.style.transition = 'none'; el.style.transform = 'translateX(0)'; void el.offsetWidth; el.style.transition = 'transform 3.2s cubic-bezier(.15,.6,.2,1)'; el.style.transform = 'translateX(' + (-dist) + 'px)'; };
+  go($('#fl-far'), 300); go($('#fl-mid'), 700); go($('#fl-near'), 1400);
+  const b = $('#fbush'); b.style.transition = 'none'; b.style.transform = 'translateX(-50%) translateX(1000px)'; void b.offsetWidth; b.style.transition = 'transform 3.2s cubic-bezier(.15,.6,.2,1)'; b.style.transform = 'translateX(-50%)';
+  let leaves = null;
+  setTimeout(() => {
+    v.classList.remove('walking'); v.classList.add('rustle'); res.textContent = '🍃 Coś szeleści w krzakach…';
+    leaves = setInterval(() => { fEl('leaf', { left: (50 + rnd(-6, 6)) + '%', bottom: (110 + rnd(0, 60)) + 'px', '--dx': rnd(-200, 200) + 'px', '--rs': rnd(-360, 360) + 'deg' }, 1300, pick(['🍃', '🍂', '🍃', '🌿'])); }, 140);
+  }, 3300);
+  setTimeout(() => { v.classList.add('tense'); res.textContent = '…coś tu jest…'; }, 5000);
+  setTimeout(() => { // wybuch liści i znalezisko
+    clearInterval(leaves); v.classList.remove('rustle', 'tense'); v.classList.add('found');
+    for (let k = 0; k < 28; k++) { const a = rnd(0, Math.PI * 2), d = rnd(120, 300); fEl('leaf big', { left: '50%', bottom: '150px', '--dx': Math.cos(a) * d + 'px', '--rs': rnd(-480, 480) + 'deg' }, 1400, pick(['🍃', '🍂', '🌿', '🍁'])); }
+    const fl = $('#fflash'); fl.style.background = glow; fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go');
+    item.textContent = r.it.icon; item.className = 'ditem pop ' + rar;
+    if (r.q > 1) { const q = document.createElement('em'); q.textContent = '×' + r.q; item.append(q); }
+    for (let k = 0; k < (rar === 'legend' ? 30 : rar === 'epic' ? 22 : 14); k++) { const a = rnd(0, Math.PI * 2), d = rnd(90, 230); fEl('burst', { left: '50%', bottom: '280px', '--dx': Math.cos(a) * d + 'px', '--dy': Math.sin(a) * d * 0.7 + 'px', '--rs': rnd(-200, 200) + 'deg' }, 1000, pick(rar === 'common' ? ['✦', '·'] : ['✨', '⭐', '💫', '✦'])); }
+    fEl('boom', { left: '50%', bottom: '280px', top: 'auto' }, 700);
+    res.textContent = `${r.it.icon} ${r.it.k} ×${r.q} · szansa ${fmtPct(r.pct)}`; res.className = 'center caseres ' + rar;
+    S.gather.recent.unshift({ icon: r.it.icon, k: r.it.k, q: r.q, pct: r.pct }); if (S.gather.recent.length > 12) S.gather.recent.pop();
+  }, 5700);
+  setTimeout(() => { v.classList.remove('found'); }, 7200);
+  setTimeout(() => { spin.busy = false; render(); }, 7700);
+}
+// ---- Opuszczona kopalnia: światło latarki szuka żyły, kilof kruszy skałę (iskry, pęknięcia), skała pęka i wyskakuje znalezisko ----
+function mEl(cls, css, ms = 800, text = '') {
+  const el = document.createElement('div'); el.className = 'fx ' + cls; if (text) el.textContent = text;
+  for (const [k, v] of Object.entries(css || {})) k.startsWith('--') ? el.style.setProperty(k, v) : (el.style[k] = v);
+  $('#mine-field').append(el); setTimeout(() => el.remove(), ms); return el;
+}
+function mineHit(big, glow, n) {
+  const v = $('#mine-view'), pick1 = $('#mpick'), rock = $('#mrock');
+  pick1.classList.remove('swing'); void pick1.offsetWidth; pick1.classList.add('swing');
+  setTimeout(() => {
+    const x = 56, y = 205;
+    for (let k = 0; k < (big ? 28 : 12); k++) { const a = rnd(-Math.PI, 0.2), d = rnd(60, big ? 240 : 150); mEl('spark', { left: x + '%', bottom: y + 'px', '--dx': Math.cos(a) * d + 'px', '--dy': Math.sin(a) * d + 'px', background: pick(['#ffd24d', '#ff9a3c', '#fff3b0', glow]) }, 600); }
+    for (let k = 0; k < (big ? 10 : 4); k++) { const a = rnd(-Math.PI, 0), d = rnd(40, 140); mEl('spark chip', { left: x + '%', bottom: y + 'px', '--dx': Math.cos(a) * d + 'px', '--dy': Math.sin(a) * d + 60 + 'px', background: pick(['#8a7a6a', '#5a4e44', '#a89a8a']) }, 800); }
+    mEl('dust', { left: x + '%', bottom: (y - 20) + 'px' }, 900);
+    mEl('skilltxt', { left: '50%', top: '16%', fontSize: big ? '38px' : '24px' }, 900, big ? 'BUM!' : pick(['KLANG!', 'TRACH!', 'KLONK!']));
+    v.classList.remove('shake'); void v.offsetWidth; v.classList.add('shake');
+    rock.classList.remove('hitm'); void rock.offsetWidth; rock.classList.add('hitm');
+    if (!big) { // pęknięcie
+      const c = document.createElement('i'); c.className = 'crack'; c.style.setProperty('--rot', rnd(-70, 70) + 'deg'); c.style.setProperty('--cw', rnd(50, 110) + 'px'); c.style.left = rnd(30, 60) + '%'; c.style.top = rnd(25, 60) + '%'; $('#mcracks').append(c);
+    }
+  }, 330);
+}
+function playMine(r) {
+  spin.busy = true;
+  const v = $('#mine-view'), rar = rarityOf(r.pct), glow = { common: '#cfd3e6', rare: '#4da3ff', epic: '#b979ff', legend: '#ffb340' }[rar];
+  v.style.setProperty('--glow', glow); v.className = 'mineview searching'; $('#mcracks').replaceChildren();
+  const item = $('#mine-item'); item.className = 'ditem'; item.textContent = '';
+  const res = $('#case-result'); res.className = 'center caseres'; res.textContent = '🔦 Szukasz żyły rudy…';
+  const sp = $('#mspot'), t0 = performance.now();
+  const spot = setInterval(() => {
+    const t = (performance.now() - t0) / 1000; let x, y, rr;
+    if (t < 2.0) { x = 8 + 80 * (t / 2.0) + 5 * Math.sin(t * 7); y = 58 + 14 * Math.sin(t * 5); rr = 150; }
+    else { const u = Math.min(1, (t - 2.0) / 0.8), e = 1 - Math.pow(1 - u, 3); x = 88 + (50 - 88) * e; y = 58 + (60 - 58) * e; rr = 150 + 780 * e; }
+    sp.style.setProperty('--sx', x + '%'); sp.style.setProperty('--sy', y + '%'); sp.style.setProperty('--sr', rr + 'px');
+  }, 33);
+  setTimeout(() => { v.classList.remove('searching'); v.classList.add('lit'); res.textContent = '💎 Jest żyła! Kujesz skałę…'; }, 2000);
+  [2300, 3000, 3700, 4400].forEach((t, i) => setTimeout(() => { mineHit(false, glow, i); res.textContent = `⛏️ Kujesz skałę… (${i + 1}/4)`; }, t));
+  setTimeout(() => { v.classList.add('tense'); res.textContent = '…coś błyszczy w środku…'; }, 5100);
+  setTimeout(() => mineHit(true, glow), 5600);
+  setTimeout(() => { // skała pęka, wyskakuje znalezisko
+    clearInterval(spot); sp.style.setProperty('--sr', '1400px'); v.classList.remove('tense'); v.classList.add('broken');
+    const fl = $('#mflash'); fl.style.background = glow; fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go');
+    for (let k = 0; k < 26; k++) { const a = rnd(-Math.PI, 0.3), d = rnd(100, 300); mEl('spark chip big', { left: '50%', bottom: '190px', '--dx': Math.cos(a) * d + 'px', '--dy': Math.sin(a) * d + 90 + 'px', background: pick(['#8a7a6a', '#5a4e44', '#a89a8a', glow]) }, 1000); }
+    mEl('dust big', { left: '50%', bottom: '150px' }, 1100);
+    item.textContent = r.it.icon; item.className = 'ditem pop ' + rar;
+    if (r.q > 1) { const q = document.createElement('em'); q.textContent = '×' + r.q; item.append(q); }
+    for (let k = 0; k < (rar === 'legend' ? 30 : rar === 'epic' ? 22 : 14); k++) { const a = rnd(0, Math.PI * 2), d = rnd(90, 230); mEl('burst', { left: '50%', bottom: '280px', '--dx': Math.cos(a) * d + 'px', '--dy': Math.sin(a) * d * 0.7 + 'px', '--rs': rnd(-200, 200) + 'deg' }, 1000, pick(rar === 'common' ? ['✦', '·'] : ['✨', '⭐', '💫', '✦'])); }
+    mEl('boom', { left: '50%', bottom: '280px', top: 'auto' }, 700);
+    res.textContent = `${r.it.icon} ${r.it.k} ×${r.q} · szansa ${fmtPct(r.pct)}`; res.className = 'center caseres ' + rar;
+    S.gather.recent.unshift({ icon: r.it.icon, k: r.it.k, q: r.q, pct: r.pct }); if (S.gather.recent.length > 12) S.gather.recent.pop();
+  }, 5950);
+  setTimeout(() => { v.classList.remove('broken', 'lit'); sp.style.setProperty('--sr', '900px'); sp.style.setProperty('--sx', '50%'); sp.style.setProperty('--sy', '60%'); }, 7500);
+  setTimeout(() => { spin.busy = false; render(); }, 8100);
+}
+// ---- Złomowisko: dźwig z elektromagnesem wciąga złom, unosi go, zwalnia deszcz odłamków i upuszcza znalezisko ----
+const SCRAP = ['⚙️', '🔩', '🛞', '🔧', '🪛', '🧰', '🔋', '🚗', '🛢️', '⛓️', '🔌'];
+function jEl(cls, css, ms = 900, text = '') {
+  const el = document.createElement('div'); el.className = 'fx ' + cls; if (text) el.textContent = text;
+  for (const [k, v] of Object.entries(css || {})) k.startsWith('--') ? el.style.setProperty(k, v) : (el.style[k] = v);
+  $('#junk-field').append(el); setTimeout(() => el.remove(), ms); return el;
+}
+function junkInit() {
+  const p = $('#jpiles'); if (!p || p.children.length) return;
+  for (let k = 0; k < 70; k++) {
+    const near = Math.random() < 0.6, x = near ? rnd(56, 82) : rnd(4, 94), sp = document.createElement('span');
+    sp.textContent = pick(SCRAP); sp.style.left = x + '%'; sp.style.bottom = (rnd(34, near ? 120 : 80)) + 'px'; sp.style.fontSize = rnd(24, near ? 46 : 34) + 'px'; sp.style.transform = 'rotate(' + rnd(-60, 60) + 'deg)'; p.append(sp);
+  }
+}
+function playJunk(r) {
+  spin.busy = true;
+  const v = $('#junk-view'), rar = rarityOf(r.pct), glow = { common: '#cfd3e6', rare: '#4da3ff', epic: '#b979ff', legend: '#ffb340' }[rar];
+  v.style.setProperty('--glow', glow); v.className = 'junkview searching';
+  const tr = $('#jtrolley'), cable = $('#jcable'), mag = $('#jmag'), hang = $('#jhang'), item = $('#junk-item'), res = $('#case-result');
+  hang.replaceChildren(); item.className = 'ditem'; item.textContent = ''; res.className = 'center caseres'; res.textContent = '🏗️ Dźwig szuka złomu…';
+  const setCable = (len, sec) => { cable.style.transition = mag.style.transition = `height ${sec}s ease-in-out, top ${sec}s ease-in-out`; cable.style.height = len + 'px'; mag.style.top = (24 + len) + 'px'; };
+  tr.style.transition = 'none'; tr.style.left = '14%'; cable.style.transition = mag.style.transition = 'none'; cable.style.height = '70px'; mag.style.top = '94px'; void tr.offsetWidth;
+  tr.style.transition = 'left 1.7s ease-in-out'; tr.style.left = '68%';
+  let arcs = null, usedPile = [];
+  setTimeout(() => { setCable(125, 1.0); res.textContent = '🧲 Opuszczasz magnes…'; }, 1800);
+  setTimeout(() => { // magnes włączony: łuki elektryczne i wciąganie złomu
+    v.classList.remove('searching'); v.classList.add('magnet'); res.textContent = '⚡ Magnes włączony! Wciąga złom…';
+    const vr = v.getBoundingClientRect(), mx = vr.width * 0.68, my = 56 + 24 + 125 + 60; // pozycja magnesu wynika z celu animacji (niezależnie od jej postępu)
+    arcs = setInterval(() => { jEl('bolt', { left: (mx + rnd(-55, 55)) + 'px', top: (my + rnd(-40, 50)) + 'px', '--rot': rnd(-40, 40) + 'deg' }, 260, '⚡'); }, 70);
+    const pile = [...$('#jpiles').children].map(sp => { const b = sp.getBoundingClientRect(); return { sp, cx: b.left - vr.left + b.width / 2, cy: b.top - vr.top + b.height / 2, tf: sp.style.transform }; })
+      .filter(o => Math.abs(o.cx - mx) < 175 && o.cy > my - 20).sort(() => Math.random() - 0.5).slice(0, 10);
+    usedPile = pile;
+    pile.forEach((o, k) => setTimeout(() => { // element hałdy leci do magnesu i znika z kupy
+      o.sp.style.transition = 'transform .55s ease-in'; o.sp.style.transform = `translate(${mx - o.cx}px, ${my + 36 - o.cy}px) scale(.6) rotate(220deg)`;
+      setTimeout(() => { o.sp.style.visibility = 'hidden'; const h2 = document.createElement('span'); h2.textContent = o.sp.textContent; h2.style.left = rnd(-36, 28) + 'px'; h2.style.top = rnd(-2, 34) + 'px'; h2.style.transform = 'rotate(' + rnd(-50, 50) + 'deg)'; hang.append(h2); }, 560);
+    }, k * 140));
+  }, 2900);
+  setTimeout(() => { clearInterval(arcs); setCable(80, 1.1); tr.style.transition = 'left 1.4s ease-in-out'; tr.style.left = '50%'; v.classList.add('tense'); res.textContent = '…magnes coś mocno trzyma…'; }, 4700);
+  setTimeout(() => { // wyłączenie magnesu: deszcz złomu i upadek znaleziska
+    v.classList.remove('magnet', 'tense'); v.classList.add('released');
+    for (const c of [...hang.children]) { c.style.setProperty('--fx', rnd(-90, 90) + 'px'); c.style.setProperty('--fr', rnd(-300, 300) + 'deg'); c.classList.add('drop'); }
+    const fl = $('#jflash'); fl.style.background = glow; fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go');
+    item.textContent = r.it.icon; item.className = 'ditem junkdrop ' + rar;
+    if (r.q > 1) { const q = document.createElement('em'); q.textContent = '×' + r.q; item.append(q); }
+    setTimeout(() => { // uderzenie o ziemię
+      v.classList.remove('shake'); void v.offsetWidth; v.classList.add('shake');
+      jEl('skilltxt', { left: '50%', top: '14%', fontSize: '30px' }, 900, 'KLANG!');
+      for (let k = 0; k < 24; k++) { const a = rnd(-Math.PI, 0), d = rnd(90, 260); jEl('spark', { left: '50%', bottom: '70px', '--dx': Math.cos(a) * d + 'px', '--dy': Math.sin(a) * d + 'px', background: pick(['#ffd24d', '#ff9a3c', '#fff3b0', glow]) }, 700); }
+      jEl('dust big', { left: '50%', bottom: '60px' }, 1100);
+      for (let k = 0; k < (rar === 'legend' ? 26 : rar === 'epic' ? 18 : 10); k++) { const a = rnd(0, Math.PI * 2), d = rnd(90, 220); jEl('burst', { left: '50%', bottom: '170px', '--dx': Math.cos(a) * d + 'px', '--dy': Math.sin(a) * d * 0.7 + 'px', '--rs': rnd(-200, 200) + 'deg' }, 1000, pick(rar === 'common' ? ['✦', '·'] : ['✨', '⭐', '💫', '✦'])); }
+    }, 520);
+    res.textContent = `${r.it.icon} ${r.it.k} ×${r.q} · szansa ${fmtPct(r.pct)}`; res.className = 'center caseres ' + rar;
+    S.gather.recent.unshift({ icon: r.it.icon, k: r.it.k, q: r.q, pct: r.pct }); if (S.gather.recent.length > 12) S.gather.recent.pop();
+  }, 6100);
+  setTimeout(() => { hang.replaceChildren(); v.classList.remove('released'); tr.style.transition = 'left 1s ease-in-out'; tr.style.left = '14%'; for (const o of usedPile) { o.sp.style.transition = 'none'; o.sp.style.transform = o.tf; o.sp.style.visibility = 'visible'; } }, 7500);
+  setTimeout(() => { spin.busy = false; render(); }, 8100);
+}
+// ---- Pasieka i łąki: dym uspokaja pszczoły, dach ula zjeżdża, ramka z plastrem unosi się i ocieka miodem, z miodu wyskakuje znalezisko ----
+function hEl(cls, css, ms = 900, text = '') {
+  const el = document.createElement('div'); el.className = 'fx ' + cls; if (text) el.textContent = text;
+  for (const [k, v] of Object.entries(css || {})) k.startsWith('--') ? el.style.setProperty(k, v) : (el.style[k] = v);
+  $('#honey-field').append(el); setTimeout(() => el.remove(), ms); return el;
+}
+function honeyInit() {
+  const sw = $('#hswirl'); if (sw && !sw.children.length) for (let k = 0; k < 10; k++) { const a = k / 10 * Math.PI * 2, r = rnd(150, 200), b = document.createElement('i'); b.style.left = Math.cos(a) * r + 'px'; b.style.top = Math.sin(a) * r * 0.75 + 'px'; b.style.setProperty('--s', rnd(110, 170) + 'px'); sw.append(b); }
+  const fl = $('#hflowers'); if (!fl || fl.children.length) return;
+  for (let k = 0; k < 34; k++) { const f = document.createElement('span'); f.textContent = pick(['🌼', '🌻', '🌷', '🌸', '🌼', '🌾']); f.style.left = rnd(1, 97) + '%'; f.style.bottom = rnd(-6, 40) + 'px'; f.style.fontSize = rnd(24, 44) + 'px'; f.style.animationDelay = rnd(0, 3) + 's'; fl.append(f); }
+  const hx = $('#hv-hex'); for (let rw = 0; rw < 5; rw++) for (let c = 0; c < 5; c++) { const x = document.createElement('i'); x.style.left = (6 + c * 31 + (rw % 2) * 15) + 'px'; x.style.top = (6 + rw * 20) + 'px'; hx.append(x); }
+  const bees = $('#hbees'); for (let k = 0; k < 16; k++) { const o = document.createElement('div'); o.className = 'orb'; o.style.setProperty('--d', rnd(5, 11)); o.style.setProperty('--r', rnd(90, 250) + 'px'); o.style.animationDelay = (-rnd(0, 11)) + 's'; if (Math.random() < 0.5) o.style.animationDirection = 'reverse'; const b = document.createElement('span'); b.textContent = '🐝'; b.style.animationDelay = (-rnd(0, 2)) + 's'; o.append(b); bees.append(o); }
+}
+function playHoney(r) {
+  spin.busy = true;
+  const v = $('#honey-view'), rar = rarityOf(r.pct), glow = { common: '#cfd3e6', rare: '#4da3ff', epic: '#b979ff', legend: '#ffb340' }[rar];
+  v.style.setProperty('--glow', glow); v.className = 'honeyview calm';
+  const roof = $('#hv-roof'), frame = $('#hv-frame'), item = $('#honey-item'), res = $('#case-result');
+  roof.classList.remove('off'); frame.style.transition = 'none'; frame.style.transform = 'translateY(0)'; void frame.offsetWidth;
+  item.className = 'ditem'; item.textContent = ''; res.className = 'center caseres'; res.textContent = '💨 Uspokajasz pszczoły dymem…';
+  v.classList.add('smoking', 'calming');
+  const smoke = setInterval(() => { for (let k = 0; k < 2; k++) hEl('smoke', { left: (14 + rnd(-1, 2)) + '%', bottom: (122 + rnd(-8, 14)) + 'px', '--s': rnd(110, 210) + 'px', '--dx': rnd(330, 430) + 'px', '--dy': -rnd(0, 110) + 'px' }, 2500, ''); }, 80);
+  const puffs = setInterval(() => hEl('skilltxt puff', { left: '15%', top: (38 + rnd(-3, 3)) + '%', fontSize: '22px' }, 700, pick(['PFF!', 'PSSS!', 'FUUU!'])), 420);
+  const spark = setInterval(() => hEl('sparkle', { left: (50 + rnd(-20, 20)) + '%', bottom: (60 + rnd(0, 250)) + 'px' }, 900, pick(['✦', '✧', '✨'])), 70);
+  const zzz = setTimeout(() => { for (let k = 0; k < 9; k++) setTimeout(() => hEl('zzz', { left: (50 + rnd(-24, 24)) + '%', bottom: (170 + rnd(-40, 90)) + 'px' }, 1500, '💤'), k * 140); }, 900);
+  setTimeout(() => { clearInterval(smoke); clearInterval(puffs); clearInterval(spark); roof.classList.add('off'); res.textContent = '🍯 Zdejmujesz dach ula…'; }, 1700);
+  setTimeout(() => { v.classList.remove('smoking', 'calming'); }, 2400);
+  let drips = null;
+  setTimeout(() => {
+    frame.style.transition = 'transform 2.2s cubic-bezier(.3,.1,.3,1)'; frame.style.transform = 'translateY(-105px)'; v.classList.add('lifting'); res.textContent = '🍯 Wyjmujesz ramkę z plastrem…';
+    drips = setInterval(() => hEl('drip', { left: (50 + rnd(-9, 9)) + '%', bottom: '262px', '--fall': rnd(100, 150) + 'px' }, 900), 240);
+  }, 2400);
+  setTimeout(() => { v.classList.add('agitated', 'tense'); res.textContent = '…pszczoły szaleją, w miodzie coś błyszczy…'; }, 4600);
+  setTimeout(() => { // plaster pęka i wyskakuje znalezisko
+    clearInterval(drips); v.classList.remove('tense'); v.classList.add('found');
+    const fl = $('#hflash'); fl.style.background = '#ffc34d'; fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go');
+    for (let k = 0; k < 26; k++) { const a = rnd(-Math.PI, 0.1), d = rnd(90, 260); hEl('spark honeyspark', { left: '50%', bottom: '300px', '--dx': Math.cos(a) * d + 'px', '--dy': Math.sin(a) * d + 'px' }, 800); }
+    for (let k = 0; k < 10; k++) hEl('drip', { left: (50 + rnd(-14, 14)) + '%', bottom: (270 + rnd(0, 30)) + 'px', '--fall': rnd(120, 190) + 'px' }, 1000);
+    item.textContent = r.it.icon; item.className = 'ditem pop ' + rar;
+    if (r.q > 1) { const q = document.createElement('em'); q.textContent = '×' + r.q; item.append(q); }
+    for (let k = 0; k < (rar === 'legend' ? 30 : rar === 'epic' ? 22 : 14); k++) { const a = rnd(0, Math.PI * 2), d = rnd(90, 230); hEl('burst', { left: '50%', bottom: '280px', '--dx': Math.cos(a) * d + 'px', '--dy': Math.sin(a) * d * 0.7 + 'px', '--rs': rnd(-200, 200) + 'deg' }, 1000, pick(rar === 'common' ? ['✦', '·'] : ['✨', '⭐', '💫', '✦'])); }
+    hEl('boom', { left: '50%', bottom: '280px', top: 'auto' }, 700);
+    res.textContent = `${r.it.icon} ${r.it.k} ×${r.q} · szansa ${fmtPct(r.pct)}`; res.className = 'center caseres ' + rar;
+    S.gather.recent.unshift({ icon: r.it.icon, k: r.it.k, q: r.q, pct: r.pct }); if (S.gather.recent.length > 12) S.gather.recent.pop();
+  }, 5700);
+  setTimeout(() => { v.classList.remove('found', 'agitated', 'lifting'); v.classList.add('calm'); roof.classList.remove('off'); frame.style.transition = 'transform 1s ease-in-out'; frame.style.transform = 'translateY(0)'; }, 7300);
+  setTimeout(() => { spin.busy = false; render(); }, 8000);
+}
+// ---- Jezioro: zarzucenie wędki, spławik, cienie ryb, skubanie, branie i wyciągnięcie znaleziska z fontanną wody ----
+function lEl(cls, css, ms = 900, text = '') {
+  const el = document.createElement('div'); el.className = 'fx ' + cls; if (text) el.textContent = text;
+  for (const [k, v] of Object.entries(css || {})) k.startsWith('--') ? el.style.setProperty(k, v) : (el.style[k] = v);
+  $('#lake-field').append(el); setTimeout(() => el.remove(), ms); return el;
+}
+const LAKE_TIP = { x: 168, y: 112 }, LAKE_BY = 192;
+function lakeInit() {
+  const re = $('#lreeds'); if (re && !re.children.length) for (let k = 0; k < 24; k++) { const sp = document.createElement('span'); sp.textContent = '🌾'; sp.style.left = (k < 12 ? rnd(0, 20) : rnd(80, 99)) + '%'; sp.style.bottom = rnd(-10, 12) + 'px'; sp.style.fontSize = rnd(38, 70) + 'px'; sp.style.animationDelay = rnd(0, 3) + 's'; re.append(sp); }
+  const fs2 = $('#lfish'); if (fs2 && !fs2.children.length) for (let k = 0; k < 6; k++) { const sp = document.createElement('span'); sp.textContent = '🐟'; sp.style.top = (225 + rnd(0, 120)) + 'px'; sp.style.fontSize = rnd(34, 60) + 'px'; sp.style.animationDuration = rnd(16, 28) + 's'; sp.style.animationDelay = (-rnd(0, 24)) + 's'; if (Math.random() < 0.5) sp.className = 'rev'; fs2.append(sp); }
+  const p = $('#lpath'); if (p) p.setAttribute('d', `M${LAKE_TIP.x} ${LAKE_TIP.y} Q400 260 620 ${LAKE_BY}`);
+}
+function playLake(r) {
+  spin.busy = true;
+  const v = $('#lake-view'), rar = rarityOf(r.pct), glow = { common: '#cfd3e6', rare: '#4da3ff', epic: '#b979ff', legend: '#ffb340' }[rar];
+  v.style.setProperty('--glow', glow); v.className = 'lakeview';
+  const W = 1000, pxL = x => (x / W * 100) + '%', svg = $('#lline'), path = $('#lpath'), bob = $('#lbobber'), item = $('#lake-item'), res = $('#case-result'), fishes = $('#lfish');
+  svg.setAttribute('viewBox', `0 0 ${W} 380`);
+  const bx = W * 0.62, by = LAKE_BY, tip = LAKE_TIP, nibbles = [3.3, 3.75, 4.2, 4.5];
+  item.className = 'ditem'; item.textContent = ''; item.style.left = (bx / W * 100) + '%';
+  res.className = 'center caseres'; res.textContent = '🎣 Zarzucasz wędkę…';
+  const t0 = performance.now();
+  const iv = setInterval(() => {
+    const t = (performance.now() - t0) / 1000; let x = bx, y = by, sag = 44;
+    if (t < 1.0) { x = tip.x + (bx - tip.x) * t; y = tip.y + (by - tip.y) * t - Math.sin(Math.PI * t) * 130; sag = 8; }
+    else if (t < 4.7) { y = by + Math.sin(t * 3.2) * 2.2; for (const n of nibbles) if (t > n && t < n + 0.28) y += 8 * Math.sin((t - n) / 0.28 * Math.PI); sag = 36; }
+    else if (t < 5.7) { x = bx + Math.sin(t * 38) * 3; y = by + 16 + Math.sin(t * 29) * 4; sag = -6; }
+    else { y = by + Math.sin(t * 3) * 2; sag = 52; }
+    bob.style.left = 'calc(' + (x / W * 100) + '% - 9px)'; bob.style.top = (y - 18) + 'px';
+    path.setAttribute('d', `M${tip.x} ${tip.y} Q${(tip.x + x) / 2} ${(tip.y + y) / 2 + sag} ${x} ${y}`);
+  }, 33);
+  const ripples = (n, gap = 160, cls = 'ripple') => { for (let k = 0; k < n; k++) setTimeout(() => lEl(cls, { left: pxL(bx), top: by + 'px' }, 1500), k * gap); };
+  const drops = (n, power) => { for (let k = 0; k < n; k++) { const a = rnd(-Math.PI * 0.95, -Math.PI * 0.05), d = rnd(40, power); lEl('wdrop', { left: pxL(bx), top: by + 'px', '--dx': Math.cos(a) * d + 'px', '--up': Math.sin(a) * d * 1.1 + 'px' }, 900); } };
+  setTimeout(() => { ripples(3); drops(10, 90); v.classList.add('waiting'); res.textContent = '…czekasz na branie…'; }, 1000);
+  const wait = setInterval(() => lEl('ripple small', { left: pxL(bx), top: by + 'px' }, 1500), 520);
+  setTimeout(() => { // cień dużej ryby krąży wokół spławika
+    clearInterval(wait); v.classList.add('nibbling'); res.textContent = '🐟 Coś skubie…';
+    const big = document.createElement('span'); big.className = 'lbig'; big.textContent = '🐟'; big.style.left = pxL(bx - 80); big.style.top = (by + 34) + 'px'; fishes.append(big); setTimeout(() => big.remove(), 2300);
+    nibbles.forEach(n => setTimeout(() => lEl('ripple small', { left: pxL(bx), top: by + 'px' }, 1300), (n - 3.1) * 1000));
+  }, 3100);
+  setTimeout(() => { // branie!
+    v.classList.remove('nibbling'); v.classList.add('bite'); res.textContent = '‼️ BRANIE! Wyciągasz!';
+    ripples(5, 90); drops(18, 150); v.classList.remove('shake'); void v.offsetWidth; v.classList.add('shake');
+  }, 4700);
+  setTimeout(() => { // wyciągnięcie znaleziska
+    clearInterval(iv); path.setAttribute('d', `M${tip.x} ${tip.y} Q${(tip.x + bx) / 2} ${(tip.y + by) / 2 + 52} ${bx} ${by}`);
+    v.classList.remove('bite'); v.classList.add('caught');
+    lEl('splash', { left: pxL(bx), top: by + 'px' }, 900); ripples(4, 110, 'ripple big'); drops(34, 240);
+    const fl = $('#lflash'); fl.style.background = glow; fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go');
+    item.textContent = r.it.icon; item.className = 'ditem pop ' + rar;
+    if (r.q > 1) { const q = document.createElement('em'); q.textContent = '×' + r.q; item.append(q); }
+    for (let k = 0; k < (rar === 'legend' ? 30 : rar === 'epic' ? 22 : 14); k++) { const a = rnd(0, Math.PI * 2), d = rnd(90, 230); lEl('burst', { left: pxL(bx), bottom: '280px', '--dx': Math.cos(a) * d + 'px', '--dy': Math.sin(a) * d * 0.7 + 'px', '--rs': rnd(-200, 200) + 'deg' }, 1000, pick(rar === 'common' ? ['✦', '·'] : ['✨', '⭐', '💫', '✦'])); }
+    res.textContent = `${r.it.icon} ${r.it.k} ×${r.q} · szansa ${fmtPct(r.pct)}`; res.className = 'center caseres ' + rar;
+    S.gather.recent.unshift({ icon: r.it.icon, k: r.it.k, q: r.q, pct: r.pct }); if (S.gather.recent.length > 12) S.gather.recent.pop();
+  }, 5700);
+  setTimeout(() => { v.classList.remove('caught', 'waiting'); }, 7400);
+  setTimeout(() => { spin.busy = false; render(); }, 8000);
+}
 function playSpin(r, fast) {
+  if (LOCS[r.li].k === 'Sprzątanie miasta') { playDump(r); return; }
+  if (LOCS[r.li].k === 'Jezioro') { playLake(r); return; }
+  if (LOCS[r.li].k === 'Pasieka i łąki') { playHoney(r); return; }
+  if (LOCS[r.li].k === 'Złomowisko') { playJunk(r); return; }
+  if (LOCS[r.li].k === 'Opuszczona kopalnia') { playMine(r); return; }
+  if (LOCS[r.li].k === 'Gęsty las') { playForest(r); return; }
   spin.busy = true;
   const L = LOCS[r.li], tbl = TABLES[L.k], lvl = lv(L.skill), total = lootTotal(tbl, lvl), pool = tbl.filter(x => effW(x, lvl) > 0);
   const strip = $('#case-strip'), view = $('#case-view'), WIN = 38, N = 46;
@@ -924,19 +1220,19 @@ function renderGather() {
   });
   // wybór czasu (obok przycisku ZACZNIJ)
   const seg = $('#dur-seg'); seg.replaceChildren();
-  DURS.forEach((d, di) => {
-    const b = document.createElement('button'); b.className = G.dur === di ? 'on' : ''; b.disabled = !!act;
-    b.textContent = `${d.n} · ${boxesOf(d)} skrzyń`; b.onclick = () => { G.dur = di; render(); }; seg.append(b);
-  });
+  { const b = document.createElement('span'); b.className = 'sessbadge'; b.textContent = `⏱ Sesja: ${DURS[0].n}`; seg.append(b); }
   const st = $('#b-start'), left = GATHER_LIMIT - G.used;
   st.disabled = left < DURS[G.dur].s; st.textContent = left < DURS[G.dur].s ? 'LIMIT DZIENNY' : 'ZACZNIJ';
   st.classList.toggle('hidden', !!act); $('#b-stop').classList.toggle('hidden', !act);
   // okno losowania
+  const kindL = LOCS[act ? act.li : G.loc].k, isDump = kindL === 'Sprzątanie miasta', isForest = kindL === 'Gęsty las', isMine = kindL === 'Opuszczona kopalnia', isJunk = kindL === 'Złomowisko', isHoney = kindL === 'Pasieka i łąki', isLake = kindL === 'Jezioro';
+  $('#mine-view').classList.toggle('hidden', !isMine); $('#junk-view').classList.toggle('hidden', !isJunk); $('#honey-view').classList.toggle('hidden', !isHoney); $('#lake-view').classList.toggle('hidden', !isLake);
+  $('#case-view').classList.toggle('hidden', isDump || isForest || isMine || isJunk || isHoney || isLake); $('#dump-view').classList.toggle('hidden', !isDump); $('#forest-view').classList.toggle('hidden', !isForest);
   const strip = $('#case-strip'), want = act ? 'run:' + act.li + ':' + lv(LOCS[act.li].skill) : 'idle:' + G.loc + ':' + lv(LOCS[G.loc].skill);
   if (!spin.busy && !G.queue.length && strip.dataset.mode !== want && !(strip.dataset.mode || '').startsWith('spun')) idleStrip(want);
   const status = $('#case-status');
   if (act) status.textContent = `${LOCS[act.li].icon} ${LOCS[act.li].k} · otwarto ${act.done}/${act.boxes} · koniec za ${fmtSec(act.left)}`;
-  else status.textContent = G.report || 'Wybierz lokację i czas, a potem kliknij ZACZNIJ. Skrzynie otwierają się same, jedna po drugiej, a sesję możesz zatrzymać w dowolnej chwili.';
+  else status.textContent = G.report || 'Wybierz lokację i kliknij ZACZNIJ. Sesja trwa 4 godziny, potem trzeba kliknąć ZACZNIJ ponownie. Skrzynie otwierają się same, jedna po drugiej, a sesję możesz zatrzymać w dowolnej chwili.';
   $('#gather-limit').textContent = `Limit dzienny: ${fmtSec(G.used)} / ${fmtSec(GATHER_LIMIT)}`;
   $('#gather-limit-bar').style.width = (100 * G.used / GATHER_LIMIT) + '%';
   const worth = Object.entries(MAT_PRICE).reduce((a, [k, p]) => a + (S.bag[k] || 0) * p, 0);
@@ -1084,7 +1380,7 @@ function renderExp() {
     const t = document.createElement('button'); t.className = 'cattile' + (on ? ' on' : ''); t.disabled = !on;
     const i = document.createElement('i'); i.textContent = ic; const b = document.createElement('b'); b.textContent = n; const s2 = document.createElement('small'); s2.textContent = sm; t.append(i, b, s2); tiles.append(t);
   });
-  const btn = $('#b-expon'); btn.textContent = X.on ? '⏸ Wstrzymaj expienie' : '▶ Wznów expienie';
+  const btn = $('#b-expon'); btn.textContent = X.on ? '⏸ Zatrzymaj expienie' : '▶ ZACZNIJ EXPIENIE'; btn.classList.toggle('startexp', !X.on);
   const tw = m.mobs.reduce((a, x) => a + x.w, 0), D = Math.max(1, dps());
   const avgKill = m.mobs.reduce((a, x) => a + x.w * expHp(m, x) / D, 0) / tw + 1, avgXp = m.mobs.reduce((a, x) => a + x.w * x.xp, 0) / tw;
   $('#exp-status').textContent = `Zabitych: ${X.kills} · Kamieni Wojny: ${X.metins} · ok. ${Math.round(60 * avgXp * (1 + lv('Nauka') * 0.01) / avgKill)} XP/min przy Twojej Sile ${power()}`;
@@ -1107,6 +1403,74 @@ function renderExp() {
   box.append(list);
 }
 
+// ================= PULPIT (strona główna) =================
+const PL_PATH = 'M52 88 L98 66 L140 52 L182 44 L214 38 L226 30 L240 46 L276 40 L316 36 L346 50 L354 96 L346 140 L356 186 L342 236 L346 270 L328 300 L292 318 L252 314 L206 328 L152 316 L112 322 L74 298 L50 276 L42 226 L30 172 L42 126 Z';
+const PL_CITIES = { 'Szczecin': [52, 98], 'Gdańsk': [214, 54], 'Białystok': [332, 92], 'Poznań': [118, 152], 'Warszawa': [262, 150], 'Łódź': [206, 180], 'Lublin': [318, 214], 'Wrocław': [96, 238], 'Katowice': [180, 286], 'Kraków': [224, 298], 'Rzeszów': [306, 278], 'Olsztyn': [250, 78] };
+const next19Ms = () => { const now = new Date(), t = new Date(now); t.setHours(19, 0, 0, 0); if (t <= now) t.setDate(t.getDate() + 1); return t - now; };
+const fmtHMS = sec => { sec = Math.max(0, Math.floor(sec)); return [Math.floor(sec / 3600), Math.floor(sec % 3600 / 60), sec % 60].map(v => String(v).padStart(2, '0')).join(':'); };
+function go(v, sub) {
+  const b = document.querySelector(`.navbtn[data-view="${v}"]`); if (b) b.click();
+  if (sub) { const sb = document.querySelector(`[data-sub="${sub}"]`); if (sb) sb.click(); }
+}
+let homeOpp = '';
+function homeInit() {
+  const svg = $('#pl-map'); if (!svg || svg.children.length) return;
+  const me = PL_CITIES['Poznań'];
+  const grid = [60, 120, 180, 240, 300].map(y => `<line x1="20" y1="${y}" x2="380" y2="${y}"/>`).join('') + [80, 160, 240, 320].map(x => `<line x1="${x}" y1="20" x2="${x}" y2="340"/>`).join('');
+  svg.innerHTML = `<defs>
+      <linearGradient id="plg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#244a74"/><stop offset="1" stop-color="#0d1c34"/></linearGradient>
+      <filter id="plglow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    </defs>
+    <g class="pl-grid">${grid}</g>
+    <path class="pl-shape" d="${PL_PATH}" fill="url(#plg)" stroke="#7fc0ff" stroke-width="2.2" filter="url(#plglow)"/>
+    <path id="pl-arc" class="pl-arc" d="M${me[0]} ${me[1]} Q190 60 262 150"/>
+    <circle r="5" class="pl-dot"><animateMotion dur="2.4s" repeatCount="indefinite"><mpath href="#pl-arc"/></animateMotion></circle>
+    <g id="pl-cities">${Object.entries(PL_CITIES).map(([n, [x, y]]) => `<g class="pl-city" data-n="${n}"><circle class="pl-pulse" cx="${x}" cy="${y}" r="5"/><circle class="pl-pt" cx="${x}" cy="${y}" r="3.4"/><text x="${x + 8}" y="${y + 4}">${n}</text></g>`).join('')}</g>`;
+  const st = $('#hstars'); for (let k = 0; k < 46; k++) { const i = document.createElement('i'); i.style.left = rnd(0, 100) + '%'; i.style.top = rnd(0, 70) + '%'; i.style.animationDelay = rnd(0, 4) + 's'; i.style.animationDuration = rnd(2, 5) + 's'; st.append(i); }
+  const cl = $('#hclouds'); for (let k = 0; k < 5; k++) { const c = document.createElement('span'); c.textContent = '☁️'; c.style.top = rnd(6, 46) + '%'; c.style.fontSize = rnd(46, 90) + 'px'; c.style.animationDuration = rnd(60, 120) + 's'; c.style.animationDelay = (-rnd(0, 100)) + 's'; cl.append(c); }
+  document.querySelectorAll('#view-home [data-go]').forEach(el => el.onclick = () => go(el.dataset.go, el.dataset.gosub));
+  setInterval(() => document.querySelectorAll('.cnt').forEach(e => { const t = +e.dataset.t || 0, c = e.dataset.c === undefined ? 0 : +e.dataset.c, n = c + (t - c) * 0.22; e.dataset.c = Math.abs(t - n) < 0.6 ? t : n; e.textContent = fmtNum(+e.dataset.c); }), 60);
+  homeOpp = '';
+}
+function renderHome() {
+  const root = $('#hm-cd'); if (!root || !$('#pl-arc')) return;
+  const sec = Math.floor(next19Ms() / 1000);
+  root.textContent = fmtHMS(sec);
+  $('#ring-war').style.strokeDashoffset = (326.7 * (sec / 86400)).toFixed(1);
+  const opp = S.war.opp; $('#hm-opp').textContent = opp;
+  if (homeOpp !== opp) { homeOpp = opp; const a = PL_CITIES['Poznań'], b = PL_CITIES[opp] || PL_CITIES['Warszawa']; $('#pl-arc').setAttribute('d', `M${a[0]} ${a[1]} Q${(a[0] + b[0]) / 2} ${Math.min(a[1], b[1]) - 80} ${b[0]} ${b[1]}`); document.querySelectorAll('.pl-city').forEach(g => { g.classList.toggle('me', g.dataset.n === 'Poznań'); g.classList.toggle('foe', g.dataset.n === opp); }); }
+  // pora dnia: kolor nieba, słońce lub księżyc
+  const d = new Date(), hr = d.getHours() + d.getMinutes() / 60, tod = hr >= 5 && hr < 8 ? 'dawn' : hr >= 8 && hr < 17 ? 'day' : hr >= 17 && hr < 20 ? 'dusk' : 'night';
+  const hero = $('#home-hero'); hero.dataset.tod = tod;
+  const isDay = hr >= 6 && hr < 20, p = isDay ? (hr - 6) / 14 : ((hr + 4) % 24) / 10, sun = $('#h-sun');
+  sun.textContent = isDay ? '☀️' : '🌙'; sun.style.left = (5 + 90 * p) + '%'; sun.style.top = (78 - 62 * Math.sin(Math.PI * Math.min(1, p))) + '%';
+  // postać
+  const need = xpNeed(S.lvl); $('#hm-lvl').textContent = S.lvl; $('#ring-xp').style.strokeDashoffset = (213.6 * (1 - S.xp / need)).toFixed(1);
+  $('#hm-xp').textContent = `${S.xp} / ${need} XP`; $('#hm-pow').dataset.t = power(); $('#hm-pts').textContent = S.points;
+  // sesje
+  const rows = $('#hm-sess'); rows.replaceChildren();
+  const row = (ic, title, text, pct, view, sub, on) => {
+    const r = document.createElement('div'); r.className = 'srow' + (on ? ' on' : ''); r.onclick = e => { e.stopPropagation(); go(view, sub); };
+    const a = document.createElement('div'); a.className = 'srt'; const t1 = document.createElement('b'); t1.textContent = `${ic} ${title}`; const t2 = document.createElement('small'); t2.textContent = text; a.append(t1, t2); r.append(a);
+    if (pct !== null) { const b = document.createElement('div'); b.className = 'bar'; const i = document.createElement('div'); i.style.width = (pct * 100) + '%'; b.append(i); r.append(b); }
+    rows.append(r);
+  };
+  const G = S.gather.active, Dg = S.dung.active, X = S.exp;
+  row('⛏️', 'Zbieraj', G ? `${LOCS[G.li].k} · ${G.done}/${G.boxes} skrzyń · ${fmtHMS(G.left)}` : 'Bezczynne: kliknij, aby zacząć sesję', G ? 1 - G.left / G.total : null, 'gather', null, !!G);
+  row('🗝️', 'Lochy', Dg ? `${DUNGEONS[Dg.i].k} · przejść ${Dg.runs} · ${fmtHMS(Dg.left)}` : 'Bezczynne: kliknij, aby zacząć sesję', Dg ? 1 - Dg.left / Dg.total : null, 'fight', 'dung', !!Dg);
+  row('⚔️', 'EXP', X.on ? `${EXP_MAPS[X.map].k} · zabitych ${X.kills}` : 'Bezczynne: kliknij, aby zacząć', null, 'fight', 'exp', X.on);
+  // dzienne wyzwania
+  const D = S.duel; $('#hm-duel').textContent = `${D.used} / ${DUEL_MAX}`;
+  const pips = $('#hm-pips'); pips.replaceChildren(); for (let k = 0; k < DUEL_MAX; k++) { const e = document.createElement('i'); if (k < D.used) e.className = 'used'; pips.append(e); }
+  $('#hm-emb').textContent = divIcon(D.div); $('#hm-div').textContent = DIVS[D.div]; $('#hm-dbar').style.width = Math.min(100, D.pts) + '%';
+  const wins = S.war.hist.filter(x => x.win).length; $('#hm-war-rec').textContent = `${wins}W · ${S.war.hist.length - wins}P`;
+  // majątek
+  $('#hm-gold').dataset.t = S.gold; $('#hm-glory').dataset.t = S.glory; $('#hm-inv').textContent = `${S.inv.length} / ${INV_SIZE}`;
+  // kanał zdarzeń
+  const feed = $('#home-feed'); const fkey = S.feed.slice(0, 8).map(f => f.t + f.text).join('|'); if (feed.dataset.k === fkey) return; feed.dataset.k = fkey; feed.replaceChildren();
+  if (!S.feed.length) { const p2 = document.createElement('p'); p2.className = 'muted small'; p2.textContent = 'Tu pojawią się zdarzenia z Twojej gry: łupy, awanse, ukończone sesje.'; feed.append(p2); }
+  for (const f of S.feed.slice(0, 8)) { const e = document.createElement('div'); e.className = 'frow ' + (f.cls || ''); const tm = new Date(f.t); const s1 = document.createElement('small'); s1.textContent = tm.toLocaleTimeString('pl-PL'); const s2 = document.createElement('span'); s2.textContent = f.text; e.append(s1, s2); feed.append(e); }
+}
 function kv(box, rows) {
   box.replaceChildren();
   for (const [a, b] of rows) { const d = document.createElement('div'); const x = document.createElement('span'); x.textContent = a; const y = document.createElement('b'); y.textContent = b; d.append(x, y); box.append(d); }
@@ -1361,6 +1725,7 @@ function render() {
   renderDung();
   renderGather();
   renderExp();
+  renderHome();
   const tabs = { dung: '🗝️ Lochy' + (S.dung.active ? ' ⏳' : ''), duel: `🥊 Pojedynki 1v1 (${DUEL_MAX - S.duel.used}/${DUEL_MAX})` };
   for (const [k, t] of Object.entries(tabs)) { const b = document.querySelector('[data-sub="' + k + '"]'); if (b.textContent !== t) b.textContent = t; }
 
@@ -1447,6 +1812,12 @@ $('#b-war').onclick = runWar;
 $('#b-warsign').onclick = () => { S.war.signed = !S.war.signed; render(); };
 $('#b-expon').onclick = () => { S.exp.on = !S.exp.on; render(); };
 expInitBg();
+homeInit();
+$('#hm-war').onclick = () => { go('war'); runWar(); };
+forestInit();
+junkInit();
+honeyInit();
+lakeInit();
 $('#b-dstart').onclick = startDungeon;
 $('#b-dstop').onclick = () => { if (S.dung.active) endDungeon(S.dung.active, 'stop'); };
 $('#b-start').onclick = startSession;

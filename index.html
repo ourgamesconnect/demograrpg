@@ -16,7 +16,8 @@
 <main class="wide">
 <div class="shell">
   <nav id="nav">
-    <button class="navbtn on" data-view="fight"><i>⚔️</i><span>Walka</span></button>
+    <button class="navbtn on" data-view="home"><i>🏠</i><span>Pulpit</span></button>
+    <button class="navbtn" data-view="fight"><i>⚔️</i><span>Walka</span></button>
     <button class="navbtn" data-view="gather"><i>⛏️</i><span>Zbieraj</span></button>
     <button class="navbtn" data-view="char"><i>👤</i><span>Postać</span></button>
     <button class="navbtn" data-view="skills"><i>✨</i><span>Umiejętności</span></button>
@@ -33,8 +34,58 @@
       <div class="muted small" id="p-eta"></div>
     </div>
 
+    <!-- PULPIT -->
+    <section id="view-home" class="view">
+      <div id="home-hero" class="card homehero" data-tod="day">
+        <div class="hsky2"><div id="hstars" class="hstars"></div><div id="h-sun" class="hsunmoon">☀️</div><div id="hclouds" class="hclouds"></div></div>
+        <div class="homegrid">
+          <div class="mapwrap"><svg id="pl-map" viewBox="0 0 400 360"></svg><div class="maplabel">POLSKA · TWOJE MIASTO: POZNAŃ</div></div>
+          <div class="warbox">
+            <div class="wb-title">🏰 WOJNA MIAST</div>
+            <div class="ringwrap">
+              <svg viewBox="0 0 120 120"><circle class="rg-bg" cx="60" cy="60" r="52"/><circle id="ring-war" class="rg-fg" cx="60" cy="60" r="52"/></svg>
+              <div class="ringtxt"><b id="hm-cd">00:00:00</b><small>do 19:00</small></div>
+            </div>
+            <div class="wb-vs"><b>Poznań</b><span>⚔</span><b id="hm-opp"></b></div>
+            <button id="hm-war" class="epicbtn">⚔  WEŹ UDZIAŁ  ⚔</button>
+          </div>
+        </div>
+      </div>
+      <div class="homecards">
+        <div class="card hcard" data-go="char">
+          <div class="hc-h">👤 Postać</div>
+          <div class="hc-body">
+            <div class="rg"><svg viewBox="0 0 80 80"><circle class="rg-bg" cx="40" cy="40" r="34"/><circle id="ring-xp" class="rg-fg" cx="40" cy="40" r="34"/></svg><div class="rg-in"><small>Poz.</small><b id="hm-lvl">1</b></div></div>
+            <div class="hc-stats"><small class="muted">SIŁA</small><div class="bigpow cnt" id="hm-pow" data-t="0">0</div><small id="hm-xp" class="muted"></small><small class="muted">Punkty umiejętności: <b id="hm-pts"></b></small></div>
+          </div>
+        </div>
+        <div class="card hcard nopt">
+          <div class="hc-h">⏱ Sesje</div>
+          <div id="hm-sess" class="sess"></div>
+        </div>
+        <div class="card hcard" data-go="fight" data-gosub="duel">
+          <div class="hc-h">🥊 Dziś</div>
+          <div class="hc-body col">
+            <div class="row"><span class="muted small">Pojedynki</span><b id="hm-duel"></b></div>
+            <div id="hm-pips" class="pips"></div>
+            <div class="hm-liga"><span id="hm-emb" class="hm-emb"></span><div><b id="hm-div"></b><div class="bar arenabar2"><div id="hm-dbar"></div></div></div></div>
+            <div class="row"><span class="muted small">Wojny miast</span><b id="hm-war-rec"></b></div>
+          </div>
+        </div>
+        <div class="card hcard" data-go="char">
+          <div class="hc-h">💰 Majątek</div>
+          <div class="hc-body col">
+            <div class="row"><span class="muted small">Złoto</span><b class="cnt" id="hm-gold" data-t="0">0</b></div>
+            <div class="row"><span class="muted small">Chwała miasta</span><b class="cnt" id="hm-glory" data-t="0">0</b></div>
+            <div class="row"><span class="muted small">Plecak</span><b id="hm-inv"></b></div>
+          </div>
+        </div>
+      </div>
+      <div class="card"><h2>📡 Ostatnie zdarzenia</h2><div id="home-feed"></div></div>
+    </section>
+
     <!-- WALKA (ekran startowy) -->
-    <section id="view-fight" class="view">
+    <section id="view-fight" class="view hidden">
       <div class="card banner">
         <b>🏙️ Poznań</b> <span class="muted">woj. wielkopolskie</span> · Chwała miasta: <b class="glory-val">0</b>
         · Wojna miast o <b>19:00</b> — start za <b class="war-city-in"></b>
@@ -66,7 +117,7 @@
       </div>
       <div id="sub-exp" class="hidden">
         <div class="card">
-          <div class="row"><h2>EXP</h2><button id="b-expon" class="expbtn">⏸ Wstrzymaj expienie</button></div>
+          <div class="row"><h2>EXP</h2><button id="b-expon" class="expbtn">▶ ZACZNIJ EXPIENIE</button></div>
           <div id="xp-win" class="xwin forest">
             <div class="xbg"></div><div id="xp-parts" class="xparts"></div><div class="xfog"></div>
             <div id="xp-panel" class="xpanel hidden"><b id="xp-name"></b><div class="bar en"><div id="xe-bar"></div></div><small id="xp-txt"></small></div>
@@ -105,7 +156,7 @@
           <div class="casectl"><div id="dung-seg" class="seg"></div><button id="b-dstart" class="bigbtn">ZACZNIJ</button><button id="b-dstop" class="bigbtn stop hidden">⏹ ZATRZYMAJ</button></div>
           <div class="row"><span id="dung-limit" class="muted small"></span></div>
           <div class="bar"><div id="dung-limit-bar"></div></div>
-          <p class="muted small">Postać sama przechodzi wybrany loch (im większa Siła, tym szybciej), odpoczywa w czasie cooldownu i wchodzi ponownie, przez wybraną liczbę godzin. Sesję możesz zatrzymać w dowolnej chwili. Nagrody dostajesz po każdym przejściu.</p>
+          <p class="muted small">Postać sama przechodzi wybrany loch (im większa Siła, tym szybciej), odpoczywa w czasie cooldownu i wchodzi ponownie, przez 4 godziny. Po tym czasie sesja się kończy i aby grać dalej, trzeba ponownie kliknąć ZACZNIJ. Sesję możesz też zatrzymać w dowolnej chwili. Nagrody dostajesz po każdym przejściu.</p>
         </div>
         <div class="card" id="dung-table"></div>
       </div>
@@ -120,6 +171,88 @@
         <div id="loc-tiles" class="cattiles"></div>
         <div class="casewin">
           <div id="case-view" class="caseview"><div class="marker"></div><div id="case-strip" class="strip"></div></div>
+          <div id="dump-view" class="dumpview hidden">
+            <div class="alley"></div><div class="dlamp"></div><div class="dground"></div>
+            <div class="draccoon">🦝</div>
+            <div id="dump" class="dump">
+              <div class="dlid"></div>
+              <div class="dbody"><div class="dmouth"></div></div>
+              <div class="dwheel l"></div><div class="dwheel r"></div>
+            </div>
+            <div id="dump-item" class="ditem"></div>
+            <div id="dump-field" class="ffield"></div>
+          </div>
+          <div id="forest-view" class="forestview hidden">
+            <div class="fsky"></div><div class="frays"></div><div id="fl-fire" class="flies"></div>
+            <div class="flayers">
+              <div id="fl-far" class="fl far"></div>
+              <div id="fl-mid" class="fl mid"></div>
+              <div id="fl-near" class="fl near"></div>
+            </div>
+            <div class="fdim"></div>
+            <div class="fground"></div>
+            <div class="fglow"></div>
+            <div id="fbush" class="fbush"><span class="b1">🌿</span><span class="b2">🌿</span><span class="b3">🍃</span></div>
+            <div id="forest-item" class="ditem"></div>
+            <div id="forest-field" class="ffield"></div>
+            <div id="fflash" class="xflash"></div>
+          </div>
+          <div id="mine-view" class="mineview hidden">
+            <div class="mwall"></div><div class="mlamp"></div>
+            <div class="mbeams"><i class="p l"></i><i class="p r"></i><i class="t"></i></div>
+            <div class="mrails"></div>
+            <div id="mrock" class="mrock"><span class="mem">🪨</span><div class="mvein"></div><div id="mcracks" class="mcracks"></div></div>
+            <div id="mpick" class="mpick">⛏️</div>
+            <div id="mine-item" class="ditem"></div>
+            <div id="mine-field" class="ffield"></div>
+            <div id="mspot" class="mspot"></div>
+            <div id="mflash" class="xflash"></div>
+          </div>
+          <div id="junk-view" class="junkview hidden">
+            <div class="jsky"></div><div class="jflood l"></div><div class="jflood r"></div><div class="jfence"></div>
+            <div class="jmound a"></div><div class="jmound b"></div>
+            <div id="jpiles" class="jpiles"></div>
+            <div class="jground"></div>
+            <div class="jmast"></div><div class="jbeam"></div>
+            <div id="jtrolley" class="jtrolley">
+              <div class="jblock"></div>
+              <div id="jcable" class="jcable"></div>
+              <div id="jmag" class="jmag"><div class="jglow"></div><span class="jm">🧲</span><div id="jhang" class="jhang"></div></div>
+            </div>
+            <div id="junk-item" class="ditem"></div>
+            <div id="junk-field" class="ffield"></div>
+            <div id="jflash" class="xflash"></div>
+          </div>
+          <div id="honey-view" class="honeyview hidden calm">
+            <div class="hsky"></div><div class="hsun"></div><div class="hhill a"></div><div class="hhill b"></div>
+            <div class="smk"><i class="bel"></i><i class="can"></i><i class="noz"></i></div>
+            <div id="hflowers" class="hflowers"></div>
+            <div id="hive" class="hive">
+              <div class="hv-legs"></div>
+              <div id="hv-frame" class="hv-frame"><div id="hv-hex" class="hv-hex"></div></div>
+              <div class="hv-box b3"></div><div class="hv-box b2"></div><div class="hv-box b1"><i class="hv-door"></i></div>
+              <div id="hv-roof" class="hv-roof"></div>
+            </div>
+            <div id="hbees" class="hbees"></div>
+            <div id="hswirl" class="hswirl"></div>
+            <div class="hcloud"></div>
+            <div class="hrays"></div>
+            <div id="honey-item" class="ditem"></div>
+            <div id="honey-field" class="ffield"></div>
+            <div id="hflash" class="xflash"></div>
+          </div>
+          <div id="lake-view" class="lakeview hidden">
+            <div class="lsky"></div><div class="lsun"></div><div class="ltrees"></div>
+            <div class="lwater"><div class="lwave w1"></div><div class="lwave w2"></div><div class="lglint"></div></div>
+            <div id="lfish" class="lfish"></div>
+            <div class="lpier"></div><div class="lrod"></div>
+            <svg id="lline" class="lline" viewBox="0 0 1000 380" preserveAspectRatio="none"><path id="lpath" d=""/></svg>
+            <div id="lbobber" class="lbobber"></div>
+            <div id="lreeds" class="lreeds"></div>
+            <div id="lake-item" class="ditem"></div>
+            <div id="lake-field" class="ffield"></div>
+            <div id="lflash" class="xflash"></div>
+          </div>
           <div id="case-result" class="center"></div>
           <div id="case-status" class="center muted small"></div>
           <div id="case-recent" class="recent"></div>
@@ -127,7 +260,7 @@
         <div class="casectl"><div id="dur-seg" class="seg"></div><button id="b-start" class="bigbtn">ZACZNIJ</button><button id="b-stop" class="bigbtn stop hidden">⏹ ZATRZYMAJ</button></div>
         <div class="row"><span id="gather-limit" class="muted small"></span></div>
         <div class="bar"><div id="gather-limit-bar"></div></div>
-        <p class="muted small">Skrzynie otwierają się same, jedna po drugiej, przez wybraną liczbę godzin, a sesję możesz zatrzymać w dowolnej chwili (niewykorzystany czas wraca do dziennego limitu). Skrzynie zdobywasz tylko grą (nie można ich kupić), a szanse na każdy przedmiot są jawne. Rzadkie przedmioty mają 0%, dopóki nie wytrenujesz odpowiedniej umiejętności, a jej kolejne poziomy tylko minimalnie zwiększają szansę.</p>
+        <p class="muted small">Skrzynie otwierają się same, jedna po drugiej, przez 4 godziny. Po tym czasie sesja się kończy i aby zbierać dalej, trzeba ponownie kliknąć ZACZNIJ. Sesję możesz też zatrzymać w dowolnej chwili (niewykorzystany czas wraca do dziennego limitu). Skrzynie zdobywasz tylko grą (nie można ich kupić), a szanse na każdy przedmiot są jawne. Rzadkie przedmioty mają 0%, dopóki nie wytrenujesz odpowiedniej umiejętności, a jej kolejne poziomy tylko minimalnie zwiększają szansę.</p>
       </div>
       <div class="card" id="gather-list"></div>
     </section>
