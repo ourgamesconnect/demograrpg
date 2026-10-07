@@ -86,11 +86,17 @@
 
     <!-- WALKA (ekran startowy) -->
     <section id="view-fight" class="view hidden">
-      <div class="card banner">
-        <b>🏙️ Poznań</b> <span class="muted">woj. wielkopolskie</span> · Chwała miasta: <b class="glory-val">0</b>
-        · Wojna miast o <b>19:00</b> — start za <b class="war-city-in"></b>
+      <div class="fhero">
+        <div class="fh-glow"></div><div class="fh-sparks"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="fh-l"><small>OBÓZ WOJENNY</small><b>🏙️ Poznań</b><span>Chwała miasta: <b class="glory-val">0</b></span></div>
+        <div class="fh-swords">⚔️</div>
+        <div class="fh-r"><small>WOJNA MIAST O 19:00</small><b class="war-city-in"></b><span>wybierz, jak chcesz dziś walczyć</span></div>
       </div>
-      <div class="invtabs subtabs"><button data-sub="dung" class="on">🗝️ Lochy</button><button data-sub="duel">🥊 Pojedynki 1v1</button><button data-sub="exp">⚔️ EXP</button></div>
+      <div class="fmodes">
+        <button data-fsub="exp" class="fmode m-exp on"><span class="fm-art">⚔️<i></i></span><b>EXP</b><small>Mapy, bossowie i cele wojenne</small><em id="fm-exp">Bezczynne</em></button>
+        <button data-fsub="dung" class="fmode m-dung"><span class="fm-art">🗝️<i></i></span><b>LOCHY</b><small>Sesje 4 h · skrzynie, checkpointy, bossowie</small><em id="fm-dung">Bezczynne</em></button>
+        <button data-fsub="duel" class="fmode m-duel"><span class="fm-art">🥊<i></i></span><b>POJEDYNKI 1v1</b><small>Liga jak w EA FC · 10 walk dziennie</small><em id="fm-duel"></em></button>
+      </div>
       <div id="sub-duel" class="hidden">
         <div class="card arena">
           <div class="arena-title">⚔ POJEDYNEK ⚔</div>
@@ -115,9 +121,9 @@
           <div class="card"><h2>📜 Historia pojedynków</h2><div id="duel-hist"></div></div>
         </div>
       </div>
-      <div id="sub-exp" class="hidden">
+      <div id="sub-exp">
         <div class="card">
-          <div class="row"><h2>EXP</h2><button id="b-expon" class="expbtn">▶ ZACZNIJ EXPIENIE</button></div>
+          <div class="row"><button id="b-expon" class="expbtn">▶ ZACZNIJ EXPIENIE</button></div>
           <div id="xp-win" class="xwin forest">
             <div class="xbg"></div><div id="xp-parts" class="xparts"></div><div class="xfog"></div>
             <div id="xp-panel" class="xpanel hidden"><b id="xp-name"></b><div class="bar en"><div id="xe-bar"></div></div><small id="xp-txt"></small></div>
@@ -134,7 +140,7 @@
         </div>
         <div class="card" id="exp-table"></div>
       </div>
-      <div id="sub-dung">
+      <div id="sub-dung" class="hidden">
         <div class="card">
           <h2>LOCHY</h2>
           <div id="dung-tiles" class="cattiles"></div>

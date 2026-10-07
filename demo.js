@@ -94,7 +94,7 @@ const S = {
   duel: { phase: 'idle', opp: null, day: '', used: 0, div: 0, pts: 0, streak: 0, wins: 0, losses: 0, hist: [], last: null },
   dung: { active: null, report: '', sel: 0, dur: 0, used: 0, day: '', got: {}, recent: [], last: null }, gather: { active: null, day: '', used: 0, report: '', loc: 0, dur: 0, interval: 9, queue: [], recent: [], got: {} },
   war: { signed: false, running: false, hist: [], opp: 'Warszawa' },
-  exp: { on: false, map: 0, enemy: null, wait: 0, kills: 0, metins: 0, dmg: 0, recent: [] }, sub: 'dung',
+  exp: { on: false, map: 0, enemy: null, wait: 0, kills: 0, metins: 0, bosses: 0, dmg: 0, recent: [] }, sub: 'exp',
   feed: [], sk: {}, skOpen: null, lootOpen: {}, train: null, autoTrain: false, view: 'home',
   sets: { main: {}, pvp: {} }, setName: 'main', markMode: false, marked: new Set(),
   bag: { 'Ruda': 0, 'Skóra': 0, 'Kamień Ochrony': 0, 'Kamień Przemiany': 0, 'Złom': 0, 'Szmaty': 0, 'Drewno': 0, 'Zioła': 0, 'Mięso': 0, 'Ryba': 0, 'Perła': 0, 'Części': 0, 'Mechanizm': 0, 'Miód': 0, 'Wosk': 0 },
@@ -1260,18 +1260,30 @@ function timersTick() { trainTick(); dungeonTick(); gatherTick(); expTick(); }
 
 // ================= EXP: mapa z potworami i Kamieniem Wojny (metin) =================
 // Wróg ma stałe HP, postać sama zadaje obrażenia równe swojemu DPS. Czas zabicia = t sekund przy zalecanej Sile mapy; mocniejszy gracz zabija szybciej.
-const EXP_MAPS = [{
-  k: 'Puszcza Zielonka', icon: '🌲', rec: 150,
-  mobs: [
-    { k: 'Wilk', icon: '🐺', w: 50, t: 6, xp: 10, gold: 3, drops: [{ k: 'Skóra', p: 0.20, q: [1, 2] }] },
-    { k: 'Dzik', icon: '🐗', w: 30, t: 10, xp: 18, gold: 5, drops: [{ k: 'Mięso', p: 0.22, q: [1, 2] }, { k: 'Skóra', p: 0.06, q: [1, 1] }, { item: true, p: 0.01 }] },
-    { k: 'Niedźwiedź', icon: '🐻', w: 12, t: 16, xp: 34, gold: 9, drops: [{ k: 'Skóra', p: 0.30, q: [2, 3] }, { item: true, p: 0.04 }] },
-    { k: 'Kamień Wojny', icon: '🪨', w: 8, t: 60, xp: 150, gold: 60, metin: true, drops: [{ glory: 15, p: 1 }, { k: 'Ruda', p: 1, q: [3, 6] }, { item: true, p: 1, boost: true }, { k: 'Kamień Przemiany', p: 0.15, q: [1, 1] }, { k: 'Kamień Ochrony', p: 0.10, q: [1, 1] }] },
-  ],
-}];
+const XDATA = [
+  { k: 'Opuszczone przedmieścia', icon: '🏚️', lvl: 1, rec: 150, xm: 1, tier: 0, mats: ['Złom', 'Szmaty'],
+    mobs: [['Pijany chuligan', '🥴', 32, 6], ['Bezpański pies', '🐕', 26, 8], ['Złodziej rowerów', '🥷', 20, 11], ['Dres', '💪', 14, 15], ['Zbieracz złomu', '🧟', 8, 20]], boss: ['Boss Osiedla', '👺'], target: ['Barykada', '🚧'] },
+  { k: 'Stare zakłady', icon: '🏭', lvl: 10, rec: 450, xm: 8, tier: 0, mats: ['Złom', 'Części'],
+    mobs: [['Ochroniarz-ruina', '💂', 32, 6], ['Robotnik-bandyta', '👷', 26, 8], ['Szczur kanałowy', '🐀', 20, 11], ['Przemytnik', '🕵️', 14, 15], ['Spawacz-wandal', '🧑‍🔧', 8, 20]], boss: ['Dozorca Hali', '🦹'], target: ['Generator', '⚙️'] },
+  { k: 'Dworzec i bocznice', icon: '🚉', lvl: 22, rec: 1200, xm: 30, tier: 1, mats: ['Szmaty', 'Części'],
+    mobs: [['Kieszonkowiec', '🦹‍♂️', 32, 6], ['Strażnik torów', '👮', 26, 8], ['Handlarz kontrabandą', '🧳', 20, 11], ['Kibol', '😠', 14, 15], ['Kombinator', '🤑', 8, 20]], boss: ['Naczelnik Dworca', '🤵'], target: ['Nadajnik szpiegowski', '📡'] },
+  { k: 'Wrogie mosty', icon: '🌉', lvl: 35, rec: 3000, xm: 70, tier: 2, mats: ['Skóra', 'Części'],
+    mobs: [['Zwiadowca', '🥷', 32, 6], ['Saper', '🧨', 26, 8], ['Snajper-amator', '🎯', 20, 11], ['Najemnik', '🪖', 14, 15], ['Posłaniec wroga', '🏇', 8, 20]], boss: ['Kapitan Straży Mostu', '🧔'], target: ['Sztandar wroga', '🏴'] },
+  { k: 'Fort graniczny', icon: '🏰', lvl: 50, rec: 7500, xm: 150, tier: 3, mats: ['Części', 'Mechanizm'],
+    mobs: [['Żołnierz rywala', '💂‍♂️', 32, 6], ['Łucznik', '🏹', 26, 8], ['Halabardnik', '🔱', 20, 11], ['Mechanik machin', '🛠️', 14, 15], ['Wywiadowca', '🕵️', 8, 20]], boss: ['Komendant Fortu', '🤴'], target: ['Wieża oblężnicza', '🗼'] },
+  { k: 'Linia frontu', icon: '⚔️', lvl: 70, rec: 18000, xm: 300, tier: 3, mats: ['Mechanizm', 'Ruda'],
+    mobs: [['Weteran', '🎖️', 32, 6], ['Gwardzista', '🗡️', 26, 8], ['Medyk polowy', '🧑‍⚕️', 20, 11], ['Berserker', '🧌', 14, 15], ['Oficer', '🫡', 8, 20]], boss: ['Generał Wrogiego Miasta', '🤺'], target: ['Brama wrogiego miasta', '🏛️'] },
+];
+const EXP_MAPS = XDATA.map((d, i) => {
+  const mob = (k, icon, w, t, drops, extra) => ({ k, icon, w, t, xp: Math.round(t * 2 * d.xm), gold: Math.max(1, Math.round(t * 0.5 * d.xm)), drops, ...extra });
+  const mobs = d.mobs.map(([k, icon, w, t], j) => mob(k, icon, w, t, [{ k: d.mats[0], p: 0.22, q: [1, 2] }, { k: d.mats[1], p: 0.10, q: [1, 1] }, { item: true, p: 0.01 + j * 0.01 }]));
+  mobs.push(mob(d.boss[0], d.boss[1], 3, 110, [{ glory: 25 + i * 15, p: 1 }, { k: d.mats[0], p: 1, q: [4, 8] }, { k: d.mats[1], p: 1, q: [2, 4] }, { item: true, p: 1, boost: true }, { item: true, p: 0.5, boost: true }, { k: 'Kamień Ochrony', p: 0.35, q: [1, 1] }, { k: 'Kamień Przemiany', p: 0.25, q: [1, 1] }], { boss: true, xp: Math.round(110 * 2.6 * d.xm), gold: Math.round(110 * 0.9 * d.xm) }));
+  mobs.push(mob(d.target[0], d.target[1], 7, 60, [{ glory: 15 + i * 10, p: 1 }, { k: d.mats[0], p: 1, q: [3, 6] }, { item: true, p: 1, boost: true }, { k: 'Kamień Przemiany', p: 0.15, q: [1, 1] }, { k: 'Kamień Ochrony', p: 0.10, q: [1, 1] }], { metin: true, xp: Math.round(60 * 2.4 * d.xm), gold: Math.round(60 * d.xm) }));
+  return { k: d.k, icon: d.icon, lvl: d.lvl, rec: d.rec, tier: d.tier, mobs };
+});
 const expHp = (m, mob) => Math.round(m.rec / 2.2 * mob.t);
-function expItem(boost) {
-  const r = Math.random() * 100, q = boost ? (r < 40 ? 1 : r < 75 ? 2 : r < 93 ? 3 : 4) : (r < 70 ? 0 : r < 92 ? 1 : r < 99 ? 2 : 3), tier = boost && Math.random() < 0.5 ? 1 : 0;
+function expItem(boost, bt = 0) {
+  const r = Math.random() * 100, q = boost ? (r < 40 ? 1 : r < 75 ? 2 : r < 93 ? 3 : 4) : (r < 70 ? 0 : r < 92 ? 1 : r < 99 ? 2 : 3), tier = Math.min(4, bt + (boost && Math.random() < 0.5 ? 1 : 0));
   const it = mk(pick(SLOTS).k, tier, q);
   if (S.inv.length < INV_SIZE) { S.inv.push(it); return { it, sold: 0 }; }
   const g = sellPrice(it); S.gold += g; return { it, sold: g };
@@ -1280,17 +1292,17 @@ function expSpawn(X) {
   const m = EXP_MAPS[X.map], tw = m.mobs.reduce((a, x) => a + x.w, 0); let r = Math.random() * tw, mob = m.mobs[0];
   for (const x of m.mobs) { r -= x.w; if (r <= 0) { mob = x; break; } }
   const hp = expHp(m, mob); X.enemy = { mob, hp, max: hp, dead: false }; X.wait = 0;
-  if (mob.metin) log('🪨 Pojawił się Kamień Wojny!', 'loot');
+  if (mob.metin) log(`🎯 Pojawił się cel wojenny: ${mob.k}!`, 'loot'); else if (mob.boss) log(`☠️ Pojawił się boss: ${mob.k}!`, 'crit');
 }
 function expReward(X, e) {
   const mob = e.mob, xp = Math.round(mob.xp * (1 + lv('Nauka') * 0.01)), gold = mob.gold;
-  S.gold += gold; gainXp(xp); X.kills++; if (mob.metin) X.metins++;
+  S.gold += gold; gainXp(xp); X.kills++; if (mob.metin) X.metins++; if (mob.boss) X.bosses = (X.bosses || 0) + 1;
   const cards = [{ text: `+${xp} XP` }, { text: `🪙 +${gold}` }];
   for (const d of mob.drops) {
     if (Math.random() > d.p) continue;
     if (d.glory) { const g = Math.round(d.glory * (1 + lv('Dowodzenie') * 0.02)); S.glory += g; cards.push({ text: `🚩 +${g} chwały miasta`, cls: 'epic' }); }
     else if (d.item) {
-      const { it, sold } = expItem(d.boost); X.recent.unshift({ icon: it.icon, k: it.name, q: it.q }); if (X.recent.length > 12) X.recent.pop();
+      const { it, sold } = expItem(d.boost, EXP_MAPS[X.map].tier); X.recent.unshift({ icon: it.icon, k: it.name, q: it.q }); if (X.recent.length > 12) X.recent.pop();
       cards.push({ text: `${it.icon} ${it.name} (${QUAL[it.q].n})${sold ? ' → sprzedano' : ''}`, cls: it.q >= 4 ? 'legend' : it.q >= 3 ? 'epic' : it.q >= 2 ? 'rare' : '' });
       if (it.q >= 3) log(`⚔️ Drop z ${mob.k}: ${it.icon} ${it.name} (${QUAL[it.q].n})`, 'crit');
     } else {
@@ -1318,10 +1330,11 @@ function expSync(spawned) {
   if (!e) { en.classList.add('gone'); en.classList.remove('dead'); pan.classList.add('hidden'); return; }
   en.textContent = e.mob.icon; en.classList.remove('gone');
   en.classList.toggle('metin', !!e.mob.metin); en.classList.toggle('dead', !!e.dead);
-  $('#xp-shadow').classList.toggle('metin', !!e.mob.metin); $('#xp-win').classList.toggle('metinwin', !!e.mob.metin && !e.dead);
+  en.classList.toggle('boss', !!e.mob.boss); $('#xp-shadow').classList.toggle('metin', !!e.mob.metin); $('#xp-shadow').classList.toggle('boss', !!e.mob.boss);
+  $('#xp-win').classList.toggle('metinwin', !!e.mob.metin && !e.dead); $('#xp-win').classList.toggle('bosswin', !!e.mob.boss && !e.dead); $('#xp-win').dataset.map = X.map;
   if (spawned) { en.classList.remove('spawn'); void en.offsetWidth; en.classList.add('spawn'); }
-  pan.classList.remove('hidden'); pan.classList.toggle('metin', !!e.mob.metin);
-  $('#xp-name').textContent = (e.mob.metin ? '⚠ ' : '') + e.mob.k; $('#xe-bar').style.width = (100 * e.hp / e.max) + '%';
+  pan.classList.remove('hidden'); pan.classList.toggle('metin', !!e.mob.metin); pan.classList.toggle('boss', !!e.mob.boss);
+  $('#xp-name').textContent = (e.mob.boss ? '☠ BOSS · ' : e.mob.metin ? '🎯 CEL · ' : '') + e.mob.k; $('#xe-bar').style.width = (100 * e.hp / e.max) + '%';
   $('#xp-txt').textContent = e.dead ? 'POKONANY!' : `${Math.round(e.hp)} / ${e.max} HP · ok. ${fmtSec(e.hp / Math.max(1, dps()))}`;
 }
 // efekty ciosów zależne od broni (bez widocznej postaci): cięcie, pchnięcie, strzała, uderzenie młotem, podwójne dźgnięcie
@@ -1376,14 +1389,17 @@ function expInitBg() { // świetliki w tle mapy
 function renderExp() {
   const X = S.exp, m = EXP_MAPS[X.map];
   const tiles = $('#exp-maps'); tiles.replaceChildren();
-  [[m.icon, m.k, `zalecana Siła ${m.rec}`, true], ['🏜️', 'Pustynia Piasków', '🔒 wkrótce', false], ['🏔️', 'Góry Mgieł', '🔒 wkrótce', false]].forEach(([ic, n, sm, on]) => {
-    const t = document.createElement('button'); t.className = 'cattile' + (on ? ' on' : ''); t.disabled = !on;
-    const i = document.createElement('i'); i.textContent = ic; const b = document.createElement('b'); b.textContent = n; const s2 = document.createElement('small'); s2.textContent = sm; t.append(i, b, s2); tiles.append(t);
+  $('#xp-win').dataset.map = X.map;
+  EXP_MAPS.forEach((mm, i) => {
+    const open = S.lvl >= mm.lvl, t = document.createElement('button'); t.className = 'cattile' + (X.map === i ? ' on' : ''); t.disabled = !open;
+    const ic = document.createElement('i'); ic.textContent = open ? mm.icon : '🔒'; const b = document.createElement('b'); b.textContent = mm.k; const s2 = document.createElement('small'); s2.textContent = open ? `zalecana Siła ${mm.rec}` : `od poziomu ${mm.lvl}`; t.append(ic, b, s2);
+    t.onclick = () => { if (X.map === i) return; X.map = i; X.enemy = null; X.wait = 0; render(); };
+    tiles.append(t);
   });
   const btn = $('#b-expon'); btn.textContent = X.on ? '⏸ Zatrzymaj expienie' : '▶ ZACZNIJ EXPIENIE'; btn.classList.toggle('startexp', !X.on);
   const tw = m.mobs.reduce((a, x) => a + x.w, 0), D = Math.max(1, dps());
   const avgKill = m.mobs.reduce((a, x) => a + x.w * expHp(m, x) / D, 0) / tw + 1, avgXp = m.mobs.reduce((a, x) => a + x.w * x.xp, 0) / tw;
-  $('#exp-status').textContent = `Zabitych: ${X.kills} · Kamieni Wojny: ${X.metins} · ok. ${Math.round(60 * avgXp * (1 + lv('Nauka') * 0.01) / avgKill)} XP/min przy Twojej Sile ${power()}`;
+  $('#exp-status').textContent = `Zabitych: ${X.kills} · Bossów: ${X.bosses || 0} · Celów wojennych: ${X.metins} · ok. ${Math.round(60 * avgXp * (1 + lv('Nauka') * 0.01) / avgKill)} XP/min przy Twojej Sile ${power()}`;
   expSync(false);
   if (!X.enemy && $('#xp-enemy')) $('#xp-enemy').classList.add('gone');
   const rc = $('#exp-recent'); rc.replaceChildren();
@@ -1393,10 +1409,10 @@ function renderExp() {
   const sk = document.createElement('span'); sk.className = 'muted small'; sk.textContent = `Twój DPS ${Math.round(D)}`; head.append(h2, sk); box.append(head);
   const list = document.createElement('div'); list.className = 'looktable full';
   for (const x of m.mobs) {
-    const r = document.createElement('div'); r.className = 'lootrow ' + (x.metin ? 'epic' : 'common'); r.textContent = `${x.icon} ${x.k} · HP ${expHp(m, x)} · ok. ${fmtSec(expHp(m, x) / D)} · +${x.xp} XP, +${x.gold} 🪙`;
+    const r = document.createElement('div'); r.className = 'lootrow ' + (x.boss ? 'legend' : x.metin ? 'epic' : 'common'); r.textContent = `${x.icon} ${x.boss ? '☠ BOSS · ' : x.metin ? '🎯 CEL · ' : ''}${x.k} · HP ${expHp(m, x)} · ok. ${fmtSec(expHp(m, x) / D)} · +${x.xp} XP, +${x.gold} 🪙`;
     const p = document.createElement('small'); p.textContent = `${Math.round(100 * x.w / tw)}% spawnu`; r.append(p); list.append(r);
     for (const d of x.drops) {
-      const dr = document.createElement('div'); dr.className = 'lootrow sub'; const nm = d.glory ? `🚩 chwała miasta +${d.glory}` : d.item ? `⚔️ przedmiot${d.boost ? ' (min. dobry, T1–T2)' : ' (T1)'}` : `${MAT_ICON[d.k] || '📦'} ${d.k}${d.q && d.q[1] > 1 ? ` ×${d.q[0]}–${d.q[1]}` : ''}`;
+      const dr = document.createElement('div'); dr.className = 'lootrow sub'; const nm = d.glory ? `🚩 chwała miasta +${d.glory}` : d.item ? `⚔️ przedmiot${d.boost ? ` (min. dobry, T${m.tier + 1}–T${Math.min(5, m.tier + 2)})` : ` (T${m.tier + 1})`}` : `${MAT_ICON[d.k] || '📦'} ${d.k}${d.q && d.q[1] > 1 ? ` ×${d.q[0]}–${d.q[1]}` : ''}`;
       dr.textContent = '   ↳ ' + nm; const p2 = document.createElement('small'); p2.textContent = d.p >= 1 ? 'pewne' : (d.p * 100).toFixed(d.p < 0.1 ? 0 : 0) + '% przy zabiciu'; dr.append(p2); list.append(dr);
     }
   }
@@ -1410,7 +1426,7 @@ const next19Ms = () => { const now = new Date(), t = new Date(now); t.setHours(1
 const fmtHMS = sec => { sec = Math.max(0, Math.floor(sec)); return [Math.floor(sec / 3600), Math.floor(sec % 3600 / 60), sec % 60].map(v => String(v).padStart(2, '0')).join(':'); };
 function go(v, sub) {
   const b = document.querySelector(`.navbtn[data-view="${v}"]`); if (b) b.click();
-  if (sub) { const sb = document.querySelector(`[data-sub="${sub}"]`); if (sb) sb.click(); }
+  if (sub) { const sb = document.querySelector(`[data-fsub="${sub}"]`); if (sb) sb.click(); }
 }
 let homeOpp = '';
 function homeInit() {
@@ -1726,8 +1742,10 @@ function render() {
   renderGather();
   renderExp();
   renderHome();
-  const tabs = { dung: '🗝️ Lochy' + (S.dung.active ? ' ⏳' : ''), duel: `🥊 Pojedynki 1v1 (${DUEL_MAX - S.duel.used}/${DUEL_MAX})` };
-  for (const [k, t] of Object.entries(tabs)) { const b = document.querySelector('[data-sub="' + k + '"]'); if (b.textContent !== t) b.textContent = t; }
+  { const Dg = S.dung.active, X = S.exp, D = S.duel, set = (id, t, on) => { const e = $(id); if (!e) return; e.textContent = t; e.classList.toggle('live', on); };
+    set('#fm-dung', Dg ? '● W TOKU · ' + DUNGEONS[Dg.i].k : 'Bezczynne', !!Dg);
+    set('#fm-duel', S.duel.used >= DUEL_MAX ? 'Limit dzienny wykorzystany' : 'Walk dziś: ' + D.used + ' / ' + DUEL_MAX, false);
+    set('#fm-exp', X.on ? '● W TOKU · ' + EXP_MAPS[X.map].k : 'Bezczynne', !!X.on); }
 
 }
 
@@ -1805,6 +1823,11 @@ document.querySelectorAll('[data-sub]').forEach(b => b.onclick = () => {
   document.querySelectorAll('[data-sub]').forEach(x => x.classList.toggle('on', x === b));
   S.sub = b.dataset.sub; if (S.sub === 'exp') expSync(false);
   for (const k of ['dung', 'duel', 'exp']) $('#sub-' + k).classList.toggle('hidden', b.dataset.sub !== k);
+});
+document.querySelectorAll('.fmode').forEach(m => m.onclick = () => {
+  const k = m.dataset.fsub; S.sub = k; if (k === 'exp') expSync(false);
+  document.querySelectorAll('.fmode').forEach(x => x.classList.toggle('on', x === m));
+  for (const q of ['dung', 'duel', 'exp']) $('#sub-' + q).classList.toggle('hidden', k !== q);
 });
 $('#b-duel').onclick = startSearch;
 $('#b-sellmat').onclick = sellMaterials;
