@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Żelazna Korona — Dowództwo</title>
 <link rel="stylesheet" href="panel.css">
+<link rel="stylesheet" href="inventory.css">
 </head>
 <body>
 <div id="app" class="app" data-tod="day">
@@ -25,8 +26,6 @@
     <div class="logo"><span class="logo-ic">⚔</span><b>ŻELAZNA KORONA</b><small>Dowództwo</small></div>
     <div class="res">
       <div class="chip" title="Złoto"><i>🪙</i><b id="r-gold" class="cnt">0</b></div>
-      <div class="chip" title="Honor"><i>🏅</i><b id="r-glory" class="cnt">0</b></div>
-      <div class="chip" title="Surowce w plecaku"><i>🎒</i><b id="r-bag">0 / 60</b></div>
       <div class="chip clock"><i>🕒</i><b id="r-clock">--:--</b></div>
     </div>
   </header>
@@ -74,6 +73,8 @@
 
   <div id="toast" class="toast" role="status"></div>
 </div>
+<script src="sim.js"></script>
+<script src="inventory.js"></script>
 <script src="panel.js"></script>
 </body>
 </html>
