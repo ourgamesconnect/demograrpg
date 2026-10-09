@@ -67,8 +67,8 @@
       c.onmouseenter = e => showTip(it, e, kind === 'equip'); c.onmousemove = moveTip; c.onmouseleave = hideTip;
       c.onclick = () => { selUid = uid === selUid ? null : uid; draw(); };
       c.ondblclick = () => { hideTip(); if (kind === 'bag') cmd('equip', { uid }); else if (kind === 'equip') cmd('unequip', { slot: idx }); else cmd('claim', { uid }); };
-      c.ondragstart = e => { drag = { uid, kind, idx }; hideTip(); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', uid); c.classList.add('dragging'); };
-      c.ondragend = () => { drag = null; c.classList.remove('dragging'); };
+      c.ondragstart = e => { drag = { uid, kind, idx }; hideTip(); document.querySelectorAll('.eslot').forEach(w => { const ok = kind !== 'equip' && it.type === w.dataset.accept; w.classList.toggle('accept', ok); w.classList.toggle('reject', !ok); }); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', uid); c.classList.add('dragging'); };
+      c.ondragend = () => { drag = null; c.classList.remove('dragging'); document.querySelectorAll('.eslot').forEach(w => w.classList.remove('accept', 'reject')); };
     }
     c.ondragover = e => { if (drag) { e.preventDefault(); c.classList.add('over'); } };
     c.ondragleave = () => c.classList.remove('over');
@@ -87,10 +87,26 @@
     const body = $('.inv-body', root); body.replaceChildren();
     // lewa kolumna: sylwetka z polami ekwipunku
     const left = el('div', 'inv-left'); left.append(el('h3', '', 'Postać'));
-    const doll = el('div', 'doll');
-    EQUIP_SLOTS.forEach(s => { const w = el('div', 'eslot'); w.append(cell(ST.equip[s.k] || null, 'equip', s.k)); if (!ST.equip[s.k]) { const g = el('span', 'ghost', s.ic); w.firstChild.append(g); } w.append(el('small', '', s.n)); doll.append(w); });
-    left.append(doll);
-    const t = totals(); const st = el('div', 'inv-stats'); st.append(el('div', '', `⚔ Atak z ekwipunku: ${fmt(t.atk)}`), el('div', '', `🛡 Obrona z ekwipunku: ${fmt(t.def)}`), el('div', 'muted', `Poziom postaci: ${ST.lvl}`)); left.append(st);
+    const pd = el('div', 'pdoll');
+    const eqUids = Object.values(ST.equip), best = eqUids.length ? Math.max(...eqUids.map(u => ST.items[u].rarity)) : -1;
+    pd.style.setProperty('--aura', best >= 0 ? RARITY[best].c : '#5a5f7a');
+    const mk = k => {
+      const s = EQUIP_SLOTS.find(x => x.k === k), w = el('div', 'eslot'); w.dataset.accept = k.startsWith('ring') ? 'ring' : k;
+      const c = cell(ST.equip[k] || null, 'equip', k); if (!ST.equip[k]) c.append(el('span', 'ghost', s.ic));
+      w.append(c, el('small', '', s.n)); return w;
+    };
+    const colL = el('div', 'pcol'), colR = el('div', 'pcol'), mid = el('div', 'pmid'), rings = el('div', 'prings');
+    ['helm', 'armor', 'gloves', 'boots'].forEach(k => colL.append(mk(k)));
+    ['amulet', 'weapon', 'shield'].forEach(k => colR.append(mk(k)));
+    rings.append(mk('ring1'), mk('ring2'));
+    const fig = el('div', 'pfig');
+    fig.innerHTML = '<div class="aura"></div><div class="orbit"></div><svg viewBox="0 0 120 220" aria-hidden="true"><defs><linearGradient id="fg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9aa0c8"/><stop offset="1" stop-color="#262944"/></linearGradient></defs><circle cx="60" cy="32" r="19" fill="url(#fg)"/><path d="M32 62 Q60 50 88 62 L98 122 L85 124 L80 86 L78 150 L86 212 L66 212 L60 160 L54 212 L34 212 L42 150 L40 86 L35 124 L22 122Z" fill="url(#fg)"/></svg><div class="plate"></div>';
+    mid.append(fig, rings);
+    pd.append(colL, mid, colR); left.append(pd);
+    const t = totals(), eqN = eqUids.length, st = el('div', 'inv-stats');
+    const kit = el('div', 'kit'); kit.append(el('span', '', `Wyposażenie ${eqN}/${EQUIP_SLOTS.length}`)); const kb = el('div', 'kitbar'); const ki = el('i'); ki.style.width = (100 * eqN / EQUIP_SLOTS.length) + '%'; kb.append(ki); kit.append(kb);
+    const row = el('div', 'srow2'); row.append(el('div', '', '⚔ Atak'), el('b', '', fmt(t.atk)), el('div', '', '🛡 Obrona'), el('b', '', fmt(t.def)));
+    st.append(kit, row, el('div', 'muted', 'Poziom postaci: ' + ST.lvl)); left.append(st);
     // prawa kolumna: zakładki
     const right = el('div', 'inv-right'), tabs = el('div', 'inv-tabs');
     const used = ST.slots.filter(Boolean).length;
