@@ -1,4 +1,4 @@
-// WOJNA MIAST v2 — Panel główny (prototyp wizualny, dane przykładowe)
+// ŻELAZNA KORONA (nazwa robocza) — Panel główny (prototyp wizualny, dane przykładowe)
 'use strict';
 const $ = s => document.querySelector(s);
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -7,8 +7,8 @@ const fmtHMS = sec => { sec = Math.max(0, Math.floor(sec)); return [Math.floor(s
 
 // ---- stan przykładowy (docelowo z serwera) ----
 const P = {
-  name: 'Gracz', city: 'Poznań', voiv: 'woj. wielkopolskie', lvl: 27, xp: 0.62, power: 4380, gold: 128450, glory: 3120,
-  bag: 38, bagMax: 60, foe: 'Warszawa', signed: 61, rec: [12, 7], weapon: '🗡️', style: 'Miecz · cięcia', armor: 'Pancerz średni', set: 'Zestaw 3/6',
+  name: 'Gracz', guild: 'Strażnicy Zmierzchu', server: 'Serwer Wschód', lvl: 27, xp: 0.62, power: 4380, gold: 128450, glory: 3120,
+  bag: 38, bagMax: 60, boss: 'Strażnik Zgliszcz', bossLvl: 60, joined: 61, attacks: 0, kills: 7, weapon: '🗡️', style: 'Miecz · cięcia', armor: 'Pancerz średni', set: 'Zestaw 3/6',
   sessions: { exp: { on: false, map: 'Wrogie mosty' }, gather: { on: true, loc: 'Jezioro', left: 9420 }, craft: { on: false } },
 };
 let EXPTAB = null;
@@ -69,12 +69,12 @@ setInterval(() => document.querySelectorAll('.cnt').forEach(e => { const t = +e.
 
 // ---- kafle ----
 const TILES = [
-  { id: 'exp', ic: '⚔️', t: 'WYPRAWY', d: 'Mapy, bossowie i cele wojenne', c: '#4fe39a' },
+  { id: 'exp', ic: '⚔️', t: 'WYPRAWY', d: 'Mapy, bossowie i cele specjalne', c: '#4fe39a' },
   { id: 'gather', ic: '⛏️', t: 'ZBIERACTWO', d: 'Surowce z jawnymi szansami', c: '#ffb347' },
   { id: 'craft', ic: '🔨', t: 'RZEMIOSŁO', d: 'Wytwarzaj broń, pancerze, dodatki', c: '#ffd24d' },
   { id: 'gear', ic: '🛡️', t: 'EKWIPUNEK', d: 'Broń definiuje styl, bez klas', c: '#6ab4ff' },
-  { id: 'duel', ic: '🥊', t: 'POJEDYNKI 1v1', d: 'Liga jak w EA FC · 10 dziennie', c: '#ff5a6e' },
-  { id: 'war', ic: '🏰', t: 'WOJNY I LIGA', d: 'Miasta, województwa, tabele', c: '#c58bff' },
+  { id: 'duel', ic: '🥊', t: 'ARENA 1v1', d: 'Rankingowe pojedynki w ligach', c: '#ff5a6e' },
+  { id: 'guild', ic: '⚜️', t: 'GILDIA I RANKING', d: 'Gildie, zadania, tabele graczy', c: '#c58bff' },
 ];
 function status(id) {
   const s = P.sessions;
@@ -83,7 +83,7 @@ function status(id) {
   if (id === 'craft') return ['Kolejka pusta', false];
   if (id === 'gear') return ['Siła ' + fmt(P.power), false];
   if (id === 'duel') return ['Dziś: 3 / 10', false];
-  return ['Dziś o 19:00', false];
+  return ['Boss świata o 19:00', false];
 }
 function buildTiles() {
   const box = $('#tiles');
@@ -115,14 +115,14 @@ function render() {
   const now = new Date(); $('#app').dataset.tod = todOf(now); placeOrb(now);
   $('#r-clock').textContent = now.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
   countTo($('#r-gold'), P.gold); countTo($('#r-glory'), P.glory); $('#r-bag').textContent = `${P.bag} / ${P.bagMax}`;
-  $('#h-name').textContent = P.name; $('#h-lvl').textContent = P.lvl; $('#h-city').textContent = '🏙️ ' + P.city; $('#w-city').textContent = P.city; $('#h-voiv').textContent = P.voiv;
+  $('#h-name').textContent = P.name; $('#h-lvl').textContent = P.lvl; $('#h-guild').textContent = '⚜️ Gildia: ' + P.guild; $('#h-server').textContent = P.server; $('#w-name').textContent = P.name;
   const need = expFor(P.lvl), have = Math.round(need * P.xp);
   $('#ring-xp').style.strokeDashoffset = (440 * (1 - P.xp)).toFixed(1);
   $('#xp-fill').style.width = (P.xp * 100).toFixed(1) + '%'; $('#xp-txt').textContent = `${fmt(have)} / ${fmt(need)} EXP`;
   countTo($('#h-power'), P.power);
   $('#g-weapon').textContent = P.weapon; $('#g-style').textContent = P.style; $('#g-armor').textContent = P.armor; $('#g-set').textContent = P.set;
   const sec = next19(); $('#w-cd').textContent = fmtHMS(sec); $('#cd-fg').style.strokeDashoffset = (553 * (sec / 86400)).toFixed(1);
-  $('#w-me').textContent = P.city; $('#w-foe').textContent = P.foe; $('#w-signed').textContent = P.signed; $('#w-rec').textContent = `${P.rec[0]}W · ${P.rec[1]}P`;
+  $('#w-me').textContent = P.joined + ' / 100'; $('#w-foe').textContent = P.boss; $('#w-foe-sub').textContent = 'Boss poziom ' + P.bossLvl; $('#w-signed').textContent = P.attacks; $('#w-rec').textContent = P.kills + '×';
   if (P.sessions.gather.on) P.sessions.gather.left = Math.max(0, P.sessions.gather.left - 1);
   renderTiles();
 }
@@ -131,9 +131,9 @@ function render() {
 function init() {
   buildStars(); buildClouds(); buildSkyline(); embers(); buildTiles();
   $('#b-war').onclick = () => {
-    const b = $('#b-war'); P.signed += b.classList.contains('on') ? -1 : 1; b.classList.toggle('on');
-    b.firstElementChild.textContent = b.classList.contains('on') ? '✔ ZAPISANY NA WOJNĘ · kliknij, by się wypisać' : '⚔ WEŹ UDZIAŁ W WOJNIE';
-    toast(b.classList.contains('on') ? '⚔ Zapisano na wojnę o 19:00!' : 'Wypisano z wojny.'); render();
+    const b = $('#b-war'); P.joined += b.classList.contains('on') ? -1 : 1; b.classList.toggle('on');
+    b.firstElementChild.textContent = b.classList.contains('on') ? '✔ ZAPISANY NA BOSSA · kliknij, by się wypisać' : '⚔ DOŁĄCZ DO WALKI Z BOSSEM';
+    toast(b.classList.contains('on') ? '⚔ Zapisano na bossa świata o 19:00!' : 'Wypisano z walki z bossem.'); render();
   };
   feed('Witaj w Dowództwie! Ten panel to prototyp wizualny.', 'good');
   feed('📦 Zbieractwo: Jezioro (sesja trwa)', '');
@@ -141,7 +141,7 @@ function init() {
   feed('🎁 Drop: Hartowany Miecz Garnizonu (dobry)', 'loot');
   render(); setInterval(render, 1000);
   // przykładowe zdarzenia na żywo (symulacja)
-  const sample = [['🎁 Drop: Stalowa Tarcza Straży (wybitny)', 'loot'], ['🎯 Cel wojenny zniszczony: Sztandar wroga (+35 🚩)', 'good'], ['⛏️ Zebrano: Szmaty ×12', ''], ['⚔️ Poziom +1! Awans na ' + (P.lvl + 1), 'good']];
+  const sample = [['🎁 Drop: Stalowa Tarcza Straży (wybitny)', 'loot'], ['🎯 Cel specjalny zniszczony: Sztandar wroga (+35 🏅)', 'good'], ['⛏️ Zebrano: Szmaty ×12', ''], ['⚔️ Poziom +1! Awans na ' + (P.lvl + 1), 'good']];
   let k = 0; setInterval(() => { const [t, c] = sample[k++ % sample.length]; feed(t, c); P.gold += Math.round(rnd(60, 400)); P.xp = Math.min(0.97, P.xp + rnd(0.004, 0.02)); }, 6000);
 }
 fetch('dane/krzywa_exp_v2.json').then(r => r.json()).then(j => { EXPTAB = j.poziomy; }).catch(() => {}).finally(init);

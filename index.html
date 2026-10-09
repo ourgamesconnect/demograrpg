@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Wojna Miast — Dowództwo</title>
+<title>Żelazna Korona — Dowództwo</title>
 <link rel="stylesheet" href="panel.css">
 </head>
 <body>
@@ -22,10 +22,10 @@
 
   <!-- GÓRNY PASEK -->
   <header class="top">
-    <div class="logo"><span class="logo-ic">⚔</span><b>WOJNA MIAST</b><small>Dowództwo</small></div>
+    <div class="logo"><span class="logo-ic">⚔</span><b>ŻELAZNA KORONA</b><small>Dowództwo</small></div>
     <div class="res">
       <div class="chip" title="Złoto"><i>🪙</i><b id="r-gold" class="cnt">0</b></div>
-      <div class="chip" title="Chwała miasta"><i>🚩</i><b id="r-glory" class="cnt">0</b></div>
+      <div class="chip" title="Honor"><i>🏅</i><b id="r-glory" class="cnt">0</b></div>
       <div class="chip" title="Surowce w plecaku"><i>🎒</i><b id="r-bag">0 / 60</b></div>
       <div class="chip clock"><i>🕒</i><b id="r-clock">--:--</b></div>
     </div>
@@ -34,8 +34,8 @@
   <main class="grid">
 
     <section class="welcome">
-      <small>WITAJ Z POWROTEM, DOWÓDCO</small>
-      <h2><span id="w-city">Poznań</span> czeka na rozkazy</h2>
+      <small>WITAJ Z POWROTEM, BOHATERZE</small>
+      <h2><span id="w-name">Gracz</span>, świat czeka na Ciebie</h2>
     </section>
 
     <!-- POSTAĆ -->
@@ -52,7 +52,7 @@
       </div>
       <div class="hero-info">
         <h1 id="h-name">Gracz</h1>
-        <div class="sub"><span id="h-city">🏙️ Poznań</span> · <span id="h-voiv">woj. wielkopolskie</span></div>
+        <div class="sub"><span id="h-guild">⚜️ Gildia: Strażnicy Zmierzchu</span> · <span id="h-server">Serwer Wschód</span></div>
         <div class="xpline"><div class="xpbar"><i id="xp-fill"></i></div><small id="xp-txt">0 / 0 EXP</small></div>
         <div class="power"><small>SIŁA</small><b id="h-power" class="cnt">0</b></div>
         <div class="gear">
@@ -66,14 +66,14 @@
     <!-- WOJNA O 19:00 -->
     <section class="card war" id="war-card">
       <div class="war-bg"></div>
-      <small class="eyebrow">WOJNA MIAST · CODZIENNIE 19:00</small>
+      <small class="eyebrow">BOSS ŚWIATA · CODZIENNIE 19:00</small>
       <div class="vs">
-        <div class="side"><b id="w-me">Poznań</b><small>Twoje miasto</small></div>
+        <div class="side"><b id="w-me">61 / 100</b><small>Bohaterów zapisanych</small></div>
         <div class="vs-mid"><svg viewBox="0 0 200 200" class="cdring"><circle class="cd-bg" cx="100" cy="100" r="88"/><circle class="cd-fg" id="cd-fg" cx="100" cy="100" r="88"/></svg><div class="cd-txt"><b id="w-cd">00:00:00</b><small>do startu</small></div></div>
-        <div class="side foe"><b id="w-foe">Warszawa</b><small>Rywal na dziś</small></div>
+        <div class="side foe"><b id="w-foe">Strażnik Zgliszcz</b><small id="w-foe-sub">Boss poziom 60</small></div>
       </div>
-      <div class="war-meta"><span>Zapisanych: <b id="w-signed">0</b> / 100</span><span>Bilans: <b id="w-rec">0W · 0P</b></span></div>
-      <button class="cta" id="b-war"><span>⚔ WEŹ UDZIAŁ W WOJNIE</span></button>
+      <div class="war-meta"><span>Twój udział: <b id="w-signed">0</b> ataków</span><span>Pokonany: <b id="w-rec">0×</b></span></div>
+      <button class="cta" id="b-war"><span>⚔ DOŁĄCZ DO WALKI Z BOSSEM</span></button>
     </section>
 
     <!-- KAFLE TRYBÓW -->
