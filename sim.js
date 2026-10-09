@@ -82,6 +82,16 @@ const Server = (() => {
       const ids = S.slots.filter(Boolean).sort((a, b) => { const x = S.items[a], y = S.items[b]; return x.type.localeCompare(y.type) || y.rarity - x.rarity || y.tier - x.tier || a.localeCompare(b); });
       S.slots = ids.concat(Array(INV_SLOTS - ids.length).fill(null)); return { ev: [{ t: 'sorted' }] };
     },
+    // łup za zabicie potwora: losuje serwer (klient tylko pokazuje wynik)
+    kill_reward({ tier = 0, kind = 'mob' }) {
+      const t = Math.max(0, Math.min(4, Math.floor(+tier) || 0)), ev = [];
+      const rollR = () => { const x = Math.random() * 100; return kind === 'boss' ? (x < 45 ? 2 : x < 85 ? 3 : 4) : kind === 'target' ? (x < 50 ? 1 : x < 82 ? 2 : x < 96 ? 3 : 4) : (x < 70 ? 0 : x < 90 ? 1 : x < 98 ? 2 : 3); };
+      const n = kind === 'boss' ? ri(2, 3) : kind === 'target' ? 1 : (Math.random() < 0.16 ? 1 : 0);
+      for (let k = 0; k < n; k++) ev.push({ t: 'item_added', ...putNew(makeItem({ tier: Math.min(4, t + (Math.random() < 0.3 ? 1 : 0)), rarity: rollR() })) });
+      const mats = Object.keys(MATS), cnt = kind === 'mob' ? (Math.random() < 0.6 ? 1 : 0) : 2;
+      for (let k = 0; k < cnt; k++) { const m = pick(mats), q = ri(1, kind === 'mob' ? 3 : 7); S.mats[m] = (S.mats[m] || 0) + q; ev.push({ t: 'mat_added', mat: m, qty: q }); }
+      return { ev };
+    },
     // test: serwer losuje łup (w prawdziwej grze to wynik walki liczony po stronie serwera)
     debug_drop({ n = 1, boss = false }) {
       const ev = [];

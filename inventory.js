@@ -8,12 +8,12 @@
   let ST = null, selUid = null, tab = 'bag', busy = 0, open = false, drag = null, cidSeq = 0, queue = Promise.resolve();
 
   // ---- komendy (po kolei, każda z unikalnym cid) ----
-  function cmd(type, payload = {}) {
+  function cmd(type, payload = {}, opts = {}) {
     busy++; syncDot();
     queue = queue.then(() => Server.send({ type, cid: 'c' + (++cidSeq) + '-' + Date.now(), ...payload })).then(res => {
       busy--; syncDot();
       ST = res.snapshot;
-      if (!res.ok) toast(res.error, 'err'); else handleEvents(res.events);
+      if (!res.ok) toast(res.error, 'err'); else handleEvents(res.events, opts.silent);
       if (selUid && !Object.prototype.hasOwnProperty.call(ST.items, selUid)) selUid = null;
       if (open) draw();
       window.dispatchEvent(new CustomEvent('inv:update', { detail: ST }));
@@ -21,8 +21,9 @@
     });
     return queue;
   }
-  function handleEvents(evs) {
+  function handleEvents(evs, silent) {
     for (const e of evs) {
+      if (silent && (e.t === 'item_added' || e.t === 'mat_added')) continue;
       if (e.t === 'item_added') {
         if (e.where === 'sold') { toast(`${e.ic} ${e.name} → sprzedano automatycznie (+${fmt(e.gold)} 🪙, skrytka pełna)`, 'gold'); continue; }
         const it = ST.items[e.uid]; if (!it) continue;
@@ -200,5 +201,5 @@
     ST = Server.snapshot();
   })();
 
-  window.Inventory = { open: openInv, close, drop: n => cmd('debug_drop', { n }), get state() { return ST; } };
+  window.Inventory = { open: openInv, close, reward: (p) => cmd('kill_reward', p, { silent: true }), drop: n => cmd('debug_drop', { n }), get state() { return ST; } };
 })();

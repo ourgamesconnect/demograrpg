@@ -78,7 +78,7 @@ const TILES = [
 ];
 function status(id) {
   const s = P.sessions;
-  if (id === 'exp') return s.exp.on ? ['● W TOKU · ' + s.exp.map, true] : ['Bezczynne', false];
+  if (id === 'exp') return window.Expedition && Expedition.running ? ['● W TOKU · ' + Expedition.map, true] : ['Bezczynne', false];
   if (id === 'gather') return s.gather.on ? ['● W TOKU · ' + s.gather.loc + ' · ' + fmtHMS(s.gather.left), true] : ['Bezczynne', false];
   if (id === 'craft') return ['Kolejka pusta', false];
   if (id === 'gear') { const s = window.Inventory && Inventory.state; return [s ? 'Plecak ' + s.slots.filter(Boolean).length + ' / ' + s.slots.length + (s.stash.length ? ' · skrytka ' + s.stash.length : '') : 'Plecak', !!(s && s.stash.length)]; }
@@ -90,7 +90,7 @@ function buildTiles() {
   TILES.forEach(t => {
     const b = document.createElement('button'); b.className = 'tile'; b.dataset.id = t.id; b.style.setProperty('--c', t.c);
     b.innerHTML = `<span class="ic">${t.ic}</span><b>${t.t}</b><small>${t.d}</small><em id="st-${t.id}"></em>`;
-    b.onclick = () => (t.id === 'gear' ? Inventory.open() : toast(`${t.ic} ${t.t}: ten ekran powstanie w następnym kroku.`));
+    b.onclick = () => (t.id === 'gear' ? Inventory.open() : t.id === 'exp' ? Expedition.open() : toast(`${t.ic} ${t.t}: ten ekran powstanie w następnym kroku.`));
     b.onmousemove = e => { const r = b.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5; b.style.setProperty('--ry', (x * 10).toFixed(1) + 'deg'); b.style.setProperty('--rx', (-y * 10).toFixed(1) + 'deg'); };
     b.onmouseleave = () => { b.style.setProperty('--rx', '0deg'); b.style.setProperty('--ry', '0deg'); };
     box.append(b);
