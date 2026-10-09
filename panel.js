@@ -124,8 +124,6 @@ function render() {
   const hm = hpMax(P), mm = mpMax(P); P.hp = Math.min(hm, P.hp === undefined ? hm * 0.82 : P.hp); P.mp = Math.min(mm, P.mp === undefined ? mm * 0.64 : P.mp);
   $('#hp-fill').style.width = (100 * P.hp / hm).toFixed(1) + '%'; $('#hp-txt').textContent = fmt(P.hp) + ' / ' + fmt(hm);
   $('#mp-fill').style.width = (100 * P.mp / mm).toFixed(1) + '%'; $('#mp-txt').textContent = fmt(P.mp) + ' / ' + fmt(mm);
-  countTo($('#h-atk'), P.atk); countTo($('#h-def'), P.def); $('#h-pts').textContent = P.pts;
-  $('#g-weapon').textContent = P.weapon; $('#g-style').textContent = P.style; $('#g-armor').textContent = P.armor; $('#g-set').textContent = P.set;
   if (P.sessions.gather.on) P.sessions.gather.left = Math.max(0, P.sessions.gather.left - 1);
   renderTiles();
 }
