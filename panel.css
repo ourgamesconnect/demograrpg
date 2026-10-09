@@ -152,3 +152,6 @@ body{background:var(--bg);color:var(--ink);font-family:"Segoe UI",system-ui,-app
 .welcome small{letter-spacing:.34em;font-size:12px;font-weight:800;color:#ffe9b0;text-shadow:0 2px 12px rgba(0,0,0,.8)}
 .welcome h2{margin:6px 0 0;font-size:clamp(28px,5vw,52px);font-weight:900;letter-spacing:.03em;color:#fff;text-shadow:0 0 30px rgba(255,170,60,.65),0 4px 0 rgba(0,0,0,.45)}
 .welcome h2 span{color:var(--gold)}
+
+/* karta postaci na pełną szerokość (bez karty wojny) */
+.hero{grid-column:1/-1}

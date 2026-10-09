@@ -8,7 +8,7 @@ const fmtHMS = sec => { sec = Math.max(0, Math.floor(sec)); return [Math.floor(s
 // ---- stan przykładowy (docelowo z serwera) ----
 const P = {
   name: 'Gracz', guild: 'Strażnicy Zmierzchu', server: 'Serwer Wschód', lvl: 27, xp: 0.62, power: 4380, gold: 128450, glory: 3120,
-  bag: 38, bagMax: 60, boss: 'Strażnik Zgliszcz', bossLvl: 60, joined: 61, attacks: 0, kills: 7, weapon: '🗡️', style: 'Miecz · cięcia', armor: 'Pancerz średni', set: 'Zestaw 3/6',
+  bag: 38, bagMax: 60, weapon: '🗡️', style: 'Miecz · cięcia', armor: 'Pancerz średni', set: 'Zestaw 3/6',
   sessions: { exp: { on: false, map: 'Wrogie mosty' }, gather: { on: true, loc: 'Jezioro', left: 9420 }, craft: { on: false } },
 };
 let EXPTAB = null;
@@ -74,7 +74,7 @@ const TILES = [
   { id: 'craft', ic: '🔨', t: 'RZEMIOSŁO', d: 'Wytwarzaj broń, pancerze, dodatki', c: '#ffd24d' },
   { id: 'gear', ic: '🛡️', t: 'EKWIPUNEK', d: 'Broń definiuje styl, bez klas', c: '#6ab4ff' },
   { id: 'duel', ic: '🥊', t: 'ARENA 1v1', d: 'Rankingowe pojedynki w ligach', c: '#ff5a6e' },
-  { id: 'guild', ic: '⚜️', t: 'GILDIA I RANKING', d: 'Gildie, zadania, tabele graczy', c: '#c58bff' },
+  { id: 'city', ic: '🏰', t: 'MIASTO', d: 'Kowal, kupiec, alchemik i inni NPC', c: '#c58bff' },
 ];
 function status(id) {
   const s = P.sessions;
@@ -83,7 +83,7 @@ function status(id) {
   if (id === 'craft') return ['Kolejka pusta', false];
   if (id === 'gear') return ['Siła ' + fmt(P.power), false];
   if (id === 'duel') return ['Dziś: 3 / 10', false];
-  return ['Boss świata o 19:00', false];
+  return ['Sklepy i NPC', false];
 }
 function buildTiles() {
   const box = $('#tiles');
@@ -109,7 +109,6 @@ function drawFeed() {
 }
 
 // ---- render ----
-function next19() { const n = new Date(), t = new Date(n); t.setHours(19, 0, 0, 0); if (t <= n) t.setDate(t.getDate() + 1); return (t - n) / 1000; }
 function expFor(lvl) { return EXPTAB ? EXPTAB[lvl - 1].exp : 1000 * lvl * lvl; }
 function render() {
   const now = new Date(); $('#app').dataset.tod = todOf(now); placeOrb(now);
@@ -121,8 +120,6 @@ function render() {
   $('#xp-fill').style.width = (P.xp * 100).toFixed(1) + '%'; $('#xp-txt').textContent = `${fmt(have)} / ${fmt(need)} EXP`;
   countTo($('#h-power'), P.power);
   $('#g-weapon').textContent = P.weapon; $('#g-style').textContent = P.style; $('#g-armor').textContent = P.armor; $('#g-set').textContent = P.set;
-  const sec = next19(); $('#w-cd').textContent = fmtHMS(sec); $('#cd-fg').style.strokeDashoffset = (553 * (sec / 86400)).toFixed(1);
-  $('#w-me').textContent = P.joined + ' / 100'; $('#w-foe').textContent = P.boss; $('#w-foe-sub').textContent = 'Boss poziom ' + P.bossLvl; $('#w-signed').textContent = P.attacks; $('#w-rec').textContent = P.kills + '×';
   if (P.sessions.gather.on) P.sessions.gather.left = Math.max(0, P.sessions.gather.left - 1);
   renderTiles();
 }
@@ -130,18 +127,13 @@ function render() {
 // ---- start ----
 function init() {
   buildStars(); buildClouds(); buildSkyline(); embers(); buildTiles();
-  $('#b-war').onclick = () => {
-    const b = $('#b-war'); P.joined += b.classList.contains('on') ? -1 : 1; b.classList.toggle('on');
-    b.firstElementChild.textContent = b.classList.contains('on') ? '✔ ZAPISANY NA BOSSA · kliknij, by się wypisać' : '⚔ DOŁĄCZ DO WALKI Z BOSSEM';
-    toast(b.classList.contains('on') ? '⚔ Zapisano na bossa świata o 19:00!' : 'Wypisano z walki z bossem.'); render();
-  };
   feed('Witaj w Dowództwie! Ten panel to prototyp wizualny.', 'good');
   feed('📦 Zbieractwo: Jezioro (sesja trwa)', '');
-  feed('☠ Boss Kapitan Straży Mostu pokonany (dane przykładowe)', 'boss');
+  feed('☠ Boss Herszt Bandytów pokonany (dane przykładowe)', 'boss');
   feed('🎁 Drop: Hartowany Miecz Garnizonu (dobry)', 'loot');
   render(); setInterval(render, 1000);
   // przykładowe zdarzenia na żywo (symulacja)
-  const sample = [['🎁 Drop: Stalowa Tarcza Straży (wybitny)', 'loot'], ['🎯 Cel specjalny zniszczony: Sztandar wroga (+35 🏅)', 'good'], ['⛏️ Zebrano: Szmaty ×12', ''], ['⚔️ Poziom +1! Awans na ' + (P.lvl + 1), 'good']];
+  const sample = [['🎁 Drop: Stalowa Tarcza Straży (wybitny)', 'loot'], ['🎯 Cel specjalny zniszczony: Obóz bandytów (+35 🏅)', 'good'], ['⛏️ Zebrano: Szmaty ×12', ''], ['⚔️ Poziom +1! Awans na ' + (P.lvl + 1), 'good']];
   let k = 0; setInterval(() => { const [t, c] = sample[k++ % sample.length]; feed(t, c); P.gold += Math.round(rnd(60, 400)); P.xp = Math.min(0.97, P.xp + rnd(0.004, 0.02)); }, 6000);
 }
 fetch('dane/krzywa_exp_v2.json').then(r => r.json()).then(j => { EXPTAB = j.poziomy; }).catch(() => {}).finally(init);
