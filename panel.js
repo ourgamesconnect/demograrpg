@@ -79,8 +79,7 @@ const TILES = [
 function status(id) {
   const s = P.sessions;
   if (id === 'exp') return window.Expedition && Expedition.running ? ['● W TOKU · ' + Expedition.map, true] : ['Bezczynne', false];
-  if (id === 'gather') return s.gather.on ? ['● W TOKU · ' + s.gather.loc + ' · ' + fmtHMS(s.gather.left), true] : ['Bezczynne', false];
-  if (id === 'craft') return ['Kolejka pusta', false];
+  if (id === 'gather' || id === 'craft') return ['Bezczynne', false];
   if (id === 'gear') { const s = window.Inventory && Inventory.state; return [s ? 'Plecak ' + s.slots.filter(Boolean).length + ' / ' + s.slots.length + (s.stash.length ? ' · skrytka ' + s.stash.length : '') : 'Plecak', !!(s && s.stash.length)]; }
   if (id === 'duel') return ['Dziś: 3 / 10', false];
   return ['Sklepy i NPC', false];
@@ -90,14 +89,33 @@ function buildTiles() {
   TILES.forEach(t => {
     const b = document.createElement('button'); b.className = 'tile'; b.dataset.id = t.id; b.style.setProperty('--c', t.c);
     b.innerHTML = `<span class="ic">${t.ic}</span><b>${t.t}</b><small>${t.d}</small><em id="st-${t.id}"></em>`;
-    b.onclick = () => (t.id === 'gear' ? Inventory.open() : t.id === 'exp' ? Expedition.open() : toast(`${t.ic} ${t.t}: ten ekran powstanie w następnym kroku.`));
+    b.onclick = () => (t.id === 'gear' ? Inventory.open() : t.id === 'exp' ? Expedition.open() : (t.id === 'gather' || t.id === 'craft') ? stubActivity(t) : toast(`${t.ic} ${t.t}: ten ekran powstanie w następnym kroku.`));
     b.onmousemove = e => { const r = b.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5; b.style.setProperty('--ry', (x * 10).toFixed(1) + 'deg'); b.style.setProperty('--rx', (-y * 10).toFixed(1) + 'deg'); };
     b.onmouseleave = () => { b.style.setProperty('--rx', '0deg'); b.style.setProperty('--ry', '0deg'); };
     box.append(b);
   });
 }
-function renderTiles() { for (const t of TILES) { const [txt, live] = status(t.id), e = $('#st-' + t.id); if (e.textContent !== txt) e.textContent = txt; e.classList.toggle('live', live); } }
+function renderTiles() {
+  const a = window.Inventory && Inventory.state && Inventory.state.activity, NAMES = { exp: 'Wyprawy', gather: 'Zbieractwo', craft: 'Rzemiosło' };
+  for (const t of TILES) {
+    let [txt, live] = status(t.id), locked = false;
+    if (a && NAMES[a.kind] && ['exp', 'gather', 'craft'].includes(t.id)) {
+      if (t.id === a.kind) { txt = '● W TOKU · ' + (a.detail || NAMES[a.kind]); live = true; }
+      else { txt = '🔒 Zajęty: ' + NAMES[a.kind]; live = false; locked = true; }
+    }
+    const e = $('#st-' + t.id); if (e.textContent !== txt) e.textContent = txt; e.classList.toggle('live', live);
+    e.parentElement.classList.toggle('locked', locked);
+  }
+}
+window.addEventListener('inv:update', () => renderTiles());
 
+// Zbieractwo i Rzemiosło: ekrany powstaną później, ale blokada aktywności działa już teraz
+async function stubActivity(t) {
+  const a = Inventory.state && Inventory.state.activity;
+  if (a && a.kind === t.id) { const r = await Inventory.exec('activity_stop'); if (r.ok) toast('⏹ Zatrzymano: ' + t.t); return; }
+  const r = await Inventory.exec('activity_start', { kind: t.id, detail: t.t });
+  if (r.ok) toast(t.ic + ' ' + t.t + ': sesja rozpoczęta (test blokady). Kliknij kafel ponownie, aby zatrzymać.');
+}
 // ---- toast i zdarzenia ----
 let toastT = null;
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2600); }

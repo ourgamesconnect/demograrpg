@@ -170,3 +170,6 @@ body{background:var(--bg);color:var(--ink);font-family:"Segoe UI",system-ui,-app
 .combat div{padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid var(--line);text-align:center}
 .combat small{display:block;letter-spacing:.14em;font-size:10px;font-weight:800;color:var(--mut)}
 .combat b{font-size:22px;font-weight:900;font-variant-numeric:tabular-nums}
+
+.tile.locked{opacity:.62;filter:saturate(.5)}
+.tile.locked em{border-color:var(--red);color:#ffb3b3}

@@ -18,13 +18,14 @@ const BASES = [
   ['hełm', '🪖', 0, 'helm'], ['kaptur', '🧢', 0, 'helm'], ['kolczuga', '🥋', 1, 'armor'], ['kaftan', '🧥', 0, 'armor'],
   ['buty', '🥾', 2, 'boots'], ['kolczyki', '💎', 2, 'earrings'], ['bransoleta', '📿', 1, 'bracelet'], ['pierścień', '💍', 0, 'ring'],
 ];
+const ACTIVITY_NAMES = { exp: 'Wyprawy', gather: 'Zbieractwo', craft: 'Rzemiosło' };
 const MATS = { 'Złom': '⚙️', 'Szmaty': '🧵', 'Drewno': '🪵', 'Skóra': '🟤', 'Ruda': '🪨', 'Części': '🔩', 'Zioła': '🌿', 'Mięso': '🍖' };
 
 const Server = (() => {
   const PLAYER_LVL = 27;
   let uidSeq = 1000, version = 0;
   const done = new Map(); // cid -> odpowiedź (idempotencja: ta sama komenda nie wykona się dwa razy)
-  const S = { slots: Array(INV_SLOTS).fill(null), items: {}, equip: {}, stash: [], mats: { 'Złom': 14, 'Szmaty': 9, 'Skóra': 4 }, gold: 128450 };
+  const S = { slots: Array(INV_SLOTS).fill(null), items: {}, equip: {}, stash: [], mats: { 'Złom': 14, 'Szmaty': 9, 'Skóra': 4 }, gold: 128450, activity: null };
   const rnd = (a, b) => a + Math.random() * (b - a), ri = (a, b) => Math.floor(rnd(a, b + 1));
   const pick = a => a[Math.floor(Math.random() * a.length)];
 
@@ -82,8 +83,23 @@ const Server = (() => {
       const ids = S.slots.filter(Boolean).sort((a, b) => { const x = S.items[a], y = S.items[b]; return x.type.localeCompare(y.type) || y.rarity - x.rarity || y.tier - x.tier || a.localeCompare(b); });
       S.slots = ids.concat(Array(INV_SLOTS - ids.length).fill(null)); return { ev: [{ t: 'sorted' }] };
     },
+    // BLOKADA: postać robi naraz tylko jedną rzecz. Zmiana wymaga najpierw zatrzymania bieżącej aktywności.
+    activity_start({ kind, detail = '' }) {
+      if (!ACTIVITY_NAMES[kind]) return { err: 'Nieznana aktywność' };
+      if (S.activity) {
+        const a = S.activity;
+        return { err: a.kind === kind ? `${ACTIVITY_NAMES[kind]} już trwa. Zatrzymaj, aby zmienić.` : `Jesteś zajęty: ${ACTIVITY_NAMES[a.kind]}. Zatrzymaj, aby zacząć ${ACTIVITY_NAMES[kind].toLowerCase()}.` };
+      }
+      S.activity = { kind, detail: String(detail).slice(0, 60), since: Date.now() };
+      return { ev: [{ t: 'activity_started', kind, detail: S.activity.detail }] };
+    },
+    activity_stop() {
+      if (!S.activity) return { ev: [] }; // zatrzymanie jest idempotentne
+      const k = S.activity.kind; S.activity = null; return { ev: [{ t: 'activity_stopped', kind: k }] };
+    },
     // łup za zabicie potwora: losuje serwer (klient tylko pokazuje wynik)
     kill_reward({ tier = 0, kind = 'mob' }) {
+      if (!S.activity || S.activity.kind !== 'exp') return { err: 'Brak aktywnej wyprawy' };
       const t = Math.max(0, Math.min(4, Math.floor(+tier) || 0)), ev = [];
       const rollR = () => { const x = Math.random() * 100; return kind === 'boss' ? (x < 45 ? 2 : x < 85 ? 3 : 4) : kind === 'target' ? (x < 50 ? 1 : x < 82 ? 2 : x < 96 ? 3 : 4) : (x < 70 ? 0 : x < 90 ? 1 : x < 98 ? 2 : 3); };
       const n = kind === 'boss' ? ri(2, 3) : kind === 'target' ? 1 : (Math.random() < 0.16 ? 1 : 0);
@@ -109,6 +125,7 @@ const Server = (() => {
     for (const u of Object.keys(S.items)) if (!seen.has(u)) errs.push(`osierocony ${u}`);
     for (const [k, u] of Object.entries(S.equip)) { const it = S.items[u]; if (it && !slotOfType(it.type).includes(k)) errs.push(`zły slot ${k} dla ${it.type}`); }
     if (!Number.isInteger(S.gold) || S.gold < 0) errs.push('złoto');
+    if (S.activity !== null && !(S.activity && ACTIVITY_NAMES[S.activity.kind])) errs.push('zła aktywność');
     return errs;
   }
   const snap = () => JSON.parse(JSON.stringify({ version, ...S, lvl: PLAYER_LVL }));

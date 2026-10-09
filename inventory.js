@@ -155,17 +155,21 @@
 
   // ---- test spójności (przyciski deweloperskie) ----
   function stress(n = 600) {
-    const types = ['move', 'equip', 'unequip', 'sell', 'claim', 'sort', 'debug_drop', 'debug_drop'];
+    const types = ['move', 'equip', 'unequip', 'sell', 'claim', 'sort', 'debug_drop', 'debug_drop', 'activity_start', 'activity_start', 'activity_stop', 'kill_reward'];
+    let lockBad = 0;
     const slotsK = EQUIP_SLOTS.map(s => s.k); let ok = 0, rej = 0, dup = 0;
     for (let i = 0; i < n; i++) {
       const sn = Server.snapshot(), anyUid = () => { const all = Object.keys(sn.items); return all.length ? all[Math.floor(Math.random() * all.length)] : 'nie-ma'; };
       const t = types[Math.floor(Math.random() * types.length)];
-      const p = { move: { from: Math.floor(Math.random() * 52) - 2, to: Math.floor(Math.random() * 52) - 2 }, equip: { uid: anyUid() }, unequip: { slot: slotsK[Math.floor(Math.random() * 9)] }, sell: { uid: anyUid() }, claim: { uid: anyUid() }, sort: {}, debug_drop: { n: 1 + Math.floor(Math.random() * 6), boss: Math.random() < 0.2 } }[t];
+      const p = { move: { from: Math.floor(Math.random() * 52) - 2, to: Math.floor(Math.random() * 52) - 2 }, equip: { uid: anyUid() }, unequip: { slot: slotsK[Math.floor(Math.random() * 9)] }, sell: { uid: anyUid() }, claim: { uid: anyUid() }, sort: {}, debug_drop: { n: 1 + Math.floor(Math.random() * 6), boss: Math.random() < 0.2 }, activity_start: { kind: ['exp', 'gather', 'craft', 'x'][Math.floor(Math.random() * 4)], detail: 'test' }, activity_stop: {}, kill_reward: { tier: Math.floor(Math.random() * 5), kind: ['mob', 'boss', 'target'][Math.floor(Math.random() * 3)] } }[t];
       const cid = 's' + Date.now() + '-' + i, r = Server.execSync({ type: t, cid, ...p });
       if (r.ok) ok++; else rej++;
+      if (t === 'activity_start' && sn.activity && r.ok) lockBad++; // zmiana aktywności bez zatrzymania = błąd blokady
+      if (t === 'kill_reward' && !sn.activity && r.ok) lockBad++; // łup bez aktywnej wyprawy = błąd
       if (i % 7 === 0) { const again = Server.execSync({ type: t, cid, ...p }); if (again !== r) dup++; } // ta sama komenda nie może wykonać się drugi raz
     }
     const bad = Server.invariants(), s = Server.snapshot();
+    if (lockBad) bad.push('naruszenia blokady aktywności: ' + lockBad);
     return { bad, ok, rej, dup, items: Object.keys(s.items).length, bag: s.slots.filter(Boolean).length, stash: s.stash.length };
   }
 
@@ -184,7 +188,7 @@
     addEventListener('keydown', e => { if (e.key === 'Escape' && open) close(); });
     root.querySelectorAll('[data-d]').forEach(b => b.onclick = async () => {
       const d = b.dataset.d;
-      if (d === 'stress') { const r = stress(); ST = Server.snapshot(); selUid = null; draw(); const rep = $('#inv-report', root); rep.className = 'report ' + (r.bad.length ? 'bad' : 'good'); rep.textContent = r.bad.length ? '✖ BŁĘDY: ' + r.bad.slice(0, 3).join('; ') : `✔ Spójność OK · wykonano ${r.ok}, odrzucono ${r.rej}, powtórzeń ${r.dup} · przedmiotów ${r.items} (plecak ${r.bag}, skrytka ${r.stash})`; return; }
+      if (d === 'stress') { Server.execSync({ type: 'activity_stop', cid: 'st-' + Date.now() }); const r = stress(); Server.execSync({ type: 'activity_stop', cid: 'st2-' + Date.now() }); ST = Server.snapshot(); selUid = null; draw(); const rep = $('#inv-report', root); rep.className = 'report ' + (r.bad.length ? 'bad' : 'good'); rep.textContent = r.bad.length ? '✖ BŁĘDY: ' + r.bad.slice(0, 3).join('; ') : `✔ Spójność OK · wykonano ${r.ok}, odrzucono ${r.rej}, powtórzeń ${r.dup} · przedmiotów ${r.items} (plecak ${r.bag}, skrytka ${r.stash})`; return; }
       if (d === 'fill') return cmd('debug_drop', { n: 60 });
       if (d === 'boss') return cmd('debug_drop', { n: 3, boss: true });
       cmd('debug_drop', { n: +d });
@@ -201,5 +205,5 @@
     ST = Server.snapshot();
   })();
 
-  window.Inventory = { open: openInv, close, reward: (p) => cmd('kill_reward', p, { silent: true }), drop: n => cmd('debug_drop', { n }), get state() { return ST; } };
+  window.Inventory = { open: openInv, close, exec: (t, p) => cmd(t, p || {}), reward: (p) => cmd('kill_reward', p, { silent: true }), drop: n => cmd('debug_drop', { n }), get state() { return ST; } };
 })();

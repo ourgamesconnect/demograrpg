@@ -13,6 +13,9 @@
     { k: 'Opuszczona kopalnia', ic: '⛏️', req: 16, lvl: 20, tier: 2, mobs: [['Nietoperz', '🦇', 34, 0, 4], ['Szczur kopalniany', '🐀', 26, 1, 5], ['Zmarły górnik', '🧟', 20, 2, 6], ['Szkielet', '💀', 12, 3, 7], ['Golem skalny', '🪨', 8, 4, 9]], boss: ['Strażnik Szybu', '☠️'], target: ['Zapieczętowana krypta', '⚰️'] },
     { k: 'Zamek w ruinie', ic: '🏰', req: 26, lvl: 30, tier: 3, mobs: [['Zbrojny najemnik', '🛡️', 34, 0, 4], ['Łucznik z wieży', '🏹', 26, 1, 5], ['Rycerz renegat', '🤺', 20, 2, 6], ['Kat', '🪓', 12, 3, 7], ['Mroczny kapłan', '🧙', 8, 4, 9]], boss: ['Czarny Rycerz', '🦹'], target: ['Brama zamku', '🚪'] },
   ];
+  let pending = false;
+  const serverExp = () => { const s = window.Inventory && Inventory.state; return !!(s && s.activity && s.activity.kind === 'exp'); };
+  const ACT_NAMES = { exp: 'Wyprawy', gather: 'Zbieractwo', craft: 'Rzemiosło' };
   const X = { on: false, map: 0, enemy: null, wait: 0, rest: 0, n: 0, kills: 0, bosses: 0, targets: 0, recent: [] };
   let root, stageEl;
 
@@ -75,6 +78,7 @@
     let lv = false; while (P.xp >= 1) { P.xp -= 1; P.lvl++; lv = true; }
     if (lv) { P.hp = hpMax(P); P.mp = mpMax(P); say('⭐ AWANS!', 'Poziom ' + P.lvl); }
     window.Inventory.reward({ tier: m.tier, kind: e.kind }).then(res => {
+      if (res && !res.ok) { applyServer(); sync(); return; }
       if (res && res.ok) for (const ev of res.events) {
         if (ev.t === 'item_added') { if (ev.where === 'sold') cards.push({ t: `${ev.ic} ${ev.name} → sprzedano (+${ev.gold} 🪙)`, c: 'gold' }); else { const it = res.snapshot.items[ev.uid]; if (it) { cards.push({ t: `${it.ic} ${it.name} (${RARITY[it.rarity].n})${ev.where === 'stash' ? ' → skrytka' : ''}`, c: 'item', col: RARITY[it.rarity].c }); X.recent.unshift({ ic: it.ic, n: it.name, col: RARITY[it.rarity].c }); X.recent.length = Math.min(X.recent.length, 10); } } }
         else if (ev.t === 'mat_added') cards.push({ t: `${MATS[ev.mat] || '📦'} ${ev.mat} ×${ev.qty}`, c: 'mat' });
@@ -140,18 +144,28 @@
     pan.classList.remove('hidden'); pan.className = 'xpanel ' + e.kind;
     $('#xname', root).textContent = (e.kind === 'boss' ? '☠ BOSS · ' : e.kind === 'target' ? '🎯 CEL · ' : '') + e.name + `  (poz. ${e.lvl})`;
   }
+  // stan „czy trwa wyprawa" zawsze pochodzi z serwera (klient go nie zmienia sam)
+  function applyServer() {
+    const on = serverExp();
+    if (X.on && !on) { X.enemy = null; X.rest = 0; syncEnemy(false); }
+    X.on = on;
+  }
+  window.addEventListener('inv:update', () => { applyServer(); sync(); });
   function sync() {
-    if (!root) return; const e = X.enemy, hm = hpMax(P), mm = mpMax(P);
+    if (!root) return;
+    const busyOther = (() => { const s = Inventory.state; return s && s.activity && s.activity.kind !== 'exp' ? ACT_NAMES[s.activity.kind] : null; })(); const e = X.enemy, hm = hpMax(P), mm = mpMax(P);
     if (e) { $('#xbar', root).style.width = (100 * e.hp / e.max) + '%'; $('#xtxt', root).textContent = `${fmt(e.hp)} / ${fmt(e.max)} HP`; }
     $('#xhp', root).style.width = (100 * P.hp / hm) + '%'; $('#xhpt', root).textContent = `${fmt(P.hp)} / ${fmt(hm)}`;
     $('#xmp', root).style.width = (100 * P.mp / mm) + '%'; $('#xmpt', root).textContent = `${fmt(P.mp)} / ${fmt(mm)}`;
     $('#xxp', root).style.width = (100 * P.xp) + '%'; $('#xlvl', root).textContent = 'Poz. ' + P.lvl;
     $('#xgold', root).textContent = fmt(P.gold);
-    $('#xstart', root).textContent = X.on ? '⏸ Zatrzymaj wyprawę' : '▶ ZACZNIJ WYPRAWĘ'; $('#xstart', root).classList.toggle('go', !X.on);
+    const sb = $('#xstart', root); sb.textContent = busyOther ? '🔒 Zajęty: ' + busyOther : (X.on ? '⏸ Zatrzymaj wyprawę' : '▶ ZACZNIJ WYPRAWĘ');
+    sb.disabled = pending || !!busyOther; sb.classList.toggle('go', !X.on && !busyOther);
+    $('#xboss', root).disabled = !X.on; $('#xtarget', root).disabled = !X.on;
     $('#xstat', root).textContent = `Pokonanych: ${X.kills} · Bossów: ${X.bosses} · Celów specjalnych: ${X.targets}`;
     const rc = $('#xrecent', root); rc.replaceChildren(); X.recent.forEach(r => { const c = el('span', 'xchip', r.ic + ' ' + r.n); c.style.borderColor = r.col; rc.append(c); });
     const tiles = $('#xmaps', root); tiles.replaceChildren();
-    MAPS.forEach((m, i) => { const open = P.lvl >= m.req, b = el('button', 'xmap' + (X.map === i ? ' on' : '') + (open ? '' : ' lock')); b.disabled = !open; b.append(el('i', '', open ? m.ic : '🔒'), el('b', '', m.k), el('small', '', open ? `poziom potworów ${m.lvl}+` : `od poziomu ${m.req}`)); b.onclick = () => { if (X.map === i) return; X.map = i; X.enemy = null; X.wait = 0; stageEl.dataset.map = i; syncEnemy(false); sync(); }; tiles.append(b); });
+    MAPS.forEach((m, i) => { const open = P.lvl >= m.req, b = el('button', 'xmap' + (X.map === i ? ' on' : '') + (open ? '' : ' lock')); b.disabled = !open || X.on || pending; if (X.on && open && X.map !== i) b.title = 'Zatrzymaj wyprawę, aby zmienić mapę'; b.append(el('i', '', open ? m.ic : '🔒'), el('b', '', m.k), el('small', '', open ? `poziom potworów ${m.lvl}+` : `od poziomu ${m.req}`)); b.onclick = () => { if (X.map === i) return; X.map = i; X.enemy = null; X.wait = 0; stageEl.dataset.map = i; syncEnemy(false); sync(); }; tiles.append(b); });
   }
 
   function build() {
@@ -174,9 +188,13 @@
     document.body.append(root); stageEl = $('#xstage', root);
     $('#xclose', root).onclick = close; root.onclick = e => { if (e.target === root) close(); };
     addEventListener('keydown', e => { if (e.key === 'Escape' && visible()) close(); });
-    $('#xboss', root).onclick = () => { if (!X.on) { X.on = true; sync(); } X.enemy = null; spawn('boss'); sync(); };
-    $('#xtarget', root).onclick = () => { if (!X.on) { X.on = true; sync(); } X.enemy = null; spawn('target'); sync(); };
-    $('#xstart', root).onclick = () => { X.on = !X.on; if (!X.on) { X.enemy = null; syncEnemy(false); } sync(); };
+    $('#xboss', root).onclick = () => { if (!X.on) return; X.enemy = null; spawn('boss'); sync(); };
+    $('#xtarget', root).onclick = () => { if (!X.on) return; X.enemy = null; spawn('target'); sync(); };
+    $('#xstart', root).onclick = async () => {
+      if (pending) return; pending = true; sync();
+      const res = X.on ? await Inventory.exec('activity_stop') : await Inventory.exec('activity_start', { kind: 'exp', detail: MAPS[X.map].k });
+      pending = false; applyServer(); sync(); void res;
+    };
     const p = $('#xparts', root); for (let k = 0; k < 20; k++) { const i = el('i'); i.style.left = rnd(2, 98) + '%'; i.style.top = rnd(10, 90) + '%'; i.style.animationDelay = rnd(0, 6) + 's'; i.style.animationDuration = rnd(5, 10) + 's'; p.append(i); }
   }
   function open() { if (!root) { build(); X.map = Math.max(0, MAPS.reduce((a, m, i) => P.lvl >= m.req ? i : a, 0)); stageEl.dataset.map = X.map; } root.hidden = false; document.body.classList.add('inv-open'); syncEnemy(false); sync(); }
