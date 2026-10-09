@@ -87,22 +87,23 @@
     const body = $('.inv-body', root); body.replaceChildren();
     // lewa kolumna: sylwetka z polami ekwipunku
     const left = el('div', 'inv-left'); left.append(el('h3', '', 'Postać'));
-    const pd = el('div', 'pdoll');
+    const pd = el('div', 'altar');
     const eqUids = Object.values(ST.equip), best = eqUids.length ? Math.max(...eqUids.map(u => ST.items[u].rarity)) : -1;
     pd.style.setProperty('--aura', best >= 0 ? RARITY[best].c : '#5a5f7a');
-    const mk = k => {
-      const s = EQUIP_SLOTS.find(x => x.k === k), w = el('div', 'eslot'); w.dataset.accept = k.startsWith('ring') ? 'ring' : k;
-      const c = cell(ST.equip[k] || null, 'equip', k); if (!ST.equip[k]) c.append(el('span', 'ghost', s.ic));
-      w.append(c, el('small', '', s.n)); return w;
-    };
-    const colL = el('div', 'pcol'), colR = el('div', 'pcol'), mid = el('div', 'pmid'), rings = el('div', 'prings');
-    ['helm', 'armor', 'gloves', 'boots'].forEach(k => colL.append(mk(k)));
-    ['amulet', 'weapon', 'shield'].forEach(k => colR.append(mk(k)));
-    rings.append(mk('ring1'), mk('ring2'));
-    const fig = el('div', 'pfig');
-    fig.innerHTML = '<div class="aura"></div><div class="orbit"></div><svg viewBox="0 0 120 220" aria-hidden="true"><defs><linearGradient id="fg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9aa0c8"/><stop offset="1" stop-color="#262944"/></linearGradient></defs><circle cx="60" cy="32" r="19" fill="url(#fg)"/><path d="M32 62 Q60 50 88 62 L98 122 L85 124 L80 86 L78 150 L86 212 L66 212 L60 160 L54 212 L34 212 L42 150 L40 86 L35 124 L22 122Z" fill="url(#fg)"/></svg><div class="plate"></div>';
-    mid.append(fig, rings);
-    pd.append(colL, mid, colR); left.append(pd);
+    pd.style.setProperty('--p', Math.round(100 * eqUids.length / EQUIP_SLOTS.length));
+    const POS = { helm: 0, earrings: 45, bracelet: 90, ring1: 135, boots: 180, ring2: 225, weapon: 270, armor: 315 }, R = 33;
+    let beams = '', slotsEls = [];
+    EQUIP_SLOTS.forEach(s => {
+      const an = POS[s.k] * Math.PI / 180, x = 50 + R * Math.sin(an), y = 50 - R * Math.cos(an), u = ST.equip[s.k], col = u ? RARITY[ST.items[u].rarity].c : '#3a3d52';
+      beams += '<line class="beam' + (u ? ' on' : '') + '" x1="50" y1="50" x2="' + x.toFixed(1) + '" y2="' + y.toFixed(1) + '" style="--bc:' + col + '"/>';
+      const w = el('div', 'aslot eslot'); w.dataset.accept = s.k.startsWith('ring') ? 'ring' : s.k; w.style.left = x + '%'; w.style.top = y + '%';
+      const c = cell(u || null, 'equip', s.k); if (!u) c.append(el('span', 'ghost', s.ic));
+      w.append(c, el('small', '', s.n)); slotsEls.push(w);
+    });
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('class', 'beams'); svg.setAttribute('viewBox', '0 0 100 100'); svg.innerHTML = beams;
+    const core = el('div', 'core'); core.innerHTML = '<div class="runes"></div><div class="disc"><b>' + eqUids.length + '/' + EQUIP_SLOTS.length + '</b><small>WYPOSAŻENIE</small></div>';
+    pd.append(el('div', 'stars2'), svg, core, ...slotsEls); left.append(pd);
+
     const t = totals(), eqN = eqUids.length, st = el('div', 'inv-stats');
     const kit = el('div', 'kit'); kit.append(el('span', '', `Wyposażenie ${eqN}/${EQUIP_SLOTS.length}`)); const kb = el('div', 'kitbar'); const ki = el('i'); ki.style.width = (100 * eqN / EQUIP_SLOTS.length) + '%'; kb.append(ki); kit.append(kb);
     const row = el('div', 'srow2'); row.append(el('div', '', '⚔ Atak'), el('b', '', fmt(t.atk)), el('div', '', '🛡 Obrona'), el('b', '', fmt(t.def)));

@@ -4,9 +4,8 @@
 'use strict';
 const INV_SLOTS = 48, STASH_MAX = 60;
 const EQUIP_SLOTS = [
-  { k: 'helm', n: 'Hełm', ic: '🪖' }, { k: 'amulet', n: 'Amulet', ic: '📿' }, { k: 'armor', n: 'Zbroja', ic: '🥋' },
-  { k: 'weapon', n: 'Broń', ic: '🗡️' }, { k: 'shield', n: 'Tarcza', ic: '🛡️' }, { k: 'gloves', n: 'Rękawice', ic: '🧤' },
-  { k: 'ring1', n: 'Pierścień', ic: '💍' }, { k: 'boots', n: 'Buty', ic: '🥾' }, { k: 'ring2', n: 'Pierścień', ic: '💍' },
+  { k: 'helm', n: 'Hełm', ic: '🪖' }, { k: 'armor', n: 'Zbroja', ic: '🥋' }, { k: 'boots', n: 'Buty', ic: '🥾' }, { k: 'weapon', n: 'Broń', ic: '🗡️' },
+  { k: 'ring1', n: 'Pierścień', ic: '💍' }, { k: 'ring2', n: 'Pierścień', ic: '💍' }, { k: 'earrings', n: 'Kolczyki', ic: '💎' }, { k: 'bracelet', n: 'Bransoletka', ic: '📿' },
 ];
 const TIERS = [['Drewniany', 'Drewniana', 'Drewniane'], ['Miedziany', 'Miedziana', 'Miedziane'], ['Żelazny', 'Żelazna', 'Żelazne'], ['Stalowy', 'Stalowa', 'Stalowe'], ['Hartowany', 'Hartowana', 'Hartowane']];
 const RARITY = [
@@ -16,8 +15,8 @@ const RARITY = [
 // [nazwa, ikona, rodzaj gramatyczny 0=m 1=f 2=n/lm, typ slotu]
 const BASES = [
   ['miecz', '🗡️', 0, 'weapon'], ['topór', '🪓', 0, 'weapon'], ['włócznia', '🔱', 1, 'weapon'], ['łuk', '🏹', 0, 'weapon'], ['młot', '🔨', 0, 'weapon'], ['sztylet', '🔪', 0, 'weapon'],
-  ['tarcza', '🛡️', 1, 'shield'], ['hełm', '🪖', 0, 'helm'], ['kaptur', '🧢', 0, 'helm'], ['kolczuga', '🥋', 1, 'armor'], ['kaftan', '🧥', 0, 'armor'],
-  ['rękawice', '🧤', 2, 'gloves'], ['buty', '🥾', 2, 'boots'], ['amulet', '📿', 0, 'amulet'], ['pierścień', '💍', 0, 'ring'],
+  ['hełm', '🪖', 0, 'helm'], ['kaptur', '🧢', 0, 'helm'], ['kolczuga', '🥋', 1, 'armor'], ['kaftan', '🧥', 0, 'armor'],
+  ['buty', '🥾', 2, 'boots'], ['kolczyki', '💎', 2, 'earrings'], ['bransoleta', '📿', 1, 'bracelet'], ['pierścień', '💍', 0, 'ring'],
 ];
 const MATS = { 'Złom': '⚙️', 'Szmaty': '🧵', 'Drewno': '🪵', 'Skóra': '🟤', 'Ruda': '🪨', 'Części': '🔩', 'Zioła': '🌿', 'Mięso': '🍖' };
 
@@ -35,7 +34,7 @@ const Server = (() => {
     const tier = opt.tier !== undefined ? opt.tier : Math.min(4, Math.floor(Math.random() * Math.random() * 5));
     const isWeapon = b[3] === 'weapon', power = Math.round(8 * Math.pow(1.9, tier) * RARITY[r].m * rnd(0.92, 1.08));
     const it = { uid: 'i' + (uidSeq++), name: TIERS[tier][b[2]] + ' ' + b[0], ic: b[1], type: b[3], tier, rarity: r, plus: 0,
-      atk: isWeapon ? power : 0, def: isWeapon ? 0 : Math.round(power * (b[3] === 'amulet' || b[3] === 'ring' ? 0.4 : 0.8)), req: 1 + tier * 12 + r * 2 };
+      atk: isWeapon ? power : 0, def: isWeapon ? 0 : Math.round(power * (b[3] === 'ring' || b[3] === 'earrings' || b[3] === 'bracelet' ? 0.4 : 0.8)), req: 1 + tier * 12 + r * 2 };
     it.value = Math.round(power * 3.2 * (1 + it.plus * 0.2));
     return it;
   }
