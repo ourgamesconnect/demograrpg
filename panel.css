@@ -155,3 +155,18 @@ body{background:var(--bg);color:var(--ink);font-family:"Segoe UI",system-ui,-app
 
 /* karta postaci na pełną szerokość (bez karty wojny) */
 .hero{grid-column:1/-1}
+
+/* ---------- życie i mana ---------- */
+.vitals{display:grid;gap:8px;margin:14px 0 10px}
+.vbar{position:relative;height:30px;border-radius:10px;background:rgba(0,0,0,.45);border:1px solid var(--line);overflow:hidden}
+.vbar i{position:absolute;left:0;top:0;bottom:0;width:0;transition:width 1s cubic-bezier(.2,.8,.2,1)}
+.vbar.hp i{background:linear-gradient(180deg,#ff6b6b,#c21f2f);box-shadow:0 0 18px rgba(255,60,70,.55)}
+.vbar.mp i{background:linear-gradient(180deg,#6ab4ff,#2457c9);box-shadow:0 0 18px rgba(80,150,255,.55)}
+.vbar i::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.4),transparent);transform:translateX(-100%);animation:shine 3s ease-in-out infinite}
+.vbar span{position:relative;display:flex;justify-content:space-between;align-items:center;height:100%;padding:0 12px}
+.vbar small{letter-spacing:.2em;font-size:11px;font-weight:800;color:#fff;text-shadow:0 1px 3px #000}
+.vbar b{font-variant-numeric:tabular-nums;text-shadow:0 1px 3px #000}
+.combat{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.combat div{padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid var(--line);text-align:center}
+.combat small{display:block;letter-spacing:.14em;font-size:10px;font-weight:800;color:var(--mut)}
+.combat b{font-size:22px;font-weight:900;font-variant-numeric:tabular-nums}

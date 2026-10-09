@@ -7,7 +7,7 @@ const fmtHMS = sec => { sec = Math.max(0, Math.floor(sec)); return [Math.floor(s
 
 // ---- stan przykładowy (docelowo z serwera) ----
 const P = {
-  name: 'Gracz', guild: 'Strażnicy Zmierzchu', server: 'Serwer Wschód', lvl: 27, xp: 0.62, power: 4380, gold: 128450, glory: 3120,
+  name: 'Gracz', guild: 'Strażnicy Zmierzchu', server: 'Serwer Wschód', lvl: 27, xp: 0.62, vit: 20, int: 12, pts: 3, atk: 842, def: 615, gold: 128450, glory: 3120,
   bag: 38, bagMax: 60, weapon: '🗡️', style: 'Miecz · cięcia', armor: 'Pancerz średni', set: 'Zestaw 3/6',
   sessions: { exp: { on: false, map: 'Wrogie mosty' }, gather: { on: true, loc: 'Jezioro', left: 9420 }, craft: { on: false } },
 };
@@ -81,7 +81,7 @@ function status(id) {
   if (id === 'exp') return s.exp.on ? ['● W TOKU · ' + s.exp.map, true] : ['Bezczynne', false];
   if (id === 'gather') return s.gather.on ? ['● W TOKU · ' + s.gather.loc + ' · ' + fmtHMS(s.gather.left), true] : ['Bezczynne', false];
   if (id === 'craft') return ['Kolejka pusta', false];
-  if (id === 'gear') return ['Siła ' + fmt(P.power), false];
+  if (id === 'gear') return ['Atak ' + fmt(P.atk) + ' · Obrona ' + fmt(P.def), false];
   if (id === 'duel') return ['Dziś: 3 / 10', false];
   return ['Sklepy i NPC', false];
 }
@@ -109,6 +109,9 @@ function drawFeed() {
 }
 
 // ---- render ----
+// modele robocze (wiki Metin2 nie podaje liczb HP i SP): życie i mana rosną z poziomem i punktami statystyk
+const hpMax = p => Math.round(200 + 48 * p.lvl + 12 * p.vit);
+const mpMax = p => Math.round(80 + 14 * p.lvl + 6 * p.int);
 function expFor(lvl) { return EXPTAB ? EXPTAB[lvl - 1].exp : 1000 * lvl * lvl; }
 function render() {
   const now = new Date(); $('#app').dataset.tod = todOf(now); placeOrb(now);
@@ -118,7 +121,10 @@ function render() {
   const need = expFor(P.lvl), have = Math.round(need * P.xp);
   $('#ring-xp').style.strokeDashoffset = (440 * (1 - P.xp)).toFixed(1);
   $('#xp-fill').style.width = (P.xp * 100).toFixed(1) + '%'; $('#xp-txt').textContent = `${fmt(have)} / ${fmt(need)} EXP`;
-  countTo($('#h-power'), P.power);
+  const hm = hpMax(P), mm = mpMax(P); P.hp = Math.min(hm, P.hp === undefined ? hm * 0.82 : P.hp); P.mp = Math.min(mm, P.mp === undefined ? mm * 0.64 : P.mp);
+  $('#hp-fill').style.width = (100 * P.hp / hm).toFixed(1) + '%'; $('#hp-txt').textContent = fmt(P.hp) + ' / ' + fmt(hm);
+  $('#mp-fill').style.width = (100 * P.mp / mm).toFixed(1) + '%'; $('#mp-txt').textContent = fmt(P.mp) + ' / ' + fmt(mm);
+  countTo($('#h-atk'), P.atk); countTo($('#h-def'), P.def); $('#h-pts').textContent = P.pts;
   $('#g-weapon').textContent = P.weapon; $('#g-style').textContent = P.style; $('#g-armor').textContent = P.armor; $('#g-set').textContent = P.set;
   if (P.sessions.gather.on) P.sessions.gather.left = Math.max(0, P.sessions.gather.left - 1);
   renderTiles();
