@@ -7,10 +7,11 @@ const EQUIP_SLOTS = [
   { k: 'helm', n: 'Hełm', ic: '🪖' }, { k: 'armor', n: 'Zbroja', ic: '🥋' }, { k: 'boots', n: 'Buty', ic: '🥾' }, { k: 'weapon', n: 'Broń', ic: '🗡️' },
   { k: 'ring1', n: 'Pierścień', ic: '💍' }, { k: 'ring2', n: 'Pierścień', ic: '💍' }, { k: 'earrings', n: 'Kolczyki', ic: '💎' }, { k: 'bracelet', n: 'Bransoletka', ic: '📿' },
 ];
-const TIERS = [['Drewniany', 'Drewniana', 'Drewniane'], ['Miedziany', 'Miedziana', 'Miedziane'], ['Żelazny', 'Żelazna', 'Żelazne'], ['Stalowy', 'Stalowa', 'Stalowe'], ['Hartowany', 'Hartowana', 'Hartowane']];
+const TIERS = [['Drewniany', 'Drewniana', 'Drewniane'], ['Miedziany', 'Miedziana', 'Miedziane'], ['Brązowy', 'Brązowa', 'Brązowe'], ['Żelazny', 'Żelazna', 'Żelazne'], ['Hartowany', 'Hartowana', 'Hartowane'],
+  ['Stalowy', 'Stalowa', 'Stalowe'], ['Damasceński', 'Damasceńska', 'Damasceńskie'], ['Mithrilowy', 'Mithrilowa', 'Mithrilowe'], ['Smoczy', 'Smocza', 'Smocze'], ['Legendarny', 'Legendarna', 'Legendarne']];
 const RARITY = [
-  { n: 'Zwykły', c: '#b8bdd0', m: 1.0 }, { n: 'Dobry', c: '#5ee08a', m: 1.18 }, { n: 'Rzadki', c: '#5aa9ff', m: 1.4 },
-  { n: 'Wybitny', c: '#c58bff', m: 1.75 }, { n: 'Legendarny', c: '#ffb347', m: 2.3 },
+  { n: 'Zwykły', c: '#b8bdd0', m: 1.0 }, { n: 'Dobry', c: '#5ee08a', m: 1.04 }, { n: 'Rzadki', c: '#5aa9ff', m: 1.08 },
+  { n: 'Wybitny', c: '#c58bff', m: 1.13 }, { n: 'Legendarny', c: '#ffb347', m: 1.20 },   // tymczasowo: rzadkość lekko podbija statystyki (docelowo: liczba bonusów)
 ];
 // [nazwa, ikona, rodzaj gramatyczny 0=m 1=f 2=n/lm, typ slotu]
 const BASES = [
@@ -57,11 +58,15 @@ const Server = (() => {
   function makeItem(opt = {}) {
     const b = opt.base || pick(BASES);
     const r = opt.rarity !== undefined ? opt.rarity : (() => { const x = Math.random() * 100; return x < 58 ? 0 : x < 82 ? 1 : x < 94 ? 2 : x < 99 ? 3 : 4; })();
-    const tier = opt.tier !== undefined ? opt.tier : Math.min(4, Math.floor(Math.random() * Math.random() * 5));
-    const isWeapon = b[3] === 'weapon', power = Math.round(8 * Math.pow(1.9, tier) * RARITY[r].m * rnd(0.92, 1.08));
-    const it = { uid: 'i' + (uidSeq++), name: TIERS[tier][b[2]] + ' ' + b[0], ic: b[1], type: b[3], tier, rarity: r, plus: 0,
-      atk: isWeapon ? power : 0, def: isWeapon ? 0 : Math.round(power * (b[3] === 'ring' || b[3] === 'earrings' || b[3] === 'bracelet' ? 0.4 : 0.8)), req: 1 + tier * 12 + r * 2 };
-    it.value = Math.round(power * 3.2 * (1 + it.plus * 0.2));
+    const tier = Math.max(0, Math.min(9, opt.tier !== undefined ? opt.tier : Math.floor(Math.random() * Math.random() * 10)));
+    const isWeapon = b[3] === 'weapon', kind = b[0] === 'miecz' ? 'sword' : b[0] === 'łuk' ? 'bow' : b[0] === 'różdżka' ? 'wand' : null, lvl = WEAPON_LEVELS[tier];
+    const sw = WEAPON_TABLE[lvl][0][0], rm = RARITY[r].m;
+    const slotW = { helm: 0.4, armor: 0.6, boots: 0.35, ring: 0.2, earrings: 0.2, bracelet: 0.2 }[b[3]] || 0.3;
+    const st = isWeapon ? weaponStats(kind, tier, 0) : { atk: 0, mag: 0 };
+    const it = { uid: 'i' + (uidSeq++), name: isWeapon ? WEAPON_NAMES[kind][tier] : TIERS[tier][b[2]] + ' ' + b[0], ic: b[1], type: b[3], kind, tier, rarity: r, rm, plus: 0,
+      atk: Math.round(st.atk * rm), mag: Math.round(st.mag * rm), def: isWeapon ? 0 : Math.max(1, Math.round(sw * slotW * rm)), req: lvl };
+    const power = it.atk + Math.round(it.mag * 0.5) + it.def;
+    it.value = Math.max(2, Math.round(power * 3.2));
     return it;
   }
   const freeSlot = () => S.slots.indexOf(null);
@@ -82,6 +87,7 @@ const Server = (() => {
       [S.slots[from], S.slots[to]] = [S.slots[to], S.slots[from]]; return { ev: [{ t: 'moved', from, to }] };
     },
     equip({ uid }) {
+      if (S.activity && S.activity.kind === 'exp') return { err: 'Podczas wyprawy nie można zmieniać ekwipunku. Zatrzymaj wyprawę.' };
       const f = find(uid); if (!f || f.w !== 'bag') return { err: 'Przedmiot nie jest w plecaku' };
       const it = S.items[uid]; if (it.req > S.lvl) return { err: `Wymagany poziom ${it.req}` };
       const opts = slotOfType(it.type); let slot = opts.find(k => !S.equip[k]) || opts[0];
@@ -89,6 +95,7 @@ const Server = (() => {
       return { ev: [{ t: 'equipped', uid, slot, swapped: old || null }] };
     },
     unequip({ slot }) {
+      if (S.activity && S.activity.kind === 'exp') return { err: 'Podczas wyprawy nie można zmieniać ekwipunku. Zatrzymaj wyprawę.' };
       const uid = S.equip[slot]; if (!uid) return { err: 'Slot jest pusty' };
       const i = freeSlot(); if (i < 0) return { err: 'Plecak jest pełny' };
       S.slots[i] = uid; delete S.equip[slot]; return { ev: [{ t: 'unequipped', uid, slot, to: i }] };
@@ -139,10 +146,8 @@ const Server = (() => {
     skill_up({ id }) {
       const sk = SKILLS.find(x => x.id === id); if (!sk) return { err: 'Nieznana umiejętność' };
       const spent = Object.values(S.skills).reduce((a, b) => a + b, 0), points = S.lvl - 1 - spent;
-      if (S.lvl < sk.unlock) return { err: 'Wymagany poziom ' + sk.unlock };
       const cur = S.skills[id] || 0;
       if (cur >= SKILL_MAX) return { err: 'Maksymalna ranga' };
-      if (cur >= skillCap(S.lvl, sk.unlock)) return { err: 'Ranga ograniczona poziomem postaci (kolejna na poziomie ' + (sk.unlock + cur) + ')' };
       if (points < 1) return { err: 'Brak punktów umiejętności' };
       S.skills[id] = cur + 1; return { ev: [{ t: 'skill_up', id, rank: cur + 1 }] };
     },
@@ -194,10 +199,10 @@ const Server = (() => {
     // łup za zabicie potwora: losuje serwer (klient tylko pokazuje wynik)
     kill_reward({ tier = 0, kind = 'mob' }) {
       if (!S.activity || S.activity.kind !== 'exp') return { err: 'Brak aktywnej wyprawy' };
-      const t = Math.max(0, Math.min(4, Math.floor(+tier) || 0)), ev = [];
+      const t = Math.max(0, Math.min(9, Math.floor(+tier) || 0)), ev = [];
       const rollR = () => { const x = Math.random() * 100; return kind === 'boss' ? (x < 45 ? 2 : x < 85 ? 3 : 4) : kind === 'target' ? (x < 50 ? 1 : x < 82 ? 2 : x < 96 ? 3 : 4) : (x < 70 ? 0 : x < 90 ? 1 : x < 98 ? 2 : 3); };
       const n = kind === 'boss' ? ri(2, 3) : kind === 'target' ? 1 : (Math.random() < 0.16 ? 1 : 0);
-      for (let k = 0; k < n; k++) ev.push({ t: 'item_added', ...putNew(makeItem({ tier: Math.min(4, t + (Math.random() < 0.3 ? 1 : 0)), rarity: rollR() })) });
+      for (let k = 0; k < n; k++) ev.push({ t: 'item_added', ...putNew(makeItem({ tier: Math.min(9, t + (Math.random() < 0.3 ? 1 : 0)), rarity: rollR() })) });
       const mats = Object.keys(MATS), cnt = kind === 'mob' ? (Math.random() < 0.6 ? 1 : 0) : 2;
       for (let k = 0; k < cnt; k++) { const m = pick(mats), q = ri(1, kind === 'mob' ? 3 : 7); S.mats[m] = (S.mats[m] || 0) + q; ev.push({ t: 'mat_added', mat: m, qty: q }); }
       return { ev };

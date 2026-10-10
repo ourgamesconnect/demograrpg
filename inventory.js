@@ -7,6 +7,8 @@
   const MAT_ICON = new Proxy(MATS, { get(t, k) { if (k in t) return t[k]; const base = String(k).replace(/ [IVX]+$/, ''); for (const b of Object.values(BOARDS)) { const f = b.types.find(x => x[0] === base); if (f) return f[1]; } return undefined; } });
   let ST = null, selUid = null, tab = 'bag', busy = 0, open = false, drag = null, cidSeq = 0, queue = Promise.resolve();
 
+  const expLocked = () => !!(ST && ST.activity && ST.activity.kind === 'exp');
+  const LOCK_MSG = 'Podczas wyprawy nie można zmieniać ekwipunku. Zatrzymaj wyprawę.';
   // ---- komendy (po kolei, każda z unikalnym cid) ----
   function cmd(type, payload = {}, opts = {}) {
     busy++; syncDot();
@@ -37,9 +39,9 @@
   const fresh = new Set();
 
   // ---- pomocnicze ----
-  const totals = () => { let atk = 0, def = 0; for (const u of Object.values(ST.equip)) { const it = ST.items[u]; if (it) { atk += Math.round(it.atk * (1 + it.plus * 0.2)); def += Math.round(it.def * (1 + it.plus * 0.2)); } } return { atk, def }; };
+  const totals = () => { let atk = 0, def = 0; for (const u of Object.values(ST.equip)) { const it = ST.items[u]; if (it) { const q = itemStats(it); atk += q.atk; def += q.def; } } return { atk, def }; };
   const equippedFor = it => { const ks = it.type === 'ring' ? ['ring1', 'ring2'] : [it.type]; const k = ks.find(q => !ST.equip[q]) || ks[0]; return ST.items[ST.equip[k]]; };
-  const statLine = it => [it.atk ? `⚔ Atak ${Math.round(it.atk * (1 + it.plus * 0.2))}` : '', it.def ? `🛡 Obrona ${Math.round(it.def * (1 + it.plus * 0.2))}` : ''].filter(Boolean).join('   ');
+  const statLine = it => { const q = itemStats(it); return [q.atk ? `⚔ Atak ${q.atk}` : '', q.mag ? `🔮 Magia ${q.mag}` : '', q.def ? `🛡 Obrona ${q.def}` : ''].filter(Boolean).join('   '); };
 
   // ---- tooltip ----
   let tip;
@@ -49,7 +51,7 @@
     tip.replaceChildren();
     const h = el('b', '', it.name + (it.plus ? ` +${it.plus}` : '')); h.style.color = r.c; tip.append(h, el('div', 'tt-r', r.n + ' · ' + it.type));
     tip.append(el('div', 'tt-s', statLine(it) || '—'));
-    if (cmp) { const da = Math.round(it.atk * (1 + it.plus * .2)) - Math.round(cmp.atk * (1 + cmp.plus * .2)), dd = Math.round(it.def * (1 + it.plus * .2)) - Math.round(cmp.def * (1 + cmp.plus * .2)); const c = el('div', 'tt-c', `W porównaniu z założonym: ${da ? (da > 0 ? '▲ +' : '▼ ') + da + ' atak  ' : ''}${dd ? (dd > 0 ? '▲ +' : '▼ ') + dd + ' obrona' : ''}` || '—'); c.classList.add(da > 0 || dd > 0 ? 'up' : 'down'); tip.append(c); }
+    if (cmp) { const qa = itemStats(it), qc = itemStats(cmp), da = (qa.atk + qa.mag) - (qc.atk + qc.mag), dd = qa.def - qc.def; const c = el('div', 'tt-c', `W porównaniu z założonym: ${da ? (da > 0 ? '▲ +' : '▼ ') + da + ' atak  ' : ''}${dd ? (dd > 0 ? '▲ +' : '▼ ') + dd + ' obrona' : ''}` || '—'); c.classList.add(da > 0 || dd > 0 ? 'up' : 'down'); tip.append(c); }
     tip.append(el('div', it.req > ST.lvl ? 'tt-req bad' : 'tt-req', `Wymagany poziom: ${it.req}`), el('div', 'tt-v', `Wartość: ${fmt(it.value)} 🪙`));
     tip.classList.add('on'); moveTip(e);
   }
@@ -67,7 +69,7 @@
       c.draggable = true;
       c.onmouseenter = e => showTip(it, e, kind === 'equip'); c.onmousemove = moveTip; c.onmouseleave = hideTip;
       c.onclick = () => { selUid = uid === selUid ? null : uid; draw(); };
-      c.ondblclick = () => { hideTip(); if (kind === 'bag') cmd('equip', { uid }); else if (kind === 'equip') cmd('unequip', { slot: idx }); else cmd('claim', { uid }); };
+      c.ondblclick = () => { hideTip(); if (kind !== 'stash' && expLocked()) { toast(LOCK_MSG, 'err'); return; } if (kind === 'bag') cmd('equip', { uid }); else if (kind === 'equip') cmd('unequip', { slot: idx }); else cmd('claim', { uid }); };
       c.ondragstart = e => { drag = { uid, kind, idx }; hideTip(); document.querySelectorAll('.eslot').forEach(w => { const ok = kind !== 'equip' && it.type === w.dataset.accept; w.classList.toggle('accept', ok); w.classList.toggle('reject', !ok); }); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', uid); c.classList.add('dragging'); };
       c.ondragend = () => { drag = null; c.classList.remove('dragging'); document.querySelectorAll('.eslot').forEach(w => w.classList.remove('accept', 'reject')); };
     }
@@ -75,8 +77,8 @@
     c.ondragleave = () => c.classList.remove('over');
     c.ondrop = e => {
       e.preventDefault(); c.classList.remove('over'); if (!drag) return; const d = drag; drag = null;
-      if (kind === 'bag') { if (d.kind === 'bag') cmd('move', { from: d.idx, to: +idx }); else if (d.kind === 'equip') cmd('unequip', { slot: d.idx }); else cmd('claim', { uid: d.uid }); }
-      else if (kind === 'equip') { if (d.kind === 'bag') cmd('equip', { uid: d.uid }); }
+      if (kind === 'bag') { if (d.kind === 'bag') cmd('move', { from: d.idx, to: +idx }); else if (d.kind === 'equip') { if (expLocked()) toast(LOCK_MSG, 'err'); else cmd('unequip', { slot: d.idx }); } else cmd('claim', { uid: d.uid }); }
+      else if (kind === 'equip') { if (d.kind === 'bag') { if (expLocked()) toast(LOCK_MSG, 'err'); else cmd('equip', { uid: d.uid }); } }
     };
     return c;
   }
@@ -88,7 +90,8 @@
     const body = $('.inv-body', root); body.replaceChildren();
     // lewa kolumna: sylwetka z polami ekwipunku
     const left = el('div', 'inv-left'); left.append(el('h3', '', 'Postać'));
-    const pd = el('div', 'altar');
+    const pd = el('div', 'altar' + (expLocked() ? ' locked' : ''));
+    if (expLocked()) pd.append(el('div', 'lockbar', '🔒 Wyprawa trwa: ekwipunku nie można zmieniać'));
     const eqUids = Object.values(ST.equip), best = eqUids.length ? Math.max(...eqUids.map(u => ST.items[u].rarity)) : -1;
     pd.style.setProperty('--aura', best >= 0 ? RARITY[best].c : '#5a5f7a');
     pd.style.setProperty('--p', Math.round(100 * eqUids.length / EQUIP_SLOTS.length));
@@ -133,8 +136,8 @@
       const n = el('b', '', it.ic + ' ' + it.name + (it.plus ? ` +${it.plus}` : '')); n.style.color = r.c;
       det.append(n, el('span', 'muted', ` · ${r.n} · ${statLine(it)} · wymagany poz. ${it.req}`));
       const act = el('div', 'act');
-      if (where === 'bag') { const b = el('button', 'btn pri', '✔ Załóż'); b.disabled = it.req > ST.lvl; b.onclick = () => cmd('equip', { uid: it.uid }); act.append(b); }
-      if (where === 'equip') { const b = el('button', 'btn', '↧ Zdejmij'); b.onclick = () => cmd('unequip', { slot: f[0] }); act.append(b); }
+      if (where === 'bag') { const b = el('button', 'btn pri', expLocked() ? '🔒 Załóż' : '✔ Załóż'); b.disabled = it.req > ST.lvl || expLocked(); if (expLocked()) b.title = LOCK_MSG; b.onclick = () => cmd('equip', { uid: it.uid }); act.append(b); }
+      if (where === 'equip') { const b = el('button', 'btn', expLocked() ? '🔒 Zdejmij' : '↧ Zdejmij'); b.disabled = expLocked(); if (expLocked()) b.title = LOCK_MSG; b.onclick = () => cmd('unequip', { slot: f[0] }); act.append(b); }
       if (where === 'stash') { const b = el('button', 'btn pri', '📥 Odbierz'); b.onclick = () => cmd('claim', { uid: it.uid }); act.append(b); }
       if (where !== 'equip') { const b = el('button', 'btn warn', `Sprzedaj za ${fmt(it.value)} 🪙`); b.onclick = () => { selUid = null; cmd('sell', { uid: it.uid }); }; act.append(b); }
       det.append(act);
@@ -166,6 +169,7 @@
       if (r.ok) ok++; else rej++;
       if (t === 'activity_start' && sn.activity && r.ok) lockBad++; // zmiana aktywności bez zatrzymania = błąd blokady
       if (t === 'kill_reward' && !sn.activity && r.ok) lockBad++; // łup bez aktywnej wyprawy = błąd
+      if ((t === 'equip' || t === 'unequip') && sn.activity && sn.activity.kind === 'exp' && r.ok) lockBad++; // zmiana ekwipunku w trakcie wyprawy = błąd
       if (i % 7 === 0) { const again = Server.execSync({ type: t, cid, ...p }); if (again !== r) dup++; } // ta sama komenda nie może wykonać się drugi raz
     }
     const bad = Server.invariants(), s = Server.snapshot();
@@ -195,13 +199,13 @@
     });
   }
   function openInv() { if (!root) build(); open = true; root.hidden = false; document.body.classList.add('inv-open'); draw(); }
-  function close() { open = false; hideTip(); root.hidden = true; document.body.classList.remove('inv-open'); }
+  function close() { open = false; hideTip(); if (!root) return; root.hidden = true; document.body.classList.remove('inv-open'); }
 
   // start: kilka przedmiotów początkowych i założone: broń + zbroja
   (async () => {
     Server.execSync({ type: 'starter_kit', cid: 'seed-1' });
     const s0 = Server.snapshot();
-    s0.slots.forEach(u => { if (u) { const t = s0.items[u].type; if (['weapon', 'helm', 'armor', 'boots'].includes(t)) Server.execSync({ type: 'equip', uid: u, cid: 'seed-eq-' + u }); } });
+    const done = new Set(); s0.slots.forEach(u => { if (u) { const t = s0.items[u].type; if (['weapon', 'helm', 'armor', 'boots'].includes(t) && !done.has(t)) { done.add(t); Server.execSync({ type: 'equip', uid: u, cid: 'seed-eq-' + u }); } } });
     ST = Server.snapshot();
   })();
 

@@ -25,10 +25,11 @@
     const t = { '-1': 1, '-2': .98, '-3': .96, '-4': .94, '-5': .92, '-6': .9, '-7': .85, '-8': .8, '-9': .7, '-10': .5, '-11': .3, '-12': .2, '-13': .1, '-14': .05 };
     return d <= -15 ? 0.01 : t[d];
   }
-  const equipAtk = () => { const s = window.Inventory && Inventory.state; if (!s) return 0; return Object.values(s.equip).reduce((a, u) => { const it = s.items[u]; return a + (it ? Math.round(it.atk * (1 + it.plus * 0.2)) : 0); }, 0); };
-  const weaponKind = () => { const s = Inventory.state, u = s && s.equip.weapon, n = u ? s.items[u].name.toLowerCase() : ''; return /łuk/.test(n) ? 'bow' : /różdżk/.test(n) ? 'wand' : 'sword'; };
-  const playerDmg = () => 12 + P.lvl * 3 + equipAtk();
-  const refDmg = m => 12 + m.lvl * 3 + 6 * (m.tier + 1);
+  const equipAtk = (useMag) => { const s = window.Inventory && Inventory.state; if (!s) return 0; const it = s.items[s.equip.weapon], q = itemStats(it); return useMag && q.mag ? q.mag : q.atk; };
+  const weaponKind = () => { const s = Inventory.state, u = s && s.equip.weapon, it = u && s.items[u]; return (it && it.kind) || 'sword'; };
+  const playerDmg = useMag => 12 + P.lvl * 3 + equipAtk(useMag);
+  // moc wzorcowa mapy: podstawa postaci + miecz etapu mapy z ulepszeniem +4 (średni sprzęt)
+  const refDmg = m => 12 + m.lvl * 3 + weaponStats('sword', m.tier, 4).atk;
   const hpOf = (m, t) => Math.round(refDmg(m) * t / 0.9);
 
   function spawn(force) {
@@ -57,7 +58,7 @@
   const atkBuff = () => (buffOn('sw1') ? 1 + SKILLS.find(s => s.id === 'sw1').p(rankOf('sw1')).atk : 1);
   function dealDamage(mult, skill) {
     const e = X.enemy; if (!e || e.dead) return 0;
-    let dmg = playerDmg() * mult * rnd(0.9, 1.1); const crit = Math.random() < 0.18; if (crit) dmg *= 1.8;
+    let dmg = playerDmg(!!skill) * mult * rnd(0.9, 1.1); const crit = Math.random() < 0.18; if (crit) dmg *= 1.8;
     if (SK.vuln && SK.vuln.until > Date.now()) dmg *= 1 + SK.vuln.v;
     dmg = Math.max(1, Math.round(dmg)); e.hp = Math.max(0, e.hp - dmg);
     fxHit(dmg, crit, skill);
@@ -88,7 +89,7 @@
     P.mp -= costOf(s); SK.ready[s.id] = now + cdOf(s) * 1000;
     flashBtn(s.id);
     switch (s.kind) {
-      case 'buff': SK.until[s.id] = now + s.dur * 1000; if (visible()) fx('skilltxt', { left: '50%', top: '24%' }, 1100, s.ic + ' ' + s.n); break;
+      case 'buff': SK.until[s.id] = now + (p.dur || s.dur) * 1000; if (visible()) fx('skilltxt', { left: '50%', top: '24%' }, 1100, s.ic + ' ' + s.n); break;
       case 'strike': dealDamage(p.mult, s); if (s.charge) SK.charges = Math.min(3, SK.charges + s.charge); break;
       case 'debuff': dealDamage(p.mult, s); SK.vuln = { until: now + s.vdur * 1000, v: p.vuln }; break;
       case 'execute': { const e = X.enemy, low = e && e.hp / e.max < p.thr; dealDamage(p.mult + (low ? p.bonus : 0), s); break; }
@@ -304,6 +305,6 @@
     const p = $('#xparts', root); for (let k = 0; k < 20; k++) { const i = el('i'); i.style.left = rnd(2, 98) + '%'; i.style.top = rnd(10, 90) + '%'; i.style.animationDelay = rnd(0, 6) + 's'; i.style.animationDuration = rnd(5, 10) + 's'; p.append(i); }
   }
   function open() { if (!root) { build(); X.map = Math.max(0, MAPS.reduce((a, m, i) => P.lvl >= m.req ? i : a, 0)); stageEl.dataset.map = X.map; } root.hidden = false; document.body.classList.add('inv-open'); syncEnemy(false); sync(); }
-  function close() { root.hidden = true; document.body.classList.remove('inv-open'); }
+  function close() { if (!root) return; root.hidden = true; document.body.classList.remove("inv-open"); }
   window.Expedition = { open, close, get running() { return X.on; }, get map() { return MAPS[X.map].k; } };
 })();

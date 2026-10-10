@@ -110,3 +110,7 @@ body.inv-open{overflow:hidden}
 .aslot.accept{animation:acceptA 1s ease-in-out infinite}
 @keyframes acceptA{50%{transform:translate(-50%,-50%) scale(1.1)}}
 .altar::before{background:conic-gradient(from 0deg,transparent,color-mix(in srgb,var(--aura) 9%,transparent) 12%,transparent 30%,transparent 55%,color-mix(in srgb,var(--aura) 7%,transparent) 68%,transparent 85%)}
+
+.altar.locked .aslot{opacity:.55}
+.altar.locked .core{filter:grayscale(.7)}
+.lockbar{position:absolute;left:0;right:0;top:0;z-index:6;padding:6px 10px;text-align:center;font-size:12px;font-weight:800;color:#ffb3b3;background:rgba(80,10,16,.82);border-bottom:1px solid #ff4d5a}

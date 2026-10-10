@@ -1,7 +1,7 @@
 // UMIEJĘTNOŚCI — definicje (wspólne dla serwera-symulatora, ekranu umiejętności i wypraw)
 'use strict';
 const SKILL_MAX = 20;
-const SKILL_UNLOCK = [1, 10, 25, 45, 70];                     // poziom postaci odblokowujący kolejne umiejętności broni
+// Umiejętności NIE zależą od poziomu postaci: wszystkie są dostępne od początku, a gracz sam wybiera, w co wkłada punkty.
 const SKILL_WEAPONS = [
   { k: 'sword', n: 'Miecz',   ic: '🗡️', c: '#ff8a45' },
   { k: 'bow',   n: 'Łuk',     ic: '🏹', c: '#4fe39a' },
@@ -13,12 +13,12 @@ const _n1 = v => (Math.round(v * 10) / 10).toString().replace('.', ',');
 // kind: buff | strike | debuff | execute | dot | nuke | detonate | channel  (opis w kodzie wypraw)
 const SKILLS = [
   // ---- MIECZ ----
-  { id: 'sw1', w: 'sword', n: 'Zwiększenie Ataku', ic: '🔺', kind: 'buff', cd: 45, mana: 25, dur: 15,
-    p: r => ({ atk: _lerp(0.5, 1.0, r), taken: 0.20 }),
-    desc: r => { const p = SKILLS[0].p(r); return `Przez 15 s Twoje ataki podstawowe zadają +${_pc(p.atk)} obrażeń, ale otrzymujesz +20% obrażeń.`; } },
-  { id: 'sw2', w: 'sword', n: 'Zwiększenie Obrony', ic: '🛡️', kind: 'buff', cd: 45, mana: 25, dur: 15,
-    p: r => ({ red: _lerp(0.4, 0.6, r), aspd: -0.25 }),
-    desc: r => { const p = SKILLS[1].p(r); return `Przez 15 s otrzymujesz −${_pc(p.red)} obrażeń fizycznych i jesteś odporny na ogłuszenie, ale atakujesz o 25% wolniej.`; } },
+  { id: 'sw1', w: 'sword', n: 'Zwiększenie Ataku', ic: '🔺', kind: 'buff', cd: 120, mana: 25, dur: 60,
+    p: r => ({ atk: _lerp(0.25, 0.50, r), taken: 0.10, dur: Math.round(_lerp(60, 180, r)) }),
+    desc: r => { const p = SKILLS[0].p(r); return `Aura trwająca ${p.dur} s: Twoje ataki podstawowe zadają +${_pc(p.atk)} obrażeń, ale otrzymujesz +10% obrażeń.`; } },
+  { id: 'sw2', w: 'sword', n: 'Zwiększenie Obrony', ic: '🛡️', kind: 'buff', cd: 120, mana: 25, dur: 60,
+    p: r => ({ red: _lerp(0.25, 0.40, r), aspd: -0.15, dur: Math.round(_lerp(60, 180, r)) }),
+    desc: r => { const p = SKILLS[1].p(r); return `Aura trwająca ${p.dur} s: otrzymujesz −${_pc(p.red)} obrażeń fizycznych i jesteś odporny na ogłuszenie, ale atakujesz o 15% wolniej.`; } },
   { id: 'sw3', w: 'sword', n: 'Nawałnica Stali', ic: '🌀', kind: 'strike', cd: 6, mana: 12,
     p: r => ({ mult: _lerp(1.2, 2.2, r) }),
     desc: r => `Szybki młynek wokół własnej osi: ${_pc(SKILLS[2].p(r).mult)} obrażeń. Czyści grupy słabszych potworów. Niski koszt many, krótkie odnowienie.` },
@@ -61,6 +61,6 @@ const SKILLS = [
     p: r => ({ mult: _lerp(0.8, 1.3, r) * 7, per: _lerp(0.8, 1.3, r) }),
     desc: r => `7 samonaprowadzających pocisków po ${_pc(SKILLS[14].p(r).per)}. Gdy cel jest sam, dostaje wszystkie 7 naraz: ${_pc(SKILLS[14].p(r).mult)} obrażeń.` },
 ];
-SKILLS.forEach((s, i) => { s.slot = i % 5; s.unlock = SKILL_UNLOCK[i % 5]; });
+SKILLS.forEach((s, i) => { s.slot = i % 5; s.unlock = 1; });
 // maksymalna ranga dozwolona poziomem postaci: +1 ranga na poziom od odblokowania, do 20
-const skillCap = (lvl, unlock) => Math.max(0, Math.min(SKILL_MAX, lvl - unlock + 1));
+const skillCap = () => SKILL_MAX;

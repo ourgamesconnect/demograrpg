@@ -10,7 +10,7 @@
   const ranks = () => (S() && S().skills) || {};
   const spent = () => Object.values(ranks()).reduce((a, b) => a + b, 0);
   const points = () => { const s = S(); return s ? Math.max(0, s.lvl - 1 - spent()) : 0; };
-  const equippedWeapon = () => { const s = S(), u = s && s.equip.weapon, n = u ? s.items[u].name.toLowerCase() : ''; return /łuk/.test(n) ? 'bow' : /różdżk/.test(n) ? 'wand' : 'sword'; };
+  const equippedWeapon = () => { const s = S(), u = s && s.equip.weapon, it = u && s.items[u]; return (it && it.kind) || 'sword'; };
   const spentFor = w => SKILLS.filter(s => s.w === w).reduce((a, s) => a + (ranks()[s.id] || 0), 0);
 
   async function up(id, card) {
@@ -42,20 +42,20 @@
     });
     const grid = $('#skgrid', root); grid.replaceChildren(); grid.classList.toggle('anim', animate); animate = false;
     SKILLS.filter(q => q.w === tab).forEach((sk, i) => {
-      const r = ranks()[sk.id] || 0, cap = skillCap(s.lvl, sk.unlock), locked = s.lvl < sk.unlock, max = r >= SKILL_MAX;
+      const r = ranks()[sk.id] || 0, cap = SKILL_MAX, locked = false, max = r >= SKILL_MAX;
       const card = el('div', 'skc' + (locked ? ' locked' : '') + (r > 0 ? ' learned' : '') + (max ? ' max' : '')); card.dataset.id = sk.id; card.style.setProperty('--i', i);
       card.append(el('span', 'skk', KIND[sk.kind] || ''));
       const ic = el('div', 'skic'); ic.append(el('i', '', sk.ic)); card.append(ic);
       card.append(el('h3', '', sk.n));
       const bar = el('div', 'skbar'); for (let k = 1; k <= SKILL_MAX; k++) bar.append(el('i', k <= r ? 'on' : (k <= cap ? 'cap' : '')));
       card.append(bar);
-      card.append(el('div', 'skrank', r + ' / ' + SKILL_MAX + (locked ? '' : (r < cap ? '' : (max ? ' · MAKS' : ' · limit poziomu')))));
+      card.append(el('div', 'skrank', r + ' / ' + SKILL_MAX + (max ? ' · MAKS' : '')));
       card.append(el('p', 'skdesc', (r > 0 ? '' : 'Ranga 1: ') + sk.desc(Math.max(1, r))));
       if (!locked && !max && r > 0 && r < SKILL_MAX) card.append(el('p', 'sknext', 'Następna ranga (' + (r + 1) + '): ' + sk.desc(r + 1)));
-      card.append(el('div', 'skmeta', (sk.mana ? sk.mana + ' many' : 'bez many') + ' · odnowienie ' + (sk.id === 'wd1' ? '75→60' : sk.cd) + ' s · poz. ' + sk.unlock));
+      card.append(el('div', 'skmeta', (sk.mana ? sk.mana + ' many' : 'bez many') + ' · odnowienie ' + (sk.id === 'wd1' ? '75→60' : sk.cd) + ' s'));
       const btn = el('button', 'skup');
       let why = '';
-      if (locked) why = 'Odblokowanie: poziom ' + sk.unlock; else if (max) why = 'Maksymalna ranga'; else if (r >= cap) why = 'Kolejna ranga na poziomie ' + (sk.unlock + r); else if (pts < 1) why = 'Brak punktów';
+      if (max) why = 'Maksymalna ranga'; else if (pts < 1) why = 'Brak punktów';
       btn.textContent = why || '＋ ULEPSZ'; btn.disabled = !!why; btn.classList.toggle('ready', !why);
       btn.onclick = () => up(sk.id, card); card.append(btn);
       if (locked) card.append(el('div', 'sklock', '🔒 od poz. ' + sk.unlock));
@@ -82,6 +82,6 @@
     addEventListener('inv:update', () => draw(false));
   }
   function open() { if (!root) build(); tab = equippedWeapon(); root.hidden = false; document.body.classList.add('inv-open'); lastSig = ''; animate = true; draw(true); }
-  function close() { root.hidden = true; document.body.classList.remove('inv-open'); }
+  function close() { if (!root) return; root.hidden = true; document.body.classList.remove("inv-open"); }
   window.Skills = { open, close, points };
 })();

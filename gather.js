@@ -188,6 +188,6 @@
     window.addEventListener('inv:update', () => { if (!root.hidden) draw(); });
   }
   function open(which) { if (!root) build(); if (which && SCENES[which]) tab = which; root.hidden = false; document.body.classList.add('inv-open'); sel = null; cellEls.forEach(x => delete x.dataset.sig); detSig = ''; draw(); }
-  function close() { root.hidden = true; document.body.classList.remove('inv-open'); }
+  function close() { if (!root) return; root.hidden = true; document.body.classList.remove("inv-open"); }
   window.Gather = { open, close };
 })();
