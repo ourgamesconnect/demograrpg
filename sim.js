@@ -22,6 +22,8 @@ const BASES = [
 const ACTIVITY_NAMES = { exp: 'Wyprawy', gather: 'Zbieractwo', craft: 'Rzemiosło' };
 // PLANSZE ZBIERACTWA (scalanie): dwa takie same surowce tego samego poziomu = jeden wyższego poziomu
 // jeden surowiec co 5 minut (do testów można skrócić parametrem ?tempo=N w adresie, np. ?tempo=60 = co 5 s)
+// odnowienie celu (boss, Spaczony Korzeń) po zabiciu: 30 minut (do testów skracane parametrem ?tempo=N)
+const ENC_COOLDOWN_MS = Math.round(30 * 60 * 1000 / Math.max(1, parseFloat(new URLSearchParams(location.search).get('tempo')) || 1));
 const BOARD_CELLS = 20, BOARD_MAXLVL = 9, GATHER_MAX = 100;
 // czas jednego cyklu na poziomie 1 (5 minut); do testów skrócić parametrem ?tempo=N w adresie
 const BOARD_EVERY_MS = Math.round(300000 / Math.max(1, parseFloat(new URLSearchParams(location.search).get('tempo')) || 1));
@@ -50,7 +52,7 @@ const MATS = { 'Złom': '⚙️', 'Szmaty': '🧵', 'Drewno': '🪵', 'Skóra': 
 const Server = (() => {
   let uidSeq = 1000, version = 0;
   const done = new Map(); // cid -> odpowiedź (idempotencja: ta sama komenda nie wykona się dwa razy)
-  const S = { slots: Array(INV_SLOTS).fill(null), items: {}, equip: {}, stash: [], mats: { 'Złom': 14, 'Szmaty': 9, 'Skóra': 4 }, gold: 150, lvl: 1, skills: {}, activity: null,
+  const S = { slots: Array(INV_SLOTS).fill(null), items: {}, equip: {}, stash: [], mats: { 'Złom': 14, 'Szmaty': 9, 'Skóra': 4 }, gold: 150, lvl: 1, skills: {}, enc: {}, activity: null,
     boards: { mining: Array(BOARD_CELLS).fill(null), sawmill: Array(BOARD_CELLS).fill(null) }, lastDrop: { mining: 0, sawmill: 0 }, lost: { mining: 0, sawmill: 0 }, gatherLvl: { mining: 1, sawmill: 1 } };
   const rnd = (a, b) => a + Math.random() * (b - a), ri = (a, b) => Math.floor(rnd(a, b + 1));
   const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -116,6 +118,24 @@ const Server = (() => {
       S.slots = ids.concat(Array(INV_SLOTS - ids.length).fill(null)); return { ev: [{ t: 'sorted' }] };
     },
     // BLOKADA: postać robi naraz tylko jedną rzecz. Zmiana wymaga najpierw zatrzymania bieżącej aktywności.
+    // CELE NA MAPIE (boss, Spaczony Korzeń): stany ready -> queued -> active -> (po zabiciu) ready z odnowieniem
+    // Nieudana próba (śmierć, zatrzymanie wyprawy, rozłączenie) wraca do ready BEZ odnowienia.
+    encounter_call({ map, kind }) {
+      if (!S.activity || S.activity.kind !== 'exp') return { err: 'Rozpocznij wyprawę, aby wywołać cel' };
+      if (!['boss', 'target'].includes(kind) || typeof map !== 'string' || map.length > 20) return { err: 'Nieprawidłowy cel' };
+      const k = map + ':' + kind, e = S.enc[k] || (S.enc[k] = { st: 'ready', cd: 0 }), now = Date.now();
+      if (e.cd > now) return { err: 'Odnowienie: jeszcze ' + Math.ceil((e.cd - now) / 1000) + ' s' };
+      if (Object.values(S.enc).some(q => q.st === 'queued' || q.st === 'active')) return { err: 'Inny cel jest już wywołany' };
+      e.st = 'queued'; return { ev: [{ t: 'encounter_called', map, kind }] };
+    },
+    encounter_spawn({ map, kind }) {
+      const e = S.enc[map + ':' + kind]; if (!e || e.st !== 'queued') return { err: 'Cel nie jest wywołany' };
+      e.st = 'active'; return { ev: [{ t: 'encounter_spawned', map, kind }] };
+    },
+    encounter_abort() {
+      let n = 0; for (const e of Object.values(S.enc)) if (e.st === 'queued' || e.st === 'active') { e.st = 'ready'; n++; }
+      return { ev: n ? [{ t: 'encounter_aborted', n }] : [] };   // idempotentne
+    },
     activity_start({ kind, detail = '' }) {
       if (!ACTIVITY_NAMES[kind]) return { err: 'Nieznana aktywność' };
       if (S.activity) {
@@ -123,11 +143,13 @@ const Server = (() => {
         return { err: a.kind === kind ? `${ACTIVITY_NAMES[kind]} już trwa. Zatrzymaj, aby zmienić.` : `Jesteś zajęty: ${ACTIVITY_NAMES[a.kind]}. Zatrzymaj, aby zacząć ${ACTIVITY_NAMES[kind].toLowerCase()}.` };
       }
       if (kind === 'gather' && !BOARDS[detail]) return { err: 'Nieznana lokacja zbierania' };
+      for (const e of Object.values(S.enc)) if (e.st === 'queued' || e.st === 'active') e.st = 'ready';   // odzyskanie stanu po rozłączeniu
       S.activity = { kind, detail: String(detail).slice(0, 60), since: Date.now() };
       return { ev: [{ t: 'activity_started', kind, detail: S.activity.detail }] };
     },
     activity_stop() {
       if (!S.activity) return { ev: [] }; // zatrzymanie jest idempotentne
+      for (const e of Object.values(S.enc)) if (e.st === 'queued' || e.st === 'active') e.st = 'ready';   // cel „ucieka", bez odnowienia
       const k = S.activity.kind; S.activity = null; return { ev: [{ t: 'activity_stopped', kind: k }] };
     },
     // Zestaw startowy nowej postaci (poziom 1): drewniana broń i podstawowy pancerz
@@ -197,8 +219,13 @@ const Server = (() => {
       return { ev };
     },
     // łup za zabicie potwora: losuje serwer (klient tylko pokazuje wynik)
-    kill_reward({ tier = 0, kind = 'mob' }) {
+    kill_reward({ tier = 0, kind = 'mob', map }) {
       if (!S.activity || S.activity.kind !== 'exp') return { err: 'Brak aktywnej wyprawy' };
+      if (kind !== 'mob') {   // łup z bossa lub celu wymaga wywołanego (aktywnego) celu; po zabiciu startuje odnowienie
+        const e = S.enc[String(map) + ':' + kind];
+        if (!e || e.st !== 'active') return { err: 'Brak wywołanego celu' };
+        e.st = 'ready'; e.cd = Date.now() + ENC_COOLDOWN_MS;
+      }
       const t = Math.max(0, Math.min(9, Math.floor(+tier) || 0)), ev = [];
       const rollR = () => { const x = Math.random() * 100; return kind === 'boss' ? (x < 45 ? 2 : x < 85 ? 3 : 4) : kind === 'target' ? (x < 50 ? 1 : x < 82 ? 2 : x < 96 ? 3 : 4) : (x < 70 ? 0 : x < 90 ? 1 : x < 98 ? 2 : 3); };
       const n = kind === 'boss' ? ri(2, 3) : kind === 'target' ? 1 : (Math.random() < 0.16 ? 1 : 0);
@@ -227,6 +254,7 @@ const Server = (() => {
     { let sum = 0; for (const [id, rk] of Object.entries(S.skills)) { const sk = SKILLS.find(x => x.id === id); if (!sk || !Number.isInteger(rk) || rk < 0 || rk > SKILL_MAX) errs.push('ranga umiejętności ' + id); sum += rk; } if (sum > S.lvl - 1) errs.push('więcej rang niż punktów'); }
     for (const b of Object.keys(BOARDS)) { const L = S.gatherLvl[b]; if (!Number.isInteger(L) || L < 1 || L > GATHER_MAX) errs.push('poziom zbierania ' + b); }
     for (const [b, B] of Object.entries(S.boards)) { if (B.length !== BOARD_CELLS) errs.push('plansza ' + b + ': zła liczba pól'); B.forEach((c, i) => { if (c && (!BOARDS[b].types.some(t => t[0] === c.t) || !Number.isInteger(c.l) || c.l < 1 || c.l > BOARD_MAXLVL)) errs.push(`plansza ${b}#${i}: zły surowiec`); }); }
+    if (Object.values(S.enc).filter(q => q.st === 'queued' || q.st === 'active').length > 1) errs.push('więcej niż jeden wywołany cel');
     if (S.activity !== null && !(S.activity && ACTIVITY_NAMES[S.activity.kind])) errs.push('zła aktywność');
     return errs;
   }
@@ -241,5 +269,5 @@ const Server = (() => {
   }
   // „sieć": opóźnienie 60–160 ms, komendy obsługiwane po kolei
   const send = cmd => new Promise(res => setTimeout(() => res(execSync(cmd)), 60 + Math.random() * 100));
-  return { send, execSync, snapshot: snap, invariants, makeItem, STASH_MAX, BOARDS, ROMAN, BOARD_CELLS, BOARD_MAXLVL, BOARD_EVERY_MS, MERGE_P, GATHER_MAX, gatherOdds, gatherEvery };
+  return { send, execSync, snapshot: snap, invariants, makeItem, STASH_MAX, ENC_COOLDOWN_MS, BOARDS, ROMAN, BOARD_CELLS, BOARD_MAXLVL, BOARD_EVERY_MS, MERGE_P, GATHER_MAX, gatherOdds, gatherEvery };
 })();
