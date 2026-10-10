@@ -19,13 +19,21 @@ const BASES = [
   ['buty', '🥾', 2, 'boots'], ['kolczyki', '💎', 2, 'earrings'], ['bransoleta', '📿', 1, 'bracelet'], ['pierścień', '💍', 0, 'ring'],
 ];
 const ACTIVITY_NAMES = { exp: 'Wyprawy', gather: 'Zbieractwo', craft: 'Rzemiosło' };
+// PLANSZE ZBIERACTWA (scalanie): dwa takie same surowce tego samego poziomu = jeden wyższego poziomu
+const BOARD_CELLS = 20, BOARD_MAXLVL = 7, BOARD_EVERY_MS = 3000;
+const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+const BOARDS = {
+  mining: { n: 'Górnictwo', types: [['Kamień', '🪨', 60], ['Ruda', '🟤', 25], ['Węgiel', '⚫', 15]] },
+  sawmill: { n: 'Tartak', types: [['Drewno', '🪵', 60], ['Żywica', '🟠', 25], ['Kora', '🍂', 15]] },
+};
 const MATS = { 'Złom': '⚙️', 'Szmaty': '🧵', 'Drewno': '🪵', 'Skóra': '🟤', 'Ruda': '🪨', 'Części': '🔩', 'Zioła': '🌿', 'Mięso': '🍖' };
 
 const Server = (() => {
   const PLAYER_LVL = 27;
   let uidSeq = 1000, version = 0;
   const done = new Map(); // cid -> odpowiedź (idempotencja: ta sama komenda nie wykona się dwa razy)
-  const S = { slots: Array(INV_SLOTS).fill(null), items: {}, equip: {}, stash: [], mats: { 'Złom': 14, 'Szmaty': 9, 'Skóra': 4 }, gold: 128450, activity: null };
+  const S = { slots: Array(INV_SLOTS).fill(null), items: {}, equip: {}, stash: [], mats: { 'Złom': 14, 'Szmaty': 9, 'Skóra': 4 }, gold: 128450, activity: null,
+    boards: { mining: Array(BOARD_CELLS).fill(null), sawmill: Array(BOARD_CELLS).fill(null) }, lastDrop: { mining: 0, sawmill: 0 }, lost: { mining: 0, sawmill: 0 } };
   const rnd = (a, b) => a + Math.random() * (b - a), ri = (a, b) => Math.floor(rnd(a, b + 1));
   const pick = a => a[Math.floor(Math.random() * a.length)];
 
@@ -90,12 +98,49 @@ const Server = (() => {
         const a = S.activity;
         return { err: a.kind === kind ? `${ACTIVITY_NAMES[kind]} już trwa. Zatrzymaj, aby zmienić.` : `Jesteś zajęty: ${ACTIVITY_NAMES[a.kind]}. Zatrzymaj, aby zacząć ${ACTIVITY_NAMES[kind].toLowerCase()}.` };
       }
+      if (kind === 'gather' && !BOARDS[detail]) return { err: 'Nieznana lokacja zbierania' };
       S.activity = { kind, detail: String(detail).slice(0, 60), since: Date.now() };
       return { ev: [{ t: 'activity_started', kind, detail: S.activity.detail }] };
     },
     activity_stop() {
       if (!S.activity) return { ev: [] }; // zatrzymanie jest idempotentne
       const k = S.activity.kind; S.activity = null; return { ev: [{ t: 'activity_stopped', kind: k }] };
+    },
+    // Zbieractwo: serwer sam liczy, ile surowców spadło od ostatniego razu (klient nie może przyspieszyć)
+    gather_tick() {
+      const a = S.activity; if (!a || a.kind !== 'gather' || !BOARDS[a.detail]) return { err: 'Brak aktywnego zbierania' };
+      const b = a.detail, def = BOARDS[b], now = Date.now(); if (!S.lastDrop[b] || S.lastDrop[b] < a.since) S.lastDrop[b] = a.since;
+      const due = Math.min(BOARD_CELLS, Math.floor((now - S.lastDrop[b]) / BOARD_EVERY_MS)); if (due <= 0) return { ev: [] };
+      S.lastDrop[b] += due * BOARD_EVERY_MS; const ev = [], tw = def.types.reduce((x, t) => x + t[2], 0);
+      for (let k = 0; k < due; k++) {
+        let q = Math.random() * tw, t = def.types[0]; for (const x of def.types) { q -= x[2]; if (q <= 0) { t = x; break; } }
+        const lv = Math.random() < 0.8 ? 1 : Math.random() < 0.9 ? 2 : 3, i = S.boards[b].indexOf(null);
+        if (i < 0) { S.lost[b]++; ev.push({ t: 'board_lost', board: b }); continue; } // plansza pełna: surowiec przepada
+        S.boards[b][i] = { t: t[0], l: lv }; ev.push({ t: 'board_drop', board: b, idx: i, type: t[0], lvl: lv });
+      }
+      return { ev };
+    },
+    board_move({ board, from, to }) {
+      const B = S.boards[board]; if (!B) return { err: 'Nieznana plansza' };
+      if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to < 0 || from >= BOARD_CELLS || to >= BOARD_CELLS) return { err: 'Nieprawidłowe pole' };
+      if (!B[from]) return { err: 'Puste pole' }; if (from === to) return { ev: [] };
+      const a = B[from], c = B[to];
+      if (c && c.t === a.t && c.l === a.l) {
+        if (a.l >= BOARD_MAXLVL) return { err: 'Maksymalny poziom surowca' };
+        B[to] = { t: a.t, l: a.l + 1 }; B[from] = null; return { ev: [{ t: 'board_merged', board, idx: to, type: a.t, lvl: a.l + 1 }] };
+      }
+      B[to] = a; B[from] = c || null; return { ev: [{ t: 'board_moved', board, from, to }] };
+    },
+    board_take({ board, idx }) {
+      const B = S.boards[board]; if (!B) return { err: 'Nieznana plansza' };
+      if (!Number.isInteger(idx) || idx < 0 || idx >= BOARD_CELLS || !B[idx]) return { err: 'Puste pole' };
+      const it = B[idx], name = it.t + ' ' + ROMAN[it.l]; B[idx] = null; S.mats[name] = (S.mats[name] || 0) + 1;
+      return { ev: [{ t: 'board_taken', board, idx, name }] };
+    },
+    board_debug_fill({ board, n = 5 }) {
+      const def = BOARDS[board]; if (!def) return { err: 'Nieznana plansza' }; const ev = [];
+      for (let k = 0; k < n; k++) { const i = S.boards[board].indexOf(null); if (i < 0) break; const t = pick(def.types); S.boards[board][i] = { t: t[0], l: Math.random() < 0.7 ? 1 : 2 }; ev.push({ t: 'board_drop', board, idx: i, type: t[0], lvl: S.boards[board][i].l }); }
+      return { ev };
     },
     // łup za zabicie potwora: losuje serwer (klient tylko pokazuje wynik)
     kill_reward({ tier = 0, kind = 'mob' }) {
@@ -125,6 +170,7 @@ const Server = (() => {
     for (const u of Object.keys(S.items)) if (!seen.has(u)) errs.push(`osierocony ${u}`);
     for (const [k, u] of Object.entries(S.equip)) { const it = S.items[u]; if (it && !slotOfType(it.type).includes(k)) errs.push(`zły slot ${k} dla ${it.type}`); }
     if (!Number.isInteger(S.gold) || S.gold < 0) errs.push('złoto');
+    for (const [b, B] of Object.entries(S.boards)) { if (B.length !== BOARD_CELLS) errs.push('plansza ' + b + ': zła liczba pól'); B.forEach((c, i) => { if (c && (!BOARDS[b].types.some(t => t[0] === c.t) || !Number.isInteger(c.l) || c.l < 1 || c.l > BOARD_MAXLVL)) errs.push(`plansza ${b}#${i}: zły surowiec`); }); }
     if (S.activity !== null && !(S.activity && ACTIVITY_NAMES[S.activity.kind])) errs.push('zła aktywność');
     return errs;
   }
@@ -139,5 +185,5 @@ const Server = (() => {
   }
   // „sieć": opóźnienie 60–160 ms, komendy obsługiwane po kolei
   const send = cmd => new Promise(res => setTimeout(() => res(execSync(cmd)), 60 + Math.random() * 100));
-  return { send, execSync, snapshot: snap, invariants, makeItem, STASH_MAX };
+  return { send, execSync, snapshot: snap, invariants, makeItem, STASH_MAX, BOARDS, ROMAN, BOARD_CELLS, BOARD_MAXLVL, BOARD_EVERY_MS };
 })();

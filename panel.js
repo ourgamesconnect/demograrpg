@@ -70,7 +70,7 @@ setInterval(() => document.querySelectorAll('.cnt').forEach(e => { const t = +e.
 // ---- kafle ----
 const TILES = [
   { id: 'exp', ic: '⚔️', t: 'WYPRAWY', d: 'Mapy, bossowie i cele specjalne', c: '#4fe39a' },
-  { id: 'gather', ic: '⛏️', t: 'ZBIERACTWO', d: 'Surowce z jawnymi szansami', c: '#ffb347' },
+  { id: 'gather', ic: '⛏️', t: 'ZBIERACTWO', d: 'Górnictwo i tartak: scalaj surowce', c: '#ffb347' },
   { id: 'craft', ic: '🔨', t: 'RZEMIOSŁO', d: 'Wytwarzaj broń, pancerze, dodatki', c: '#ffd24d' },
   { id: 'gear', ic: '🛡️', t: 'EKWIPUNEK', d: 'Broń definiuje styl, bez klas', c: '#6ab4ff' },
   { id: 'duel', ic: '🥊', t: 'ARENA 1v1', d: 'Rankingowe pojedynki w ligach', c: '#ff5a6e' },
@@ -89,7 +89,7 @@ function buildTiles() {
   TILES.forEach(t => {
     const b = document.createElement('button'); b.className = 'tile'; b.dataset.id = t.id; b.style.setProperty('--c', t.c);
     b.innerHTML = `<span class="ic">${t.ic}</span><b>${t.t}</b><small>${t.d}</small><em id="st-${t.id}"></em>`;
-    b.onclick = () => (t.id === 'gear' ? Inventory.open() : t.id === 'exp' ? Expedition.open() : (t.id === 'gather' || t.id === 'craft') ? stubActivity(t) : toast(`${t.ic} ${t.t}: ten ekran powstanie w następnym kroku.`));
+    b.onclick = () => (t.id === 'gear' ? Inventory.open() : t.id === 'exp' ? Expedition.open() : t.id === 'gather' ? Gather.open() : t.id === 'craft' ? stubActivity(t) : toast(`${t.ic} ${t.t}: ten ekran powstanie w następnym kroku.`));
     b.onmousemove = e => { const r = b.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5; b.style.setProperty('--ry', (x * 10).toFixed(1) + 'deg'); b.style.setProperty('--rx', (-y * 10).toFixed(1) + 'deg'); };
     b.onmouseleave = () => { b.style.setProperty('--rx', '0deg'); b.style.setProperty('--ry', '0deg'); };
     box.append(b);
@@ -100,7 +100,7 @@ function renderTiles() {
   for (const t of TILES) {
     let [txt, live] = status(t.id), locked = false;
     if (a && NAMES[a.kind] && ['exp', 'gather', 'craft'].includes(t.id)) {
-      if (t.id === a.kind) { txt = '● W TOKU · ' + (a.detail || NAMES[a.kind]); live = true; }
+      if (t.id === a.kind) { txt = '● W TOKU · ' + ({ mining: 'Górnictwo', sawmill: 'Tartak' }[a.detail] || a.detail || NAMES[a.kind]); live = true; }
       else { txt = '🔒 Zajęty: ' + NAMES[a.kind]; live = false; locked = true; }
     }
     const e = $('#st-' + t.id); if (e.textContent !== txt) e.textContent = txt; e.classList.toggle('live', live);

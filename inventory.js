@@ -4,7 +4,7 @@
   const $ = (s, r = document) => r.querySelector(s);
   const el = (t, c, txt) => { const e = document.createElement(t); if (c) e.className = c; if (txt !== undefined) e.textContent = txt; return e; };
   const fmt = n => Math.round(n).toLocaleString('pl-PL');
-  const MAT_ICON = MATS;
+  const MAT_ICON = new Proxy(MATS, { get(t, k) { if (k in t) return t[k]; const base = String(k).replace(/ [IVX]+$/, ''); for (const b of Object.values(BOARDS)) { const f = b.types.find(x => x[0] === base); if (f) return f[1]; } return undefined; } });
   let ST = null, selUid = null, tab = 'bag', busy = 0, open = false, drag = null, cidSeq = 0, queue = Promise.resolve();
 
   // ---- komendy (po kolei, każda z unikalnym cid) ----
@@ -155,13 +155,13 @@
 
   // ---- test spójności (przyciski deweloperskie) ----
   function stress(n = 600) {
-    const types = ['move', 'equip', 'unequip', 'sell', 'claim', 'sort', 'debug_drop', 'debug_drop', 'activity_start', 'activity_start', 'activity_stop', 'kill_reward'];
+    const types = ['move', 'equip', 'unequip', 'sell', 'claim', 'sort', 'debug_drop', 'debug_drop', 'activity_start', 'activity_start', 'activity_stop', 'kill_reward', 'board_move', 'board_move', 'board_take', 'board_debug_fill', 'gather_tick'];
     let lockBad = 0;
     const slotsK = EQUIP_SLOTS.map(s => s.k); let ok = 0, rej = 0, dup = 0;
     for (let i = 0; i < n; i++) {
       const sn = Server.snapshot(), anyUid = () => { const all = Object.keys(sn.items); return all.length ? all[Math.floor(Math.random() * all.length)] : 'nie-ma'; };
       const t = types[Math.floor(Math.random() * types.length)];
-      const p = { move: { from: Math.floor(Math.random() * 52) - 2, to: Math.floor(Math.random() * 52) - 2 }, equip: { uid: anyUid() }, unequip: { slot: slotsK[Math.floor(Math.random() * 9)] }, sell: { uid: anyUid() }, claim: { uid: anyUid() }, sort: {}, debug_drop: { n: 1 + Math.floor(Math.random() * 6), boss: Math.random() < 0.2 }, activity_start: { kind: ['exp', 'gather', 'craft', 'x'][Math.floor(Math.random() * 4)], detail: 'test' }, activity_stop: {}, kill_reward: { tier: Math.floor(Math.random() * 5), kind: ['mob', 'boss', 'target'][Math.floor(Math.random() * 3)] } }[t];
+      const p = { move: { from: Math.floor(Math.random() * 52) - 2, to: Math.floor(Math.random() * 52) - 2 }, equip: { uid: anyUid() }, unequip: { slot: slotsK[Math.floor(Math.random() * 9)] }, sell: { uid: anyUid() }, claim: { uid: anyUid() }, sort: {}, debug_drop: { n: 1 + Math.floor(Math.random() * 6), boss: Math.random() < 0.2 }, activity_start: { kind: ['exp', 'gather', 'craft', 'x'][Math.floor(Math.random() * 4)], detail: ['test', 'mining', 'sawmill'][Math.floor(Math.random() * 3)] }, board_move: { board: ['mining', 'sawmill', 'x'][Math.floor(Math.random() * 3)], from: Math.floor(Math.random() * 22) - 1, to: Math.floor(Math.random() * 22) - 1 }, board_take: { board: ['mining', 'sawmill'][Math.floor(Math.random() * 2)], idx: Math.floor(Math.random() * 22) - 1 }, board_debug_fill: { board: ['mining', 'sawmill'][Math.floor(Math.random() * 2)], n: 1 + Math.floor(Math.random() * 8) }, gather_tick: {}, activity_stop: {}, kill_reward: { tier: Math.floor(Math.random() * 5), kind: ['mob', 'boss', 'target'][Math.floor(Math.random() * 3)] } }[t];
       const cid = 's' + Date.now() + '-' + i, r = Server.execSync({ type: t, cid, ...p });
       if (r.ok) ok++; else rej++;
       if (t === 'activity_start' && sn.activity && r.ok) lockBad++; // zmiana aktywności bez zatrzymania = błąd blokady
