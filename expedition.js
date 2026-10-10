@@ -11,11 +11,11 @@
     { id: 'polanka', k: 'POLANKA', ic: '🌼', req: 1, lvl: 1, tier: 0, range: 'poziom 1–5', spec: {
       interval: 30 * 60 * 1000,
       mobs: [
-        { n: 'Polny Żuk', ic: '🪲', lvl: 1, hp: 31, lo: 6, hi: 8, xp: 15, g: [5, 15], gc: 0.5 },
-        { n: 'Wściekły Lis', ic: '🦊', lvl: 2, hp: 48, lo: 5, hi: 12, xp: 29, g: [10, 25], gc: 0.5 },
-        { n: 'Kolczasty Dzik', ic: '🐗', lvl: 3, hp: 65, lo: 10, hi: 20, xp: 45, g: [15, 35], gc: 0.5 },
-        { n: 'Leśny Włóczęga', ic: '👺', lvl: 4, hp: 85, lo: 15, hi: 25, xp: 67, g: [20, 45], gc: 0.5 },
-        { n: 'Młody Niedźwiedź', ic: '🐻', lvl: 5, hp: 110, lo: 20, hi: 35, xp: 93, g: [20, 65], gc: 0.5 },
+        { n: 'Polny Żuk', ic: '🪲', lvl: 1, hp: 31, def: 5, lo: 6, hi: 8, xp: 15, g: [5, 15], gc: 0.5 },
+        { n: 'Wściekły Lis', ic: '🦊', lvl: 2, hp: 48, def: 11, lo: 5, hi: 12, xp: 29, g: [10, 25], gc: 0.5 },
+        { n: 'Kolczasty Dzik', ic: '🐗', lvl: 3, hp: 65, def: 16, lo: 10, hi: 20, xp: 45, g: [15, 35], gc: 0.5 },
+        { n: 'Leśny Włóczęga', ic: '👺', lvl: 4, hp: 85, def: 22, lo: 15, hi: 25, xp: 67, g: [20, 45], gc: 0.5 },
+        { n: 'Młody Niedźwiedź', ic: '🐻', lvl: 5, hp: 110, def: 28, lo: 20, hi: 35, xp: 93, g: [20, 65], gc: 0.5 },
       ],
       boss: { n: 'Krwawy Rogacz', ic: '🦌', lvl: 7, hp: 400, lo: 45, hi: 60, xp: 400, g: [100, 300], gc: 1, enrage: { at: 0.3, mult: 1.5 } },   // EXP/złoto/szał: tymczasowe
       target: { n: 'Spaczony Korzeń', ic: '🌳', lvl: 5, hp: 2000, lo: 0, hi: 0, xp: 200, g: [50, 150], gc: 1, cls: 'root' },   // EXP/złoto: tymczasowe
@@ -58,7 +58,7 @@
     if (force === 'boss') { kind = 'boss'; def = sp.boss; }
     else if (force === 'target') { kind = 'target'; def = sp.target; }
     else { def = sp.mobs[pick(selMobs())]; }
-    X.enemy = { name: def.n, ic: def.ic, base: def.ic, kind, lvl: def.lvl, hp: def.hp, max: def.hp, dead: false, lo: def.lo, hi: def.hi, xp: def.xp, g: def.g, gc: def.gc, enrage: def.enrage, cls: def.cls, t: 0 };
+    X.enemy = { name: def.n, ic: def.ic, base: def.ic, kind, lvl: def.lvl, hp: def.hp, max: def.hp, dead: false, lo: def.lo, hi: def.hi, def: def.def || 0, xp: def.xp, g: def.g, gc: def.gc, enrage: def.enrage, cls: def.cls, t: 0 };
     X.wait = 0; SK.dot = null; SK.vuln = null; SK.channel = null; SK.windup = null; SK.stun = 0; SK.charges = 0; syncEnemy(true);
     if (kind === 'boss') say('☠ BOSS', def.n); else if (kind === 'target') say('🌳 SPACZONY KORZEŃ', 'wyrósł z ziemi');
   }
@@ -77,7 +77,8 @@
   const atkBuff = () => (buffOn('sw1') ? 1 + SKILLS.find(s => s.id === 'sw1').p(rankOf('sw1')).atk : 1);
   function dealDamage(mult, skill) {
     const e = X.enemy; if (!e || e.dead) return 0;
-    let dmg = playerDmg(!!skill) * mult; const crit = false;   // brak bazowego krytyka: bonusy dopiero z ekwipunku
+    let dmg = playerDmg(!!skill) * mult - (e.def || 0);   // obrona potwora odejmowana od ataku (jak w Metin2)
+    if (dmg < 3) dmg = Math.floor(rnd(1, 6));   // Metin2: poniżej 3 obrażeń → losowo 1–5 const crit = false;   // brak bazowego krytyka: bonusy dopiero z ekwipunku
     if (SK.vuln && SK.vuln.until > Date.now()) dmg *= 1 + SK.vuln.v;
     dmg = Math.max(1, Math.round(dmg)); e.hp = Math.max(0, e.hp - dmg);
     fxHit(dmg, crit, skill);
