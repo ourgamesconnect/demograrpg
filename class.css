@@ -1,0 +1,36 @@
+/* WYBÓR KLASY */
+.cl-ov{position:fixed;inset:0;z-index:95;display:grid;place-items:center;padding:14px;overflow:auto;background:radial-gradient(ellipse at 50% 0%,#241a38 0,#0a0b12 70%)}
+.cl-ov[hidden]{display:none}
+.cl-win{width:min(1180px,100%)}
+.cl-head{text-align:center;margin-bottom:16px}
+.cl-head small{letter-spacing:.34em;color:#ffe9b0;font-weight:800}
+.cl-head h1{margin:6px 0;font-size:clamp(26px,4.5vw,46px);letter-spacing:.06em;color:#fff;text-shadow:0 0 34px rgba(255,170,60,.55)}
+.cl-head p{margin:0;color:var(--mut)}
+.cl-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.clcard{--cc:#ff8a45;position:relative;display:flex;flex-direction:column;gap:8px;padding:20px 18px 18px;border-radius:22px;border:1px solid color-mix(in srgb,var(--cc) 55%,transparent);background:radial-gradient(ellipse at 50% -10%,color-mix(in srgb,var(--cc) 26%,#171826),#0b0c14 62%);box-shadow:0 20px 60px rgba(0,0,0,.55);animation:clin .6s ease-out backwards;animation-delay:calc(var(--i) * 110ms);transition:transform .2s,box-shadow .25s}
+@keyframes clin{from{opacity:0;transform:translateY(26px) scale(.94)}}
+.clcard:hover{transform:translateY(-5px);box-shadow:0 26px 70px rgba(0,0,0,.6),0 0 40px color-mix(in srgb,var(--cc) 35%,transparent)}
+.clcard.picked{border-color:var(--cc);box-shadow:0 0 0 2px var(--cc),0 0 50px color-mix(in srgb,var(--cc) 50%,transparent)}
+.clic{width:112px;height:112px;margin:2px auto 0;border-radius:50%;display:grid;place-items:center;font-size:62px;background:radial-gradient(circle at 35% 30%,color-mix(in srgb,var(--cc) 60%,#2a2d44),#0c0d16 72%);box-shadow:0 0 36px color-mix(in srgb,var(--cc) 55%,transparent),inset 0 0 20px rgba(0,0,0,.6);animation:clfloat 3.4s ease-in-out infinite}
+@keyframes clfloat{50%{transform:translateY(-6px) scale(1.04)}}
+.clcard h2{margin:6px 0 0;text-align:center;font-size:24px;letter-spacing:.08em;color:var(--cc)}
+.cltag{text-align:center;color:var(--mut);font-size:12.5px;letter-spacing:.16em;text-transform:uppercase}
+.cldesc{margin:4px 0;font-size:13.5px;line-height:1.5;color:#d6d3e6;min-height:62px;text-align:center}
+.clstats{display:grid;gap:5px}
+.clbar{display:grid;grid-template-columns:78px 1fr;gap:8px;align-items:center;font-size:12px;color:var(--mut)}
+.cltrack{height:8px;border-radius:5px;background:rgba(255,255,255,.1);overflow:hidden}
+.cltrack i{display:block;height:100%;border-radius:5px}
+.clweapon{margin-top:4px;font-size:13px;font-weight:800;color:var(--gold);text-align:center}
+.clskills{display:flex;flex-wrap:wrap;gap:5px;justify-content:center}
+.clskills span{padding:3px 8px;border-radius:999px;border:1px solid var(--line);background:rgba(0,0,0,.35);font-size:11.5px}
+.clpros,.clcons{margin:2px 0;padding-left:18px;font-size:12.5px;line-height:1.5}
+.clpros li{color:#9af0b8}.clcons li{color:#ff9b9b}
+.clbtn{margin-top:auto;cursor:pointer;padding:13px;border-radius:14px;border:1px solid var(--cc);background:linear-gradient(180deg,color-mix(in srgb,var(--cc) 55%,#222),color-mix(in srgb,var(--cc) 25%,#0c0d16));color:#fff;font-weight:900;letter-spacing:.06em;font-size:14px;transition:transform .15s,box-shadow .2s}
+.clbtn:hover{transform:translateY(-2px);box-shadow:0 8px 24px color-mix(in srgb,var(--cc) 45%,transparent)}
+.clbtn.confirm{background:linear-gradient(#2c8a5a,#1b5c3b);border-color:#3ecf8e;animation:clpulse 1.2s ease-in-out infinite}
+@keyframes clpulse{50%{box-shadow:0 0 28px rgba(62,207,142,.7)}}
+.clbtn:disabled{opacity:.6;cursor:wait}
+@media(prefers-reduced-motion:reduce){.clic,.clcard,.clbtn.confirm{animation:none!important}}
+
+.clcard.soon{filter:grayscale(.85);opacity:.7}
+.clcard.soon .clbtn{cursor:not-allowed}

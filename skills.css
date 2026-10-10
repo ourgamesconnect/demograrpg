@@ -64,3 +64,27 @@
 .skc.locked .skdesc{opacity:.7}
 
 .sk-grid.anim .skc{animation:skin .5s ease-out backwards;animation-delay:calc(var(--i) * 70ms)}
+
+/* ---- Status ---- */
+.sk-pts.st{margin-left:auto}
+.sk-pts.st+.sk-pts{margin-left:10px}
+.sk-main{display:flex;gap:10px;margin:14px 18px 0}
+.sk-main button{cursor:pointer;padding:9px 20px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--ink);font-weight:800;letter-spacing:.04em}
+.sk-main button.on{border-color:var(--gold);background:linear-gradient(#3a3016,#1f1a0d);color:var(--gold)}
+.sk-stats{padding:12px 18px 18px}
+.sk-info2{margin:6px 0 12px;color:var(--mut);font-size:13.5px}
+.stlist{display:grid;gap:10px}
+.strow{--sc:#ff8a45;display:grid;grid-template-columns:48px 1fr 64px auto;gap:14px;align-items:center;padding:12px 14px;border-radius:16px;border:1px solid color-mix(in srgb,var(--sc) 45%,transparent);background:linear-gradient(110deg,color-mix(in srgb,var(--sc) 16%,#151622),#0c0d16 70%)}
+.strow i{font-style:normal;font-size:34px;text-align:center;filter:drop-shadow(0 4px 6px rgba(0,0,0,.6))}
+.stmid b{display:block;font-size:16px;letter-spacing:.04em}
+.stmid small{color:var(--mut);font-size:12.5px}
+.stval{font-size:28px;font-weight:900;text-align:center;font-variant-numeric:tabular-nums;color:var(--sc);text-shadow:0 0 14px color-mix(in srgb,var(--sc) 60%,transparent)}
+.stbtns{display:flex;gap:6px}
+.stbtn{cursor:pointer;padding:9px 12px;border-radius:10px;border:1px solid #3ecf8e;background:linear-gradient(#2c8a5a,#1b5c3b);color:#fff;font-weight:900}
+.stbtn:disabled{opacity:.4;cursor:not-allowed;border-color:var(--line);background:rgba(255,255,255,.06)}
+.sk-stats h4{margin:16px 0 8px;letter-spacing:.14em;color:var(--mut);font-size:12px}
+.stsum{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px}
+.stsrow{display:flex;justify-content:space-between;padding:8px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid var(--line);font-size:13.5px}
+.stsrow b{color:var(--gold);font-variant-numeric:tabular-nums}
+@media(max-width:600px){.strow{grid-template-columns:40px 1fr 48px}.stbtns{grid-column:1/-1}}
+.sk-win [hidden]{display:none!important}

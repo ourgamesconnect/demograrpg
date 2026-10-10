@@ -64,3 +64,33 @@ const SKILLS = [
 SKILLS.forEach((s, i) => { s.slot = i % 5; s.unlock = 1; });
 // maksymalna ranga dozwolona poziomem postaci: +1 ranga na poziom od odblokowania, do 20
 const skillCap = () => SKILL_MAX;
+
+// PUNKTY STATUSU: 3 za każdy poziom (od poziomu 2). Gracz sam rozdziela je między pięć cech.
+const STAT_PER_LEVEL = 3;
+const STATS = [
+  { k: 'life', n: 'Życie',      ic: '❤️', c: '#ff5a6e', per: '+40 życia i +1 obrony' },
+  { k: 'mana', n: 'Mana',       ic: '💧', c: '#6ab4ff', per: '+20 many i +1% szybkości regeneracji many' },
+  { k: 'str',  n: 'Siła',       ic: '💪', c: '#ff8a45', per: '+2 ataku fizycznego mieczy' },
+  { k: 'dex',  n: 'Zręczność',  ic: '🎯', c: '#4fe39a', per: '+2 ataku łuków' },
+  { k: 'mag',  n: 'Magia',      ic: '🔮', c: '#c58bff', per: '+2 ataku magicznego i +1 obrony magicznej (przeciw umiejętnościom innych graczy)' },
+];
+const statBonus = st => { st = st || {}; return { hp: 40 * (st.life || 0), def: st.life || 0, mp: 20 * (st.mana || 0), mpRegen: 0.01 * (st.mana || 0), sword: 2 * (st.str || 0), bow: 2 * (st.dex || 0), mag: 2 * (st.mag || 0), magDef: st.mag || 0 }; };
+
+// KLASY: Rycerz (Miecz), Zwiadowca (Łuk), Mag (Różdżka). Mnożniki pochodzą z symulatora balansu (balance/params.json).
+const CLASSES = {
+  knight: { n: 'Rycerz',    w: 'sword', ic: '🛡️', c: '#ff8a45', hp: 1.37, mp: 1.00, dmg: 1.15, def: 1.80,
+    tag: 'Wojownik w zwarciu',
+    desc: 'Walczysz mieczem w pierwszym szeregu. Najwięcej życia i obrony, stałe obrażenia i aury wzmacniające. Najtrudniej cię powalić.',
+    pros: ['Najwięcej życia i obrony', 'Stabilne obrażenia, brak zależności od many', 'Aury Ataku i Obrony trwające do 3 minut'],
+    cons: ['Najniższy rozrzut obrażeń (mały burst)', 'Wolniejsze zabijanie szybkich celów'] },
+  scout: { n: 'Zwiadowca', w: 'bow',   ic: '🏹', c: '#4fe39a', hp: 1.05, mp: 1.00, dmg: 0.92, def: 0.56,
+    tag: 'Łowca z dystansu',
+    desc: 'Strzelasz z łuku, trafiasz w linii i w strefie. Najlepszy przy grupach i szybkim zabijaniu, ale kruchy.',
+    pros: ['Najlepszy na grupy i szybkie cele', 'Szybka Strzała i obrażenia obszarowe', 'Ogromny burst na bossy (Fantomowy Strzał)'],
+    cons: ['Najmniej obrony', 'Wymaga dobrego sprzętu i krytyków'] },
+  mage: { n: 'Mag',       w: 'wand',  ic: '🔮', c: '#c58bff', hp: 1.10, mp: 1.57, dmg: 1.50, def: 1.10,
+    tag: 'Kontroler z magią',
+    desc: 'Rzucasz czary z różdżki. Najwięcej many, ładunki eteru i potężne detonacje. Najlepszy na bossów, zależny od many.',
+    pros: ['Najwięcej many, najsilniejszy na bossów', 'Ładunki Eteru, detonacje i ogłuszenia', 'Nieskończona Mana na kluczowe momenty'],
+    cons: ['Słaby bez many (zależny od niej)', 'Mało życia i słabsza obrona fizyczna'] },
+};

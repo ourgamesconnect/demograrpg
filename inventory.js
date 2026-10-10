@@ -41,7 +41,8 @@
   // ---- pomocnicze ----
   const totals = () => { let atk = 0, def = 0; for (const u of Object.values(ST.equip)) { const it = ST.items[u]; if (it) { const q = itemStats(it); atk += q.atk; def += q.def; } } return { atk, def }; };
   const equippedFor = it => { const ks = it.type === 'ring' ? ['ring1', 'ring2'] : [it.type]; const k = ks.find(q => !ST.equip[q]) || ks[0]; return ST.items[ST.equip[k]]; };
-  const statLine = it => { const q = itemStats(it); return [q.atk ? `⚔ Atak ${q.atk}` : '', q.mag ? `🔮 Magia ${q.mag}` : '', q.def ? `🛡 Obrona ${q.def}` : ''].filter(Boolean).join('   '); };
+  const rng = (a, lo, hi) => (lo !== hi ? lo + '–' + hi : String(a));
+  const statLine = it => { const q = itemStats(it); return [q.atk ? `⚔ Atak ${rng(q.atk, q.lo, q.hi)}` : '', q.mag && !(q.mag === q.atk && q.mlo === q.lo && q.mhi === q.hi) ? `🔮 Magia ${rng(q.mag, q.mlo, q.mhi)}` : '', q.def ? `🛡 Obrona ${q.def}` : ''].filter(Boolean).join('   '); };
 
   // ---- tooltip ----
   let tip;
@@ -95,7 +96,7 @@
     const eqUids = Object.values(ST.equip), best = eqUids.length ? Math.max(...eqUids.map(u => ST.items[u].rarity)) : -1;
     pd.style.setProperty('--aura', best >= 0 ? RARITY[best].c : '#5a5f7a');
     pd.style.setProperty('--p', Math.round(100 * eqUids.length / EQUIP_SLOTS.length));
-    const POS = { helm: 0, earrings: 45, bracelet: 90, ring1: 135, boots: 180, ring2: 225, weapon: 270, armor: 315 }, R = 33;
+    const POS = { helm: 0, earrings: 40, bracelet: 80, ring1: 120, boots: 160, ring2: 200, shield: 240, weapon: 280, armor: 320 }, R = 33;
     let beams = '', slotsEls = [];
     EQUIP_SLOTS.forEach(s => {
       const an = POS[s.k] * Math.PI / 180, x = 50 + R * Math.sin(an), y = 50 - R * Math.cos(an), u = ST.equip[s.k], col = u ? RARITY[ST.items[u].rarity].c : '#3a3d52';
@@ -201,13 +202,8 @@
   function openInv() { if (!root) build(); open = true; root.hidden = false; document.body.classList.add('inv-open'); draw(); }
   function close() { open = false; hideTip(); if (!root) return; root.hidden = true; document.body.classList.remove('inv-open'); }
 
-  // start: kilka przedmiotów początkowych i założone: broń + zbroja
-  (async () => {
-    Server.execSync({ type: 'starter_kit', cid: 'seed-1' });
-    const s0 = Server.snapshot();
-    const done = new Set(); s0.slots.forEach(u => { if (u) { const t = s0.items[u].type; if (['weapon', 'helm', 'armor', 'boots'].includes(t) && !done.has(t)) { done.add(t); Server.execSync({ type: 'equip', uid: u, cid: 'seed-eq-' + u }); } } });
-    ST = Server.snapshot();
-  })();
+  // postać startuje bez klasy i bez przedmiotów: zestaw startowy nadaje serwer po wyborze klasy
+  ST = Server.snapshot();
 
   window.Inventory = { open: openInv, close, exec: (t, p) => cmd(t, p || {}), reward: (p) => cmd('kill_reward', p, { silent: true }), drop: n => cmd('debug_drop', { n }), get state() { return ST; } };
 })();

@@ -36,9 +36,13 @@
     const t = { '-1': 1, '-2': .98, '-3': .96, '-4': .94, '-5': .92, '-6': .9, '-7': .85, '-8': .8, '-9': .7, '-10': .5, '-11': .3, '-12': .2, '-13': .1, '-14': .05 };
     return d <= -15 ? 0.01 : t[d];
   }
-  const equipAtk = (useMag) => { const s = window.Inventory && Inventory.state; if (!s) return 0; const it = s.items[s.equip.weapon], q = itemStats(it); return useMag && q.mag ? q.mag : q.atk; };
-  const weaponKind = () => { const s = Inventory.state, u = s && s.equip.weapon, it = u && s.items[u]; return (it && it.kind) || 'sword'; };
-  const playerDmg = useMag => 12 + P.lvl * 3 + equipAtk(useMag);
+  const equipAtk = (useMag) => { const s = window.Inventory && Inventory.state; if (!s) return 0; const it = s.items[s.equip.weapon], q = itemStats(it); const m = useMag && q.mag, lo = m ? q.mlo : q.lo, hi = m ? q.mhi : q.hi; return Math.round(lo + Math.random() * (hi - lo)); };   // obrażenia losowane z przedziału broni
+  const weaponKind = () => { const s = Inventory.state; return (s && s.cls && CLASSES[s.cls].w) || 'sword'; };
+  const stb = () => statBonus(window.Inventory && Inventory.state ? Inventory.state.stats : null);
+  const statAtk = useMag => { const w = weaponKind(), b = stb(); return w === 'sword' ? b.sword : w === 'bow' ? b.bow : (useMag ? b.mag : 0); };   // Magia dodaje się do ataku magicznego (umiejętności Różdżki)
+  const clsMul = k => { const s = window.Inventory && Inventory.state, c = s && CLASSES[s.cls]; return c ? c[k] : 1; };
+  const playerDmg = useMag => (12 + P.lvl * 3 + equipAtk(useMag) + statAtk(useMag)) * clsMul('dmg');
+  const totalDef = () => { const s = window.Inventory && Inventory.state; let d = stb().def; if (s) for (const u of Object.values(s.equip)) d += itemStats(s.items[u]).def; return d * clsMul('def'); };
   // moc wzorcowa mapy: podstawa postaci + miecz etapu mapy z ulepszeniem +4 (średni sprzęt)
   const refDmg = m => 12 + m.lvl * 3 + weaponStats('sword', m.tier, 4).atk;
   const hpOf = (m, t) => Math.round(refDmg(m) * t / 0.9);
@@ -145,7 +149,7 @@
     if (!X.enemy) { if (X.wait > 0) { X.wait--; return; } spawn(takeQueued()); }
     const e = X.enemy; if (e.dead) { X.enemy = null; X.wait = 1; syncEnemy(false); return; }
     X.n++;
-    P.mp = Math.min(mm, P.mp + 3);
+    P.mp = Math.min(mm, P.mp + 3 * (1 + stb().mpRegen));
     // obrażenia w czasie (Grad Kłów)
     if (SK.dot && SK.dot.until > Date.now()) dealDamage(SK.dot.dpt, SK.dotSkill);
     if (e.dead) { sync(); return; }
@@ -174,6 +178,7 @@
         const left = e.unit ? Math.ceil(e.hp / e.unit) : 1;
         let hit = e.dmg !== undefined ? e.dmg * left * rnd(0.85, 1.15) : (3 + e.lvl * 2.4) * (e.kind === 'boss' ? 2.2 : e.kind === 'target' ? 0 : 1) * rnd(0.8, 1.2);
         if (e.charge && e.dmg !== undefined && (e.t / every) % e.charge === 0) { hit *= 2; if (visible()) fx('skilltxt', { left: '50%', top: '30%' }, 900, e.ic + ' Szarża!'); }
+        { const dd = totalDef(); hit *= 1 - dd / (dd + 40 + 14 * e.lvl); }   // obrona z pancerza i punktów Życia (malejące przyrosty)
         if (buffOn('sw1')) hit *= 1.2;
         if (buffOn('sw2')) hit *= 1 - SKILLS.find(s => s.id === 'sw2').p(rankOf('sw2')).red;
         hit = Math.round(hit);
@@ -196,7 +201,7 @@
     const need = expFor(P.lvl); P.xp += xp / need; P.gold += gold;
     const cards = [{ t: `+${fmt(xp)} EXP${mult < 0.5 ? ' (za słaby potwór)' : ''}`, c: 'xp' }, { t: `🪙 +${fmt(gold)}`, c: 'gold' }];
     let lv = false; while (P.xp >= 1) { P.xp -= 1; P.lvl++; lv = true; }
-    if (lv) { P.hp = hpMax(P); P.mp = mpMax(P); say('⭐ AWANS!', 'Poziom ' + P.lvl); Inventory.exec('sync_level', { lvl: P.lvl }); if (window.GameFeed) { GameFeed('⭐ Awans na poziom ' + P.lvl + '!', 'good'); GameFeed('✨ Nowy punkt umiejętności! Otwórz Umiejętności.', 'good'); } }
+    if (lv) { P.hp = hpMax(P); P.mp = mpMax(P); say('⭐ AWANS!', 'Poziom ' + P.lvl); Inventory.exec('sync_level', { lvl: P.lvl }); if (window.GameFeed) { GameFeed('⭐ Awans na poziom ' + P.lvl + '!', 'good'); GameFeed('✨ Nowe punkty: 1 umiejętności i 3 statusu. Otwórz Umiejętności.', 'good'); } }
     if (window.GameFeed) { if (e.kind === 'boss') GameFeed('☠ Pokonano bossa: ' + e.name, 'boss'); else if (e.kind === 'target') GameFeed('🎯 Zniszczono cel specjalny: ' + e.name, 'good'); }
     window.Inventory.reward({ tier: m.tier, kind: e.kind, map: m.id }).then(res => {
       if (res && !res.ok) { applyServer(); sync(); return; }

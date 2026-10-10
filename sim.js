@@ -6,6 +6,7 @@ const INV_SLOTS = 48, STASH_MAX = 60;
 const EQUIP_SLOTS = [
   { k: 'helm', n: 'Hełm', ic: '🪖' }, { k: 'armor', n: 'Zbroja', ic: '🥋' }, { k: 'boots', n: 'Buty', ic: '🥾' }, { k: 'weapon', n: 'Broń', ic: '🗡️' },
   { k: 'ring1', n: 'Pierścień', ic: '💍' }, { k: 'ring2', n: 'Pierścień', ic: '💍' }, { k: 'earrings', n: 'Kolczyki', ic: '💎' }, { k: 'bracelet', n: 'Bransoletka', ic: '📿' },
+  { k: 'shield', n: 'Tarcza', ic: '🛡️' },
 ];
 const TIERS = [['Drewniany', 'Drewniana', 'Drewniane'], ['Miedziany', 'Miedziana', 'Miedziane'], ['Brązowy', 'Brązowa', 'Brązowe'], ['Żelazny', 'Żelazna', 'Żelazne'], ['Hartowany', 'Hartowana', 'Hartowane'],
   ['Stalowy', 'Stalowa', 'Stalowe'], ['Damasceński', 'Damasceńska', 'Damasceńskie'], ['Mithrilowy', 'Mithrilowa', 'Mithrilowe'], ['Smoczy', 'Smocza', 'Smocze'], ['Legendarny', 'Legendarna', 'Legendarne']];
@@ -16,8 +17,8 @@ const RARITY = [
 // [nazwa, ikona, rodzaj gramatyczny 0=m 1=f 2=n/lm, typ slotu]
 const BASES = [
   ['miecz', '🗡️', 0, 'weapon'], ['łuk', '🏹', 0, 'weapon'], ['różdżka', '🪄', 1, 'weapon'],
-  ['hełm', '🪖', 0, 'helm'], ['kaptur', '🧢', 0, 'helm'], ['kolczuga', '🥋', 1, 'armor'], ['kaftan', '🧥', 0, 'armor'],
-  ['buty', '🥾', 2, 'boots'], ['kolczyki', '💎', 2, 'earrings'], ['bransoleta', '📿', 1, 'bracelet'], ['pierścień', '💍', 0, 'ring'],
+  ['hełm', '🪖', 0, 'helm'], ['zbroja', '🥋', 1, 'armor'], ['buty', '🥾', 2, 'boots'], ['tarcza', '🛡️', 1, 'shield'],
+  // pozostałe przedmioty (pierścienie, kolczyki, bransoletka) zostały usunięte do czasu podania ich tabel przez właściciela
 ];
 const ACTIVITY_NAMES = { exp: 'Wyprawy', gather: 'Zbieractwo', craft: 'Rzemiosło' };
 // PLANSZE ZBIERACTWA (scalanie): dwa takie same surowce tego samego poziomu = jeden wyższego poziomu
@@ -52,21 +53,27 @@ const MATS = { 'Złom': '⚙️', 'Szmaty': '🧵', 'Drewno': '🪵', 'Skóra': 
 const Server = (() => {
   let uidSeq = 1000, version = 0;
   const done = new Map(); // cid -> odpowiedź (idempotencja: ta sama komenda nie wykona się dwa razy)
-  const S = { slots: Array(INV_SLOTS).fill(null), items: {}, equip: {}, stash: [], mats: { 'Złom': 14, 'Szmaty': 9, 'Skóra': 4 }, gold: 150, lvl: 1, skills: {}, enc: {}, activity: null,
+  const S = { slots: Array(INV_SLOTS).fill(null), items: {}, equip: {}, stash: [], mats: { 'Złom': 14, 'Szmaty': 9, 'Skóra': 4 }, gold: 150, lvl: 1, cls: null, skills: {}, stats: { life: 0, mana: 0, str: 0, dex: 0, mag: 0 }, enc: {}, activity: null,
     boards: { mining: Array(BOARD_CELLS).fill(null), sawmill: Array(BOARD_CELLS).fill(null) }, lastDrop: { mining: 0, sawmill: 0 }, lost: { mining: 0, sawmill: 0 }, gatherLvl: { mining: 1, sawmill: 1 } };
   const rnd = (a, b) => a + Math.random() * (b - a), ri = (a, b) => Math.floor(rnd(a, b + 1));
   const pick = a => a[Math.floor(Math.random() * a.length)];
 
   function makeItem(opt = {}) {
-    const b = opt.base || pick(BASES);
+    let b = opt.base || pick(BASES);
+    if (b[3] === 'weapon') { const kk = b[0] === 'miecz' ? 'sword' : b[0] === 'łuk' ? 'bow' : 'wand'; if (!WEAPON_AVAILABLE[kk]) b = BASES.find(q => q[0] === 'miecz'); }   // na razie istnieje tylko miecz
+    if (!opt.base && b[3] === 'weapon' && S.cls) { const wn = { sword: 'miecz', bow: 'łuk', wand: 'różdżka' }[CLASSES[S.cls].w]; b = BASES.find(q => q[0] === wn); }   // drop broni tylko dla klasy gracza
     const r = opt.rarity !== undefined ? opt.rarity : (() => { const x = Math.random() * 100; return x < 58 ? 0 : x < 82 ? 1 : x < 94 ? 2 : x < 99 ? 3 : 4; })();
-    const tier = Math.max(0, Math.min(9, opt.tier !== undefined ? opt.tier : Math.floor(Math.random() * Math.random() * 10)));
-    const isWeapon = b[3] === 'weapon', kind = b[0] === 'miecz' ? 'sword' : b[0] === 'łuk' ? 'bow' : b[0] === 'różdżka' ? 'wand' : null, lvl = WEAPON_LEVELS[tier];
-    const sw = WEAPON_TABLE[lvl][0][0], rm = RARITY[r].m;
+    const tierRaw = Math.max(0, Math.min(9, opt.tier !== undefined ? opt.tier : Math.floor(Math.random() * Math.random() * 10)));
+    const isWeapon = b[3] === 'weapon', kind = b[0] === 'miecz' ? 'sword' : b[0] === 'łuk' ? 'bow' : b[0] === 'różdżka' ? 'wand' : null;
+    const isArmor = !!ARMOR_TABLE[b[3]];
+    const tier = isWeapon ? Math.min(tierRaw, WEAPON_LEVELS.length - 1) : isArmor ? Math.min(tierRaw, ARMOR_TABLE[b[3]].length - 1) : tierRaw;       // broń i zbroja: tylko dostępne etapy
+    const ARMOR_BASE = [1, 15, 35, 60, 95, 140, 195, 260, 335, 420], LV10 = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90];
+    const lvl = isWeapon ? WEAPON_LEVELS[tier] : LV10[tier];   // zbroja Drewniana: poziom 1
+    const sw = ARMOR_BASE[tier], rm = 1;   // wartości z tabel właściciela bez podbicia rzadkością (rzadkość = liczba bonusów, później)
     const slotW = { helm: 0.4, armor: 0.6, boots: 0.35, ring: 0.2, earrings: 0.2, bracelet: 0.2 }[b[3]] || 0.3;
     const st = isWeapon ? weaponStats(kind, tier, 0) : { atk: 0, mag: 0 };
-    const it = { uid: 'i' + (uidSeq++), name: isWeapon ? WEAPON_NAMES[kind][tier] : TIERS[tier][b[2]] + ' ' + b[0], ic: b[1], type: b[3], kind, tier, rarity: r, rm, plus: 0,
-      atk: Math.round(st.atk * rm), mag: Math.round(st.mag * rm), def: isWeapon ? 0 : Math.max(1, Math.round(sw * slotW * rm)), req: lvl };
+    const it = { uid: 'i' + (uidSeq++), name: isWeapon ? WEAPON_NAMES[kind][tier] : isArmor ? ARMOR_NAMES[b[3]][tier] : TIERS[tier][b[2]] + ' ' + b[0], ic: b[1], type: b[3], kind, tier, rarity: r, rm, plus: 0,
+      atk: Math.round(st.atk * rm), mag: Math.round(st.mag * rm), def: isWeapon ? 0 : isArmor ? Math.round(ARMOR_TABLE[b[3]][tier][0] * rm) : Math.max(1, Math.round(sw * slotW * rm)), req: lvl };
     const power = it.atk + Math.round(it.mag * 0.5) + it.def;
     it.value = Math.max(2, Math.round(power * 3.2));
     return it;
@@ -91,7 +98,9 @@ const Server = (() => {
     equip({ uid }) {
       if (S.activity && S.activity.kind === 'exp') return { err: 'Podczas wyprawy nie można zmieniać ekwipunku. Zatrzymaj wyprawę.' };
       const f = find(uid); if (!f || f.w !== 'bag') return { err: 'Przedmiot nie jest w plecaku' };
-      const it = S.items[uid]; if (it.req > S.lvl) return { err: `Wymagany poziom ${it.req}` };
+      const it = S.items[uid]; if (!S.cls) return { err: 'Najpierw wybierz klasę' };
+      if (it.type === 'weapon' && it.kind !== CLASSES[S.cls].w) return { err: 'Tę broń może nosić tylko inna klasa' };
+      if (it.req > S.lvl) return { err: `Wymagany poziom ${it.req}` };
       const opts = slotOfType(it.type); let slot = opts.find(k => !S.equip[k]) || opts[0];
       const old = S.equip[slot]; S.equip[slot] = uid; S.slots[f.i] = old || null;
       return { ev: [{ t: 'equipped', uid, slot, swapped: old || null }] };
@@ -152,12 +161,25 @@ const Server = (() => {
       for (const e of Object.values(S.enc)) if (e.st === 'queued' || e.st === 'active') e.st = 'ready';   // cel „ucieka", bez odnowienia
       const k = S.activity.kind; S.activity = null; return { ev: [{ t: 'activity_stopped', kind: k }] };
     },
-    // Zestaw startowy nowej postaci (poziom 1): drewniana broń i podstawowy pancerz
-    starter_kit() {
-      if (S.starter) return { err: 'Zestaw startowy już odebrany' }; S.starter = true; const ev = [];
-      const base = n => BASES.find(b => b[0] === n);
-      for (const n of ['miecz', 'łuk', 'różdżka', 'hełm', 'kolczuga', 'buty']) { const it = makeItem({ base: base(n), tier: 0, rarity: 0 }); it.req = 1; ev.push({ t: 'item_added', ...putNew(it) }); }
+    // WYBÓR KLASY (jednorazowy): Rycerz / Zwiadowca / Mag. Tworzy i zakłada zestaw startowy klasy.
+    class_choose({ cls }) {
+      if (S.cls) return { err: 'Klasa została już wybrana' };
+      if (!CLASSES[cls]) return { err: 'Nieznana klasa' };
+      if (!WEAPON_AVAILABLE[CLASSES[cls].w]) return { err: 'Ta klasa będzie dostępna wkrótce' };
+      S.cls = cls; const ev = [{ t: 'class_chosen', cls }];
+      const wn = { sword: 'miecz', bow: 'łuk', wand: 'różdżka' }[CLASSES[cls].w], base = n => BASES.find(b => b[0] === n);
+      for (const n of [wn, 'hełm', 'zbroja', 'buty', 'tarcza']) {
+        const it = makeItem({ base: base(n), tier: 0, rarity: 0 }); it.req = 1; S.items[it.uid] = it;
+        const slot = it.type === 'ring' ? 'ring1' : it.type; S.equip[slot] = it.uid;
+        ev.push({ t: 'item_added', uid: it.uid, where: 'equip', slot });
+      }
       return { ev };
+    },
+    // testowo: nowa postać (docelowo: tworzenie nowej postaci na koncie)
+    class_reset() {
+      S.cls = null; S.lvl = 1; S.gold = 150; S.skills = {}; S.stats = { life: 0, mana: 0, str: 0, dex: 0, mag: 0 };
+      S.items = {}; S.equip = {}; S.slots = Array(INV_SLOTS).fill(null); S.stash = []; S.mats = { 'Złom': 14, 'Szmaty': 9, 'Skóra': 4 }; S.enc = {}; S.activity = null; S.starter = false;
+      return { ev: [{ t: 'class_reset' }] };
     },
     // Awans: tymczasowo zgłasza klient (docelowo poziom liczy serwer z EXP za zabicia). Poziom może tylko rosnąć i max o 5 naraz.
     sync_level({ lvl }) {
@@ -167,13 +189,24 @@ const Server = (() => {
     // Umiejętności: 1 punkt za każdy poziom od 2; ranga 1–20; ranga ograniczona poziomem postaci
     skill_up({ id }) {
       const sk = SKILLS.find(x => x.id === id); if (!sk) return { err: 'Nieznana umiejętność' };
+      if (!S.cls) return { err: 'Najpierw wybierz klasę' };
+      if (sk.w !== CLASSES[S.cls].w) return { err: 'Ta umiejętność należy do innej klasy' };
       const spent = Object.values(S.skills).reduce((a, b) => a + b, 0), points = S.lvl - 1 - spent;
       const cur = S.skills[id] || 0;
       if (cur >= SKILL_MAX) return { err: 'Maksymalna ranga' };
       if (points < 1) return { err: 'Brak punktów umiejętności' };
       S.skills[id] = cur + 1; return { ev: [{ t: 'skill_up', id, rank: cur + 1 }] };
     },
-    skill_reset() { S.skills = {}; return { ev: [{ t: 'skill_reset' }] }; },   // testowo (docelowo płatny reset)
+    skill_reset() { S.skills = {}; return { ev: [{ t: 'skill_reset' }] }; },
+    // Punkty statusu: 3 za każdy poziom od 2; serwer pilnuje puli
+    stat_add({ stat, n = 1 }) {
+      if (!STATS.some(q => q.k === stat)) return { err: 'Nieznana cecha' };
+      n = Math.floor(+n); if (!Number.isFinite(n) || n < 1 || n > 300) return { err: 'Nieprawidłowa liczba punktów' };
+      const spent = Object.values(S.stats).reduce((a, b) => a + b, 0), left = STAT_PER_LEVEL * (S.lvl - 1) - spent;
+      if (left < 1) return { err: 'Brak punktów statusu' };
+      const add = Math.min(n, left); S.stats[stat] += add; return { ev: [{ t: 'stat_add', stat, n: add }] };
+    },
+    stat_reset() { for (const q of STATS) S.stats[q.k] = 0; return { ev: [{ t: 'stat_reset' }] }; },   // testowo (docelowo płatny reset)   // testowo (docelowo płatny reset)
     // Zbieractwo: serwer sam liczy, ile surowców spadło od ostatniego razu (klient nie może przyspieszyć)
     gather_tick() {
       const a = S.activity; if (!a || a.kind !== 'gather' || !BOARDS[a.detail]) return { err: 'Brak aktywnego zbierania' };
@@ -251,6 +284,8 @@ const Server = (() => {
     for (const u of Object.keys(S.items)) if (!seen.has(u)) errs.push(`osierocony ${u}`);
     for (const [k, u] of Object.entries(S.equip)) { const it = S.items[u]; if (it && !slotOfType(it.type).includes(k)) errs.push(`zły slot ${k} dla ${it.type}`); }
     if (!Number.isInteger(S.gold) || S.gold < 0) errs.push('złoto');
+    if (S.cls !== null && !CLASSES[S.cls]) errs.push('zła klasa');
+    { let st = 0; for (const q of STATS) { const v = S.stats[q.k]; if (!Number.isInteger(v) || v < 0) errs.push('cecha ' + q.k); st += v; } if (st > STAT_PER_LEVEL * (S.lvl - 1)) errs.push('więcej punktów statusu niż przyznano'); }
     { let sum = 0; for (const [id, rk] of Object.entries(S.skills)) { const sk = SKILLS.find(x => x.id === id); if (!sk || !Number.isInteger(rk) || rk < 0 || rk > SKILL_MAX) errs.push('ranga umiejętności ' + id); sum += rk; } if (sum > S.lvl - 1) errs.push('więcej rang niż punktów'); }
     for (const b of Object.keys(BOARDS)) { const L = S.gatherLvl[b]; if (!Number.isInteger(L) || L < 1 || L > GATHER_MAX) errs.push('poziom zbierania ' + b); }
     for (const [b, B] of Object.entries(S.boards)) { if (B.length !== BOARD_CELLS) errs.push('plansza ' + b + ': zła liczba pól'); B.forEach((c, i) => { if (c && (!BOARDS[b].types.some(t => t[0] === c.t) || !Number.isInteger(c.l) || c.l < 1 || c.l > BOARD_MAXLVL)) errs.push(`plansza ${b}#${i}: zły surowiec`); }); }

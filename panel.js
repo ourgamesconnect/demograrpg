@@ -80,7 +80,7 @@ function status(id) {
   const s = P.sessions;
   if (id === 'exp') return window.Expedition && Expedition.running ? ['● W TOKU · ' + Expedition.map, true] : ['Bezczynne', false];
   if (id === 'gather') return ['Bezczynne', false];
-  if (id === 'skills') { const n = window.Skills ? Skills.points() : 0; return [n > 0 ? '✨ Punkty do wydania: ' + n : 'Punkty: 0', n > 0]; }
+  if (id === 'skills') { const n = window.Skills ? Skills.points() : 0, m = window.Skills ? Skills.statPoints() : 0; return [n + m > 0 ? '✨ Punkty: ' + n + ' umiej. · ' + m + ' statusu' : 'Punkty: 0', n + m > 0]; }
   if (id === 'gear') { const s = window.Inventory && Inventory.state; return [s ? 'Plecak ' + s.slots.filter(Boolean).length + ' / ' + s.slots.length + (s.stash.length ? ' · skrytka ' + s.stash.length : '') : 'Plecak', !!(s && s.stash.length)]; }
   if (id === 'duel') return ['Dziś: 3 / 10', false];
   return ['Sklepy i NPC', false];
@@ -153,14 +153,16 @@ function drawFeed() {
 
 // ---- render ----
 // modele robocze (wiki Metin2 nie podaje liczb HP i SP): życie i mana rosną z poziomem i punktami statystyk
-const hpMax = p => Math.round(160 + 36 * p.lvl + 0.18 * p.lvl * p.lvl);
-const mpMax = p => Math.round(50 + 8 * p.lvl + 0.05 * p.lvl * p.lvl);
+const stBonus = () => statBonus(window.Inventory && Inventory.state ? Inventory.state.stats : null);
+const clsOf = () => { const c = window.Inventory && Inventory.state ? Inventory.state.cls : null; return CLASSES[c] || null; };
+const hpMax = p => Math.round((160 + 36 * p.lvl + 0.18 * p.lvl * p.lvl) * (clsOf() ? clsOf().hp : 1) + stBonus().hp);
+const mpMax = p => Math.round((50 + 8 * p.lvl + 0.05 * p.lvl * p.lvl) * (clsOf() ? clsOf().mp : 1) + stBonus().mp);
 function expFor(lvl) { return EXPTAB ? EXPTAB[lvl - 1].exp : 1000 * lvl * lvl; }
 function render() {
   const now = new Date(); $('#app').dataset.tod = todOf(now); placeOrb(now);
   $('#r-clock').textContent = now.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
   countTo($('#r-gold'), P.gold);
-  $('#h-name').textContent = P.name; $('#h-lvl').textContent = P.lvl; $('#h-guild').textContent = '⚜️ Gildia: ' + P.guild; $('#h-server').textContent = P.server; $('#w-name').textContent = P.name;
+  { const cl = clsOf(); $('#h-name').textContent = P.name + (cl ? ' · ' + cl.n : ''); $('#avatar').textContent = cl ? cl.ic : '❔'; } $('#h-lvl').textContent = P.lvl; $('#h-guild').textContent = '⚜️ Gildia: ' + P.guild; $('#h-server').textContent = P.server; $('#w-name').textContent = P.name;
   const need = expFor(P.lvl), have = Math.round(need * P.xp);
   $('#ring-xp').style.strokeDashoffset = (440 * (1 - P.xp)).toFixed(1);
   $('#xp-fill').style.width = (P.xp * 100).toFixed(1) + '%'; $('#xp-txt').textContent = `${fmt(have)} / ${fmt(need)} EXP`;
