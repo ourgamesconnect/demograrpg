@@ -79,13 +79,43 @@
 
   // ---- animacje sceny ----
   function burst() {
-    const sc = $('#gscene', root), n = tab === 'mining' ? ['✨', '💥', '🪨', '⭐'] : ['🪵', '🍂', '✨', '·'];
+    const sc = $('#gscene', root), n = tab === 'mining' ? ['✨', '💥', '🪨', '⭐'] : ['🪵', '🍂', '✨', '🟫'];
     for (let k = 0; k < 8; k++) {
       const p = el('span', 'gp', n[Math.floor(Math.random() * n.length)]); const a = rnd(-2.6, -0.5), d = rnd(60, 150);
       p.style.setProperty('--dx', Math.cos(a) * d + 'px'); p.style.setProperty('--dy', Math.sin(a) * d + 'px'); sc.append(p); setTimeout(() => p.remove(), 900);
     }
   }
-  setInterval(() => { if (root && !root.hidden && running()) { const sc = $('#gscene', root); sc.classList.remove('hit'); void sc.offsetWidth; sc.classList.add('hit'); } }, 1400);
+  // Cel (skała lub kłoda) ma pasek HP = czas do następnego dropu. Uderzenia i pęknięcie napędza postęp liczony z czasu serwera,
+  // więc umiejętności skracające czas dropu będą szybciej "rozbijać" cel bez zmian w animacji.
+  const STRIKES = [0.12, 0.36, 0.60, 0.84];
+  let lastSeen = 0, strikeIdx = 0, pLast = 0;
+  function targetLoop() {
+    if (!root || root.hidden || !S()) return;
+    const s = S(), sc = $('#gscene', root), on = running(), every = Server.BOARD_EVERY_MS;
+    const last = s.lastDrop[tab] || 0, now = Date.now();
+    const p = on && last ? Math.min(1, Math.max(0, (now - last) / every)) : 0;
+    const hp = Math.round(100 * (1 - p)), nm = tab === 'mining' ? 'Skała' : 'Kłoda';
+    $('#gtname', root).textContent = nm; $('#gthp', root).style.width = hp + '%';
+    $('#gttxt', root).textContent = on ? hp + ' / 100 HP · pęka za ' + Math.max(0, (every * (1 - p) / 1000)).toFixed(1) + ' s' : 'Rozpocznij, aby zacząć ' + (tab === 'mining' ? 'kopać' : 'ciąć');
+    sc.classList.toggle('c1', on && p > 0.33); sc.classList.toggle('c2', on && p > 0.66);
+    if (!on) { strikeIdx = 0; pLast = 0; lastSeen = last; return; }
+    if (last !== lastSeen) { lastSeen = last; strikeIdx = 0; breakTarget(); }   // nowy drop = cel pękł
+    while (strikeIdx < STRIKES.length && p >= STRIKES[strikeIdx]) { strike(strikeIdx); strikeIdx++; }
+    pLast = p;
+  }
+  function strike(k) {
+    const sc = $('#gscene', root), tool = $(tab === 'mining' ? '#gpick' : '#gblade', root), tgt = $(tab === 'mining' ? '#grock' : '#glog', root);
+    tool.classList.remove('strike'); void tool.offsetWidth; tool.classList.add('strike');
+    setTimeout(() => { tgt.classList.remove('hit'); void tgt.offsetWidth; tgt.classList.add('hit'); num('−25', k === 3); burst(); }, 170);
+  }
+  function breakTarget() {
+    const sc = $('#gscene', root); sc.classList.remove('break'); void sc.offsetWidth; sc.classList.add('break');
+    for (let k = 0; k < 14; k++) burst();
+  }
+  function num(t, big) {
+    const box = $('#gnums', root), n = el('span', 'gn' + (big ? ' big' : ''), t); n.style.left = (46 + rnd(-8, 8)) + '%'; n.style.top = (38 + rnd(-6, 6)) + '%'; box.append(n); setTimeout(() => n.remove(), 900);
+  }
+  setInterval(targetLoop, 90);
 
   // ---- tik serwera (drop liczy serwer; klient tylko odpytuje) ----
   setInterval(() => { const a = act(); if (a && a.kind === 'gather' && window.Inventory) run('gather_tick').then(() => { if (root && !root.hidden) draw(); }); }, 1000);
@@ -96,9 +126,10 @@
       <div class="g-head"><b>⛏️ ZBIERACTWO</b><div class="gtabs"><button class="gtab on" data-t="mining">⛏️ Górnictwo <small></small></button><button class="gtab" data-t="sawmill">🪵 Tartak <small></small></button></div><button class="x" id="gclose" aria-label="Zamknij">✕</button></div>
       <div class="gscene" id="gscene" data-scene="mining">
         <div class="gbg"></div>
-        <div class="gmine"><div class="rock">🪨</div><div class="pick">⛏️</div><div class="lamp l">🔦</div><div class="cart">🛒</div></div>
-        <div class="gsaw"><div class="log">🪵</div><div class="blade">🪚</div><div class="belt"></div><div class="planks">📏</div></div>
-        <div class="gstate" id="gstate"></div>
+        <div class="gtarget" id="gtarget"><b id="gtname">Skała</b><div class="tbar"><i id="gthp"></i></div><small id="gttxt"></small></div>
+        <div class="gmine"><div class="shadow"></div><div class="rock" id="grock">🪨<span class="crack"></span></div><div class="pick" id="gpick">⛏️</div></div>
+        <div class="gsaw"><div class="shadow"></div><div class="belt"></div><div class="log" id="glog">🪵<span class="crack"></span></div><div class="blade" id="gblade">🪚</div></div>
+        <div class="gnums" id="gnums"></div>
       </div>
       <div class="g-ctl"><button class="gstart go" id="gstart">▶ ZACZNIJ</button></div>
       <div class="g-board">
