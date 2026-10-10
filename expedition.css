@@ -148,3 +148,12 @@
 @keyframes skcast{0%{box-shadow:0 0 0 0 #9fd4ff}40%{box-shadow:0 0 26px 8px #9fd4ff;transform:scale(1.12)}100%{box-shadow:none}}
 .sk-hint{padding:8px 14px;border-radius:12px;background:rgba(8,10,18,.88);border:1px dashed rgba(255,255,255,.25);color:var(--mut);font-size:13px}
 .sk-link{cursor:pointer;margin-left:4px;padding:3px 10px;border-radius:8px;border:1px solid var(--gold);background:rgba(255,210,77,.12);color:var(--gold);font-weight:800}
+
+/* POLANKA: Spaczony Korzeń i licznik zdarzeń */
+.xenemy.target.root{filter:drop-shadow(0 0 40px #b979ff) drop-shadow(0 18px 14px #000);animation:rootp 1.7s ease-in-out infinite}
+@keyframes rootp{0%,100%{transform:translateX(-50%) scale(1);filter:drop-shadow(0 0 26px #b979ff) drop-shadow(0 18px 14px #000)}50%{transform:translateX(-50%) scale(1.06);filter:drop-shadow(0 0 64px #e0b0ff) drop-shadow(0 18px 14px #000)}}
+.xpanel.target.root{border-color:#b979ff;box-shadow:0 0 20px rgba(185,121,255,.6)}
+.xpanel.target.root .ebar i{background:linear-gradient(90deg,#6a2fc0,#d9a8ff)}
+.xp-stage.targetwin .xbg{filter:hue-rotate(250deg) saturate(1.3) brightness(.8)}
+.xtimers{color:#cdbbff;font-size:12.5px}
+.xp-foot{row-gap:6px}

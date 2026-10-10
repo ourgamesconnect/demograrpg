@@ -8,7 +8,18 @@
 
   // mapy: [nazwa, ikona, waga, poziom potwora (offset), czas zabicia w sekundach]
   const MAPS = [
-    { k: 'Pola za wsią', ic: '🌾', req: 1, lvl: 1, tier: 0, mobs: [['Wilk', '🐺', 34, 0, 4], ['Dzik', '🐗', 26, 1, 5], ['Rzezimieszek', '🥷', 20, 2, 6], ['Wygłodniały włóczęga', '🧟', 12, 3, 7], ['Niedźwiedź', '🐻', 8, 4, 9]], boss: ['Herszt Zbójów', '👺'], target: ['Obóz bandytów', '⛺'] },
+    { k: 'POLANKA', ic: '🌼', req: 1, lvl: 1, tier: 0, range: 'poziom 1–5', spec: {
+      interval: 30 * 60 * 1000,   // boss i cel specjalny pojawiają się co 30 minut (co 30 min każdy, przesunięci o 15 min)
+      mobs: [
+        { n: 'Polny Żuk', ic: '🪲', lvl: 1, hp: 70, w: 30, dmg: 2, every: 4 },
+        { n: 'Wściekły Lis', ic: '🦊', lvl: 2, hp: 140, w: 28, dmg: 2, every: 3, group: [2, 3] },
+        { n: 'Kolczasty Dzik', ic: '🐗', lvl: 3, hp: 250, w: 20, dmg: 4, every: 3, charge: 5 },
+        { n: 'Leśny Włóczęga', ic: '👺', lvl: 4, hp: 380, w: 14, dmg: 6, every: 3 },
+        { n: 'Młody Niedźwiedź', ic: '🐻', lvl: 5, hp: 550, w: 8, dmg: 10, every: 5 },
+      ],
+      boss: { n: 'Krwawy Rogacz', ic: '🦌', lvl: 7, hp: 3200, dmg: 12, every: 3, enrage: { at: 0.3, every: 2 } },
+      target: { n: 'Spaczony Korzeń', ic: '🌳', lvl: 5, hp: 5000, dmg: 0, every: 99, cls: 'root' },
+    }, mobs: [] },
     { k: 'Mroczny bór', ic: '🌲', req: 8, lvl: 10, tier: 1, mobs: [['Borsuk', '🦡', 34, 0, 4], ['Pająk leśny', '🕷️', 26, 1, 5], ['Wilk alfa', '🐺', 20, 2, 6], ['Leśny rozbójnik', '🏹', 12, 3, 7], ['Wiedźma z bagien', '🧙‍♀️', 8, 4, 9]], boss: ['Król Boru', '🐻'], target: ['Pogański kamień', '🗿'] },
     { k: 'Opuszczona kopalnia', ic: '⛏️', req: 16, lvl: 20, tier: 2, mobs: [['Nietoperz', '🦇', 34, 0, 4], ['Szczur kopalniany', '🐀', 26, 1, 5], ['Zmarły górnik', '🧟', 20, 2, 6], ['Szkielet', '💀', 12, 3, 7], ['Golem skalny', '🪨', 8, 4, 9]], boss: ['Strażnik Szybu', '☠️'], target: ['Zapieczętowana krypta', '⚰️'] },
     { k: 'Zamek w ruinie', ic: '🏰', req: 26, lvl: 30, tier: 3, mobs: [['Zbrojny najemnik', '🛡️', 34, 0, 4], ['Łucznik z wieży', '🏹', 26, 1, 5], ['Rycerz renegat', '🤺', 20, 2, 6], ['Kat', '🪓', 12, 3, 7], ['Mroczny kapłan', '🧙', 8, 4, 9]], boss: ['Czarny Rycerz', '🦹'], target: ['Brama zamku', '🚪'] },
@@ -32,12 +43,27 @@
   const refDmg = m => 12 + m.lvl * 3 + weaponStats('sword', m.tier, 4).atk;
   const hpOf = (m, t) => Math.round(refDmg(m) * t / 0.9);
 
+  const TEMPO = Math.max(1, parseFloat(new URLSearchParams(location.search).get('tempo')) || 1);   // do testów: ?tempo=60 skraca 30 min do 30 s
+  const interval = m => (m.spec ? m.spec.interval : 0) / TEMPO;
+  function initSched() { const m = MAPS[X.map]; if (!m.spec) { X.sched = null; return; } const now = Date.now(), iv = interval(m); X.sched = { boss: now + iv, target: now + iv / 2 }; }
   function spawn(force) {
-    const m = MAPS[X.map], r = force === 'boss' ? 0 : force === 'target' ? 0.05 : Math.random();
+    const m = MAPS[X.map];
+    if (m.spec) {
+      const sp = m.spec, now = Date.now(); let def = null, kind = 'mob';
+      if (force === 'boss' || (!force && X.sched && X.sched.boss <= now)) { kind = 'boss'; def = sp.boss; if (X.sched) X.sched.boss = now + interval(m); }
+      else if (force === 'target' || (!force && X.sched && X.sched.target <= now)) { kind = 'target'; def = sp.target; if (X.sched) X.sched.target = now + interval(m); }
+      else { const tw = sp.mobs.reduce((a, q) => a + q.w, 0); let q = Math.random() * tw; def = sp.mobs[0]; for (const mb of sp.mobs) { q -= mb.w; if (q <= 0) { def = mb; break; } } }
+      const n = def.group ? Math.floor(rnd(def.group[0], def.group[1] + 1)) : 1, unit = def.hp, max = unit * n;
+      X.enemy = { name: def.n, ic: def.ic, base: def.ic, kind, lvl: def.lvl, hp: max, max, dead: false, unit: n > 1 ? unit : 0, dmg: def.dmg, every: def.every || 3, charge: def.charge, enrage: def.enrage, cls: def.cls, t: 0 };
+      X.wait = 0; SK.dot = null; SK.vuln = null; SK.channel = null; SK.windup = null; SK.stun = 0; SK.charges = 0; syncEnemy(true);
+      if (kind === 'boss') say('☠ BOSS', def.n); else if (kind === 'target') say('🌳 SPACZONY KORZEŃ', 'wyrósł z ziemi'); else if (n > 1) say(def.ic.repeat(n), def.n + ' ×' + n);
+      return;
+    }
+    const r = force === 'boss' ? 0 : force === 'target' ? 0.05 : Math.random();
     let kind = 'mob', def;
     if (r < 0.03) { kind = 'boss'; def = [m.boss[0], m.boss[1], 0, 6, 40]; }
     else if (r < 0.10) { kind = 'target'; def = [m.target[0], m.target[1], 0, 4, 20]; }
-    else { const tw = m.mobs.reduce((a, x) => a + x[2], 0); let q = Math.random() * tw; def = m.mobs[0]; for (const x of m.mobs) { q -= x[2]; if (q <= 0) { def = x; break; } } }
+    else { const tw = m.mobs.reduce((a, q) => a + q[2], 0); let q = Math.random() * tw; def = m.mobs[0]; for (const mb of m.mobs) { q -= mb[2]; if (q <= 0) { def = mb; break; } } }
     const hp = hpOf(m, def[4]);
     X.enemy = { name: def[0], ic: def[1], kind, lvl: m.lvl + def[3], hp, max: hp, dead: false };
     X.wait = 0; SK.dot = null; SK.vuln = null; SK.channel = null; SK.windup = null; SK.stun = 0; SK.charges = 0; syncEnemy(true);
@@ -133,11 +159,16 @@
       }
     }
     if (e.dead) { sync(); return; }
-    // przeciwnik oddaje co 3. tik (nie, gdy ogłuszony)
-    if (X.n % 3 === 0) {
+    // przeciwnik oddaje we własnym rytmie (nie, gdy ogłuszony)
+    e.t = (e.t || 0) + 1;
+    if (e.enrage && !e.enraged && e.hp / e.max < e.enrage.at) { e.enraged = true; e.every = e.enrage.every; say('💢 SZAŁ', e.name + ' atakuje szybciej'); }
+    const every = e.every || 3;
+    if (e.t % every === 0) {
       if (SK.stun > 0) { SK.stun--; if (visible()) fx('skilltxt', { left: '50%', top: '30%' }, 800, '💫 ogłuszony'); }
       else {
-        let hit = (3 + e.lvl * 2.4) * (e.kind === 'boss' ? 2.2 : e.kind === 'target' ? 0 : 1) * rnd(0.8, 1.2);
+        const left = e.unit ? Math.ceil(e.hp / e.unit) : 1;
+        let hit = e.dmg !== undefined ? e.dmg * left * rnd(0.85, 1.15) : (3 + e.lvl * 2.4) * (e.kind === 'boss' ? 2.2 : e.kind === 'target' ? 0 : 1) * rnd(0.8, 1.2);
+        if (e.charge && e.dmg !== undefined && (e.t / every) % e.charge === 0) { hit *= 2; if (visible()) fx('skilltxt', { left: '50%', top: '30%' }, 900, e.ic + ' Szarża!'); }
         if (buffOn('sw1')) hit *= 1.2;
         if (buffOn('sw2')) hit *= 1 - SKILLS.find(s => s.id === 'sw2').p(rankOf('sw2')).red;
         hit = Math.round(hit);
@@ -219,15 +250,17 @@
   function syncEnemy(spawned) {
     if (!root) return; const en = $('#xe', root), pan = $('#xpanel', root), e = X.enemy;
     if (!e) { en.classList.add('gone'); pan.classList.add('hidden'); return; }
-    en.textContent = e.ic; en.className = 'xenemy ' + e.kind; if (spawned) { void en.offsetWidth; en.classList.add('spawn'); }
+    const left = e.unit ? Math.max(1, Math.ceil(e.hp / e.unit)) : 1; e._left = left;
+    en.textContent = e.unit ? e.base.repeat(left) : e.ic; en.className = 'xenemy ' + e.kind + (e.cls ? ' ' + e.cls : ''); if (spawned) { void en.offsetWidth; en.classList.add('spawn'); }
     stageEl.classList.toggle('bosswin', e.kind === 'boss'); stageEl.classList.toggle('targetwin', e.kind === 'target');
-    pan.classList.remove('hidden'); pan.className = 'xpanel ' + e.kind;
-    $('#xname', root).textContent = (e.kind === 'boss' ? '☠ BOSS · ' : e.kind === 'target' ? '🎯 CEL · ' : '') + e.name + `  (poz. ${e.lvl})`;
+    pan.classList.remove('hidden'); pan.className = 'xpanel ' + e.kind + (e.cls ? ' ' + e.cls : '');
+    $('#xname', root).textContent = (e.kind === 'boss' ? '☠ BOSS · ' : e.kind === 'target' ? '🎯 CEL · ' : '') + e.name + (e.unit ? ' ×' + left : '') + `  (poz. ${e.lvl})`;
   }
   // stan „czy trwa wyprawa" zawsze pochodzi z serwera (klient go nie zmienia sam)
   function applyServer() {
     const on = serverExp();
     if (X.on && !on) { X.enemy = null; X.rest = 0; syncEnemy(false); }
+    if (on && !X.on) initSched();
     X.on = on;
   }
   window.addEventListener('inv:update', () => { applyServer(); sync(); });
@@ -261,6 +294,8 @@
   function sync() {
     if (!root) return; drawSkillBar();
     const busyOther = (() => { const s = Inventory.state; return s && s.activity && s.activity.kind !== 'exp' ? ACT_NAMES[s.activity.kind] : null; })(); const e = X.enemy, hm = hpMax(P), mm = mpMax(P);
+    if (e && e.unit && e.hp > 0 && Math.ceil(e.hp / e.unit) !== e._left) syncEnemy(false);
+    { const m = MAPS[X.map], tm = $('#xtimers', root); if (m.spec && X.on && X.sched) { const f = t => { const s = Math.max(0, Math.ceil((t - Date.now()) / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }; tm.textContent = '☠ ' + m.spec.boss.n + ' za ' + f(X.sched.boss) + ' · 🌳 ' + m.spec.target.n + ' za ' + f(X.sched.target); } else tm.textContent = m.spec ? '☠ Boss i 🌳 Korzeń pojawiają się co 30 min' : ''; }
     if (e) { $('#xbar', root).style.width = (100 * e.hp / e.max) + '%'; $('#xtxt', root).textContent = `${fmt(e.hp)} / ${fmt(e.max)} HP`; }
     $('#xhp', root).style.width = (100 * P.hp / hm) + '%'; $('#xhpt', root).textContent = `${fmt(P.hp)} / ${fmt(hm)}`;
     $('#xmp', root).style.width = (100 * P.mp / mm) + '%'; $('#xmpt', root).textContent = `${fmt(P.mp)} / ${fmt(mm)}`;
@@ -272,7 +307,7 @@
     $('#xstat', root).textContent = `Pokonanych: ${X.kills} · Bossów: ${X.bosses} · Celów specjalnych: ${X.targets}`;
     const rc = $('#xrecent', root); rc.replaceChildren(); X.recent.forEach(r => { const c = el('span', 'xchip', r.ic + ' ' + r.n); c.style.borderColor = r.col; rc.append(c); });
     const tiles = $('#xmaps', root); tiles.replaceChildren();
-    MAPS.forEach((m, i) => { const open = P.lvl >= m.req, b = el('button', 'xmap' + (X.map === i ? ' on' : '') + (open ? '' : ' lock')); b.disabled = !open || X.on || pending; if (X.on && open && X.map !== i) b.title = 'Zatrzymaj wyprawę, aby zmienić mapę'; b.append(el('i', '', open ? m.ic : '🔒'), el('b', '', m.k), el('small', '', open ? `poziom potworów ${m.lvl}+` : `od poziomu ${m.req}`)); b.onclick = () => { if (X.map === i) return; X.map = i; X.enemy = null; X.wait = 0; stageEl.dataset.map = i; syncEnemy(false); sync(); }; tiles.append(b); });
+    MAPS.forEach((m, i) => { const open = P.lvl >= m.req, b = el('button', 'xmap' + (X.map === i ? ' on' : '') + (open ? '' : ' lock')); b.disabled = !open || X.on || pending; if (X.on && open && X.map !== i) b.title = 'Zatrzymaj wyprawę, aby zmienić mapę'; b.append(el('i', '', open ? m.ic : '🔒'), el('b', '', m.k), el('small', '', open ? (m.range || `poziom potworów ${m.lvl}+`) : `od poziomu ${m.req}`)); b.onclick = () => { if (X.map === i) return; X.map = i; X.enemy = null; X.wait = 0; initSched(); stageEl.dataset.map = i; syncEnemy(false); sync(); }; tiles.append(b); });
   }
 
   function build() {
@@ -290,7 +325,7 @@
       </div>
       <div class="xp-ctl"><button class="xstart go" id="xstart">▶ ZACZNIJ WYPRAWĘ</button><button class="xdev" id="xboss">☠ Boss (test)</button><button class="xdev" id="xtarget">🎯 Cel (test)</button></div>
       <div id="xmaps" class="xmaps"></div>
-      <div class="xp-foot"><span id="xstat"></span><div id="xrecent" class="xrecent"></div></div>
+      <div class="xp-foot"><span id="xstat"></span><span id="xtimers" class="xtimers"></span><div id="xrecent" class="xrecent"></div></div>
     </div>`;
     document.body.append(root); stageEl = $('#xstage', root);
     $('#xclose', root).onclick = close; root.onclick = e => { if (e.target === root) close(); };
@@ -306,5 +341,5 @@
   }
   function open() { if (!root) { build(); X.map = Math.max(0, MAPS.reduce((a, m, i) => P.lvl >= m.req ? i : a, 0)); stageEl.dataset.map = X.map; } root.hidden = false; document.body.classList.add('inv-open'); syncEnemy(false); sync(); }
   function close() { if (!root) return; root.hidden = true; document.body.classList.remove("inv-open"); }
-  window.Expedition = { open, close, get running() { return X.on; }, get map() { return MAPS[X.map].k; } };
+  window.Expedition = { get enemy() { return X.enemy; }, get sched() { return X.sched; }, open, close, get running() { return X.on; }, get map() { return MAPS[X.map].k; } };
 })();
