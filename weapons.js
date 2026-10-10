@@ -36,3 +36,9 @@ const ARMOR_TABLE = {
   shield: [[3, 6, 9, 12, 15, 18, 21, 25, 29, 33]],       // Drewniana tarcza
 };
 const ARMOR_NAMES = { armor: ['Drewniana zbroja'], helm: ['Drewniany hełm'], boots: ['Drewniane buty'], shield: ['Drewniana tarcza'] };
+
+// ŁUP NA MAPACH (wspólne dla serwera i klienta). Każda sztuka drewnianego EQ wypada jako +0 lub +1, szansa rolowana osobno dla każdej części.
+// mob: szansa na KAŻDĄ część z jednego zabitego potwora, wg poziomu potwora; boss/target: dokładnie jedna losowa część.
+const MAP_DROPS = {
+  polanka: { parts: ['weapon', 'helm', 'armor', 'boots', 'shield'], mob: { 1: 0.008, 2: 0.010, 3: 0.012, 4: 0.014, 5: 0.016 }, plus1: 0.2, boss: 0, target: 0 }   // boss i Spaczony Korzeń: łup jeszcze nieustalony,
+};

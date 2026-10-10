@@ -190,10 +190,11 @@
     let lv = false; while (P.xp >= 1) { P.xp -= 1; P.lvl++; lv = true; }
     if (lv) { P.hp = hpMax(P); P.mp = mpMax(P); say('⭐ AWANS!', 'Poziom ' + P.lvl); Inventory.exec('sync_level', { lvl: P.lvl }); if (window.GameFeed) { GameFeed('⭐ Awans na poziom ' + P.lvl + '!', 'good'); GameFeed('✨ Nowe punkty: 1 umiejętności i 3 statusu. Otwórz Umiejętności.', 'good'); } }
     if (window.GameFeed) { if (e.kind === 'boss') GameFeed('☠ Pokonano bossa: ' + e.name, 'boss'); else if (e.kind === 'target') GameFeed('🎯 Zniszczono cel specjalny: ' + e.name, 'good'); }
-    window.Inventory.reward({ tier: m.tier, kind: e.kind, map: m.id }).then(res => {
+    window.Inventory.reward({ tier: m.tier, kind: e.kind, map: m.id, lvl: e.lvl }).then(res => {
       if (res && !res.ok) { applyServer(); sync(); return; }
       if (res && res.ok) for (const ev of res.events) {
-        if (ev.t === 'item_added') { if (ev.where === 'sold') cards.push({ t: `${ev.ic} ${ev.name} → sprzedano (+${ev.gold} 🪙)`, c: 'gold' }); else { const it = res.snapshot.items[ev.uid]; if (it) { cards.push({ t: `${it.ic} ${it.name} (${RARITY[it.rarity].n})${ev.where === 'stash' ? ' → skrytka' : ''}`, c: 'item', col: RARITY[it.rarity].c }); X.recent.unshift({ ic: it.ic, n: it.name, col: RARITY[it.rarity].c }); X.recent.length = Math.min(X.recent.length, 10); } } }
+        if (ev.t === 'loot_added') cards.push({ t: `${ev.ic} ${ev.name} +${ev.plus} → torba łupu ×${ev.qty}`, c: 'item' });
+        else if (ev.t === 'item_added') { if (ev.where === 'sold') cards.push({ t: `${ev.ic} ${ev.name} → sprzedano (+${ev.gold} 🪙)`, c: 'gold' }); else { const it = res.snapshot.items[ev.uid]; if (it) { cards.push({ t: `${it.ic} ${it.name} (${RARITY[it.rarity].n})${ev.where === 'stash' ? ' → skrytka' : ''}`, c: 'item', col: RARITY[it.rarity].c }); X.recent.unshift({ ic: it.ic, n: it.name, col: RARITY[it.rarity].c }); X.recent.length = Math.min(X.recent.length, 10); } } }
         else if (ev.t === 'mat_added') cards.push({ t: `${MATS[ev.mat] || '📦'} ${ev.mat} ×${ev.qty}`, c: 'mat' });
       }
       showCards(cards); sync();
@@ -319,7 +320,10 @@
     $('#xxp', root).style.width = (100 * P.xp) + '%'; $('#xlvl', root).textContent = 'Poz. ' + P.lvl;
     $('#xgold', root).textContent = fmt(P.gold);
     const sb = $('#xstart', root); sb.textContent = busyOther ? '🔒 Zajęty: ' + busyOther : (X.on ? '⏸ Zatrzymaj wyprawę' : '▶ ZACZNIJ WYPRAWĘ');
-    sb.disabled = pending || !!busyOther; sb.classList.toggle('go', !X.on && !busyOther);
+    const lootN = (() => { const l = Inventory.state && Inventory.state.loot; return l ? Object.values(l).reduce((a, q) => a + q.qty, 0) : 0; })();
+    if (!X.on && !busyOther && lootN) sb.textContent = '🔒 Odbierz łup (' + lootN + '), aby wyruszyć';
+    sb.disabled = pending || !!busyOther || (!X.on && lootN > 0); sb.classList.toggle('go', !X.on && !busyOther && !lootN);
+    drawBag(lootN);
     $('#xstat', root).textContent = `Pokonanych: ${X.kills} · Bossów: ${X.bosses} · Celów specjalnych: ${X.targets}`;
     const rc = $('#xrecent', root); rc.replaceChildren(); X.recent.forEach(r => { const c = el('span', 'xchip', r.ic + ' ' + r.n); c.style.borderColor = r.col; rc.append(c); });
     { const box = $('#xmobs', root), m = MAPS[X.map], sel = selMobs(), sig = X.map + ':' + sel.join(',');
@@ -328,10 +332,49 @@
           c.append(el('i', '', mb.ic), el('span', '', mb.n + ' (poz. ' + mb.lvl + ')'), el('small', '', mb.xp + ' EXP'));
           c.onclick = async () => { const next = on ? sel.filter(q => q !== i) : sel.concat(i).sort(); if (!next.length) return; await Inventory.exec('mob_filter', { map: m.id, ids: next }); box._sig = ''; sync(); };
           box.append(c); }); } }
+    { const box = $('#xdrops', root), m = MAPS[X.map], dr = MAP_DROPS[m.id], sel = selMobs(), cls = Inventory.state && Inventory.state.cls, sig = m.id + ':' + sel.join(',') + ':' + cls;
+      if (dr && box._sig !== sig) { box._sig = sig; box.replaceChildren(); box.append(el('b', '', 'Możliwy łup na mapie:'));
+        const lv = sel.map(i => m.spec.mobs[i].lvl), lo = Math.min(...lv.map(l => dr.mob[l] || 0)), hi = Math.max(...lv.map(l => dr.mob[l] || 0));
+        const nm = { weapon: cls ? WEAPON_NAMES[CLASSES[cls].w][0] : 'Drewniana broń', helm: ARMOR_NAMES.helm[0], armor: ARMOR_NAMES.armor[0], boots: ARMOR_NAMES.boots[0], shield: ARMOR_NAMES.shield[0] };
+        const ic = { weapon: cls ? { sword: '🗡️', bow: '🏹', wand: '🪄' }[CLASSES[cls].w] : '⚔️', helm: '🪖', armor: '🥋', boots: '🥾', shield: '🛡️' };
+        const pct = v => (v * 100).toLocaleString('pl-PL', { maximumFractionDigits: 1 }) + '%';
+        dr.parts.forEach(p => { const c = el('span', 'xdrop'); c.title = nm[p] + ' +0 lub +1 · ' + (lo === hi ? pct(lo) : pct(lo) + '–' + pct(hi)) + ' z potwora · boss i korzeń: łup wkrótce'; c.append(el('i', '', ic[p]), el('small', '', '+0/+1')); box.append(c); }); } }
     const tiles = $('#xmaps', root); tiles.replaceChildren();
     MAPS.forEach((m, i) => { const open = P.lvl >= m.req, b = el('button', 'xmap' + (X.map === i ? ' on' : '') + (open ? '' : ' lock')); b.disabled = !open || X.on || pending; if (X.on && open && X.map !== i) b.title = 'Zatrzymaj wyprawę, aby zmienić mapę'; b.append(el('i', '', open ? m.ic : '🔒'), el('b', '', m.k), el('small', '', open ? (m.range || `poziom potworów ${m.lvl}+`) : `od poziomu ${m.req}`)); b.onclick = () => { if (X.map === i) return; X.map = i; X.enemy = null; X.wait = 0; initSched(); stageEl.dataset.map = i; syncEnemy(false); sync(); }; tiles.append(b); });
   }
 
+  // ---- TORBA ŁUPU ----
+  const bagPrev = {};
+  async function bagAct(cmd, payload, cardEl) {
+    if (pending) return; pending = true; if (cardEl) cardEl.classList.add('fly'); else root.querySelectorAll('.xbagcard').forEach(q => q.classList.add('fly'));
+    await new Promise(q => setTimeout(q, 380));
+    const res = await Inventory.exec(cmd, payload); pending = false;
+    if (res && res.ok) { const ev = res.events || []; const g = ev.filter(q => q.t === 'loot_sold').reduce((a, q) => a + q.gold, 0), n = ev.filter(q => q.t === 'loot_claimed' || q.t === 'loot_sold').reduce((a, q) => a + q.n, 0);
+      if (g) { P.gold += g; say('💰 SPRZEDANO ×' + n, '+' + fmt(g) + ' złota'); } else say('🎒 ODEBRANO ×' + n, 'przedmioty są w plecaku'); }
+    else if (res && res.error) say('⚠', res.error);
+    sync();
+  }
+  function drawBag(lootN) {
+    const box = $('#xbag', root), L = (Inventory.state && Inventory.state.loot) || {}, keys = Object.keys(L).sort();
+    box.hidden = !keys.length; if (!keys.length) { box._sig = ''; return; }
+    const sig = keys.map(k => k + ':' + L[k].qty).join(',') + (pending ? 'p' : ''); if (box._sig === sig) return; box._sig = sig;
+    box.replaceChildren();
+    const total = keys.reduce((a, k) => a + L[k].qty, 0), worth = keys.reduce((a, k) => a + L[k].qty * L[k].it.value, 0);
+    const h = el('div', 'xbaghead'); h.append(el('b', '', '🎁 ŁUP Z WYPRAWY'), el('span', '', total + ' przedmiotów · warte ' + fmt(worth) + ' 🪙')); box.append(h);
+    box.append(el('p', 'xbagnote', 'Odbierz łup do plecaka albo sprzedaj go od razu. Dopóki nie zabierzesz łupu, nie wyruszysz na kolejną wyprawę.'));
+    const row = el('div', 'xbagrow');
+    keys.forEach(k => {
+      const e = L[k], it = e.it, c = el('div', 'xbagcard' + (bagPrev[k] !== undefined && e.qty > bagPrev[k] ? ' pop' : bagPrev[k] === undefined ? ' newc' : ''));
+      c.append(el('i', 'xbagic', it.ic), el('b', '', it.name + (it.plus ? ' +' + it.plus : ' +0')), el('span', 'xbagq', '×' + e.qty));
+      const bt = el('div', 'xbagbt'); const a = el('button', 'xclaim', '🎒 Do EQ'), sl = el('button', 'xsell', '💰 +' + fmt(e.qty * it.value));
+      a.onclick = () => bagAct('loot_claim', { key: k }, c); sl.onclick = () => bagAct('loot_sell', { key: k }, c); bt.append(a, sl); c.append(bt); row.append(c);
+      bagPrev[k] = e.qty;
+    });
+    for (const k of Object.keys(bagPrev)) if (!L[k]) delete bagPrev[k];
+    box.append(row);
+    const all = el('div', 'xbagall'), ca = el('button', 'xclaimall', '🎒 ODBIERZ WSZYSTKO'), sa = el('button', 'xsellall', '💰 SPRZEDAJ WSZYSTKO (+' + fmt(worth) + ')');
+    ca.onclick = () => bagAct('loot_claim_all', {}); sa.onclick = () => bagAct('loot_sell_all', {}); all.append(ca, sa); box.append(all);
+  }
   function build() {
     root = el('div', 'xp-ov'); root.hidden = true;
     root.innerHTML = `<div class="xp-win" role="dialog" aria-label="Wyprawy">
@@ -348,6 +391,8 @@
       <div class="xp-ctl"><button class="xstart go" id="xstart">▶ ZACZNIJ WYPRAWĘ</button></div>
       <div class="xenc" id="xenc"></div>
       <div class="xmobs" id="xmobs"></div>
+      <div class="xdrops" id="xdrops"></div>
+      <div class="xbag" id="xbag" hidden></div>
       <div id="xmaps" class="xmaps"></div>
       <div class="xp-foot"><span id="xstat"></span><span id="xtimers" class="xtimers"></span><div id="xrecent" class="xrecent"></div></div>
     </div>`;

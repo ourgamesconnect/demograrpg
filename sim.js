@@ -53,7 +53,7 @@ const MATS = { 'Złom': '⚙️', 'Szmaty': '🧵', 'Drewno': '🪵', 'Skóra': 
 const Server = (() => {
   let uidSeq = 1000, version = 0;
   const done = new Map(); // cid -> odpowiedź (idempotencja: ta sama komenda nie wykona się dwa razy)
-  const S = { slots: Array(INV_SLOTS).fill(null), items: {}, equip: {}, stash: [], mats: {}, gold: 0, lvl: 1, cls: null, mobFilter: {}, skills: {}, stats: { life: 0, mana: 0, str: 0, dex: 0, mag: 0 }, enc: {}, activity: null,
+  const S = { slots: Array(INV_SLOTS).fill(null), items: {}, equip: {}, stash: [], mats: {}, gold: 0, lvl: 1, cls: null, loot: {}, mobFilter: {}, skills: {}, stats: { life: 0, mana: 0, str: 0, dex: 0, mag: 0 }, enc: {}, activity: null,
     boards: { mining: Array(BOARD_CELLS).fill(null), sawmill: Array(BOARD_CELLS).fill(null) }, lastDrop: { mining: 0, sawmill: 0 }, lost: { mining: 0, sawmill: 0 }, gatherLvl: { mining: 1, sawmill: 1 } };
   const rnd = (a, b) => a + Math.random() * (b - a), ri = (a, b) => Math.floor(rnd(a, b + 1));
   const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -152,6 +152,7 @@ const Server = (() => {
         return { err: a.kind === kind ? `${ACTIVITY_NAMES[kind]} już trwa. Zatrzymaj, aby zmienić.` : `Jesteś zajęty: ${ACTIVITY_NAMES[a.kind]}. Zatrzymaj, aby zacząć ${ACTIVITY_NAMES[kind].toLowerCase()}.` };
       }
       if (kind === 'gather' && !BOARDS[detail]) return { err: 'Nieznana lokacja zbierania' };
+      if (kind === 'exp' && Object.keys(S.loot).length) return { err: 'Najpierw odbierz lub sprzedaj łup z poprzedniej wyprawy' };
       for (const e of Object.values(S.enc)) if (e.st === 'queued' || e.st === 'active') e.st = 'ready';   // odzyskanie stanu po rozłączeniu
       S.activity = { kind, detail: String(detail).slice(0, 60), since: Date.now() };
       return { ev: [{ t: 'activity_started', kind, detail: S.activity.detail }] };
@@ -177,7 +178,7 @@ const Server = (() => {
     },
     // testowo: nowa postać (docelowo: tworzenie nowej postaci na koncie)
     class_reset() {
-      S.cls = null; S.mobFilter = {}; S.lvl = 1; S.gold = 150; S.skills = {}; S.stats = { life: 0, mana: 0, str: 0, dex: 0, mag: 0 };
+      S.cls = null; S.loot = {}; S.mobFilter = {}; S.lvl = 1; S.gold = 150; S.skills = {}; S.stats = { life: 0, mana: 0, str: 0, dex: 0, mag: 0 };
       S.items = {}; S.equip = {}; S.slots = Array(INV_SLOTS).fill(null); S.stash = []; S.mats = {}; S.gold = 0; S.enc = {}; S.activity = null; S.starter = false;
       return { ev: [{ t: 'class_reset' }] };
     },
@@ -205,6 +206,32 @@ const Server = (() => {
       const spent = Object.values(S.stats).reduce((a, b) => a + b, 0), left = STAT_PER_LEVEL * (S.lvl - 1) - spent;
       if (left < 1) return { err: 'Brak punktów statusu' };
       const add = Math.min(n, left); S.stats[stat] += add; return { ev: [{ t: 'stat_add', stat, n: add }] };
+    },
+    // TORBA ŁUPU: odbiór do plecaka (lub skrytki) albo szybka sprzedaż. Wszystko liczy serwer.
+    loot_claim({ key, n }) {
+      const e = S.loot[key]; if (!e) return { err: 'Brak takiego łupu' };
+      const space = S.slots.filter(q => q === null).length + (STASH_MAX - S.stash.length);
+      const take = Math.min(e.qty, n === undefined ? e.qty : Math.max(1, Math.floor(+n) || 1), space);
+      if (take < 1) return { err: 'Brak miejsca w plecaku i skrytce' };
+      const ev = [];
+      for (let i = 0; i < take; i++) { const it = { ...e.it, uid: 'i' + (uidSeq++) }; ev.push({ t: 'item_added', ...putNew(it) }); }
+      e.qty -= take; if (e.qty <= 0) delete S.loot[key];
+      ev.push({ t: 'loot_claimed', key, n: take }); return { ev };
+    },
+    loot_sell({ key, n }) {
+      const e = S.loot[key]; if (!e) return { err: 'Brak takiego łupu' };
+      const take = Math.min(e.qty, n === undefined ? e.qty : Math.max(1, Math.floor(+n) || 1)), gold = take * e.it.value;
+      S.gold += gold; e.qty -= take; if (e.qty <= 0) delete S.loot[key];
+      return { ev: [{ t: 'loot_sold', key, n: take, gold }] };
+    },
+    loot_claim_all() {
+      const ev = []; let any = false;
+      for (const key of Object.keys(S.loot)) { const r = H.loot_claim({ key }); if (r.ev) { any = true; ev.push(...r.ev); } }
+      return any ? { ev } : { err: Object.keys(S.loot).length ? 'Brak miejsca w plecaku i skrytce' : 'Torba łupu jest pusta' };
+    },
+    loot_sell_all() {
+      const ev = []; for (const key of Object.keys(S.loot)) { const r = H.loot_sell({ key }); ev.push(...r.ev); }
+      return ev.length ? { ev } : { err: 'Torba łupu jest pusta' };
     },
     // wybór potworów na mapie (co najmniej jeden)
     mob_filter({ map, ids }) {
@@ -259,7 +286,7 @@ const Server = (() => {
       return { ev };
     },
     // łup za zabicie potwora: losuje serwer (klient tylko pokazuje wynik)
-    kill_reward({ tier = 0, kind = 'mob', map }) {
+    kill_reward({ tier = 0, kind = 'mob', map, lvl = 1 }) {
       if (!S.activity || S.activity.kind !== 'exp') return { err: 'Brak aktywnej wyprawy' };
       if (kind !== 'mob') {   // łup z bossa lub celu wymaga wywołanego (aktywnego) celu; po zabiciu startuje odnowienie
         const e = S.enc[String(map) + ':' + kind];
@@ -268,8 +295,20 @@ const Server = (() => {
       }
       const t = Math.max(0, Math.min(9, Math.floor(+tier) || 0)), ev = [];
       const rollR = () => { const x = Math.random() * 100; return kind === 'boss' ? (x < 45 ? 2 : x < 85 ? 3 : 4) : kind === 'target' ? (x < 50 ? 1 : x < 82 ? 2 : x < 96 ? 3 : 4) : (x < 70 ? 0 : x < 90 ? 1 : x < 98 ? 2 : 3); };
-      const n = 0;   // na razie potwory dają tylko EXP i złoto (klient); przedmiotów nie wypuszczają
-      for (let k = 0; k < n; k++) ev.push({ t: 'item_added', ...putNew(makeItem({ tier: Math.min(9, t + (Math.random() < 0.3 ? 1 : 0)), rarity: rollR() })) });
+      // łup z mapy: drewniane EQ +0/+1 (MAP_DROPS) trafia do TORBY ŁUPU (stosy), gracz odbiera go po wyprawie
+      const dr = MAP_DROPS[String(map)];
+      if (dr && S.cls && kind === 'mob') {
+        const wn = { sword: 'miecz', bow: 'łuk', wand: 'różdżka' }[CLASSES[S.cls].w], nameOf = { weapon: wn, helm: 'hełm', armor: 'zbroja', boots: 'buty', shield: 'tarcza' };
+        const pc = dr.mob[Math.max(1, Math.min(5, Math.floor(+lvl) || 1))] || 0;
+        for (const part of dr.parts) {
+          if (Math.random() >= pc) continue;
+          const it = makeItem({ base: BASES.find(q => q[0] === nameOf[part]), tier: 0, rarity: 0 }); it.plus = Math.random() < dr.plus1 ? 1 : 0;
+          const st = itemStats(it); it.value = Math.max(2, Math.round((st.atk + st.mag * 0.5 + st.def) * 3.2));
+          const key = it.name + '|' + it.plus, tpl = { ...it }; delete tpl.uid;
+          const e = S.loot[key] || (S.loot[key] = { key, it: tpl, qty: 0 }); e.qty++;
+          ev.push({ t: 'loot_added', key, name: it.name, ic: it.ic, plus: it.plus, qty: e.qty });
+        }
+      }
       const mats = Object.keys(MATS), cnt = 0;
       for (let k = 0; k < cnt; k++) { const m = pick(mats), q = ri(1, kind === 'mob' ? 3 : 7); S.mats[m] = (S.mats[m] || 0) + q; ev.push({ t: 'mat_added', mat: m, qty: q }); }
       return { ev };
@@ -292,6 +331,7 @@ const Server = (() => {
     for (const [k, u] of Object.entries(S.equip)) { const it = S.items[u]; if (it && !slotOfType(it.type).includes(k)) errs.push(`zły slot ${k} dla ${it.type}`); }
     if (!Number.isInteger(S.gold) || S.gold < 0) errs.push('złoto');
     if (S.cls !== null && !CLASSES[S.cls]) errs.push('zła klasa');
+    for (const [k, e] of Object.entries(S.loot)) if (!e || !Number.isInteger(e.qty) || e.qty < 1 || !e.it) errs.push('łup ' + k);
     { let st = 0; for (const q of STATS) { const v = S.stats[q.k]; if (!Number.isInteger(v) || v < 0) errs.push('cecha ' + q.k); st += v; } if (st > STAT_PER_LEVEL * (S.lvl - 1)) errs.push('więcej punktów statusu niż przyznano'); }
     { let sum = 0; for (const [id, rk] of Object.entries(S.skills)) { const sk = SKILLS.find(x => x.id === id); if (!sk || !Number.isInteger(rk) || rk < 0 || rk > SKILL_MAX) errs.push('ranga umiejętności ' + id); sum += rk; } if (sum > S.lvl - 1) errs.push('więcej rang niż punktów'); }
     for (const b of Object.keys(BOARDS)) { const L = S.gatherLvl[b]; if (!Number.isInteger(L) || L < 1 || L > GATHER_MAX) errs.push('poziom zbierania ' + b); }

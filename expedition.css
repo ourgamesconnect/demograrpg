@@ -183,3 +183,33 @@
 .xenemy[data-n="3"]{font-size:118px;letter-spacing:-6px}
 .xenemy[data-n="2"]{font-size:150px;letter-spacing:-4px}
 @media(max-width:640px){.xenemy[data-n="3"]{font-size:78px}.xenemy[data-n="2"]{font-size:100px}}
+
+.xdrops{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:4px 14px 8px}
+.xdrops>b{font-size:12px;color:var(--mut);letter-spacing:.06em;margin-right:4px}
+.xdrop{display:flex;flex-direction:column;align-items:center;min-width:44px;padding:4px 6px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.04);cursor:help}
+.xdrop i{font-style:normal;font-size:22px;line-height:1.1}.xdrop small{font-size:10px;color:var(--mut)}
+
+/* ---- TORBA ŁUPU ---- */
+.xbag{margin:6px 14px 10px;padding:12px 14px;border-radius:16px;border:1px solid #ffd36a;background:radial-gradient(ellipse at 50% -20%,rgba(255,200,80,.28),rgba(20,16,8,.9) 70%);box-shadow:0 0 26px rgba(255,190,60,.25);animation:bagglow 2.2s ease-in-out infinite}
+@keyframes bagglow{50%{box-shadow:0 0 42px rgba(255,200,80,.5)}}
+.xbag[hidden]{display:none}
+.xbaghead{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline}
+.xbaghead b{font-size:15px;letter-spacing:.1em;color:#ffe9b0;text-shadow:0 0 14px rgba(255,190,60,.8)}
+.xbaghead span{color:var(--gold);font-weight:800}
+.xbagnote{margin:4px 0 10px;font-size:12.5px;color:var(--mut)}
+.xbagrow{display:flex;flex-wrap:wrap;gap:10px}
+.xbagcard{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:132px;padding:10px 10px 8px;border-radius:14px;border:1px solid #ffd36a88;background:linear-gradient(#2a2314,#14110a);transition:transform .38s,opacity .38s}
+.xbagcard.newc,.xbagcard.pop{animation:bagpop .6s cubic-bezier(.2,1.6,.4,1)}
+@keyframes bagpop{from{transform:scale(.4) rotate(-8deg);opacity:0}60%{box-shadow:0 0 30px #ffd36a}}
+.xbagcard.fly{transform:translate(-40px,-70px) scale(.5);opacity:0}
+.xbagic{font-style:normal;font-size:40px;filter:drop-shadow(0 4px 8px rgba(0,0,0,.6));animation:clfloat 3s ease-in-out infinite}
+.xbagcard b{font-size:12.5px;text-align:center}
+.xbagq{position:absolute;top:-8px;right:-8px;min-width:30px;padding:2px 7px;border-radius:999px;background:linear-gradient(#ffd36a,#c98b1a);color:#2b1d00;font-weight:900;font-size:14px;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,.5)}
+.xbagbt{display:flex;gap:6px;margin-top:4px}
+.xbagbt button,.xbagall button{cursor:pointer;border-radius:9px;border:1px solid var(--line);font-weight:800;color:#fff;padding:6px 8px;font-size:12px}
+.xclaim,.xclaimall{background:linear-gradient(#2c8a5a,#1b5c3b);border-color:#3ecf8e!important}
+.xsell,.xsellall{background:linear-gradient(#8a6a1c,#5a4310);border-color:#ffd36a!important}
+.xbagall{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.xbagall button{flex:1;min-width:200px;padding:12px;font-size:14px;letter-spacing:.05em}
+.xclaimall{animation:clpulse 1.2s ease-in-out infinite}
+@media(prefers-reduced-motion:reduce){.xbag,.xbagic,.xclaimall{animation:none}}
