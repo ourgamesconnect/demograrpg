@@ -80,7 +80,7 @@ function status(id) {
   const s = P.sessions;
   if (id === 'exp') return window.Expedition && Expedition.running ? ['● W TOKU · ' + Expedition.map, true] : ['Bezczynne', false];
   if (id === 'gather') return ['Bezczynne', false];
-  if (id === 'skills') return ['Punkty do wydania: ' + (P.pts || 0), false];
+  if (id === 'skills') { const n = window.Skills ? Skills.points() : 0; return [n > 0 ? '✨ Punkty do wydania: ' + n : 'Punkty: 0', n > 0]; }
   if (id === 'gear') { const s = window.Inventory && Inventory.state; return [s ? 'Plecak ' + s.slots.filter(Boolean).length + ' / ' + s.slots.length + (s.stash.length ? ' · skrytka ' + s.stash.length : '') : 'Plecak', !!(s && s.stash.length)]; }
   if (id === 'duel') return ['Dziś: 3 / 10', false];
   return ['Sklepy i NPC', false];
@@ -90,7 +90,7 @@ function buildTiles() {
   TILES.forEach(t => {
     const b = document.createElement('button'); b.className = 'tile'; b.dataset.id = t.id; b.style.setProperty('--c', t.c);
     b.innerHTML = `<span class="ic">${t.ic}</span><b>${t.t}</b><small>${t.d}</small><em id="st-${t.id}"></em>`;
-    b.onclick = () => (t.id === 'gear' ? Inventory.open() : t.id === 'exp' ? Expedition.open() : t.id === 'gather' ? Gather.open() : t.id === 'city' ? openCity() : toast(`${t.ic} ${t.t}: ten ekran powstanie w następnym kroku.`));
+    b.onclick = () => (t.id === 'gear' ? Inventory.open() : t.id === 'exp' ? Expedition.open() : t.id === 'gather' ? Gather.open() : t.id === 'skills' ? Skills.open() : t.id === 'city' ? openCity() : toast(`${t.ic} ${t.t}: ten ekran powstanie w następnym kroku.`));
     b.onmousemove = e => { const r = b.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5; b.style.setProperty('--ry', (x * 10).toFixed(1) + 'deg'); b.style.setProperty('--rx', (-y * 10).toFixed(1) + 'deg'); };
     b.onmouseleave = () => { b.style.setProperty('--rx', '0deg'); b.style.setProperty('--ry', '0deg'); };
     box.append(b);
@@ -153,8 +153,8 @@ function drawFeed() {
 
 // ---- render ----
 // modele robocze (wiki Metin2 nie podaje liczb HP i SP): życie i mana rosną z poziomem i punktami statystyk
-const hpMax = p => Math.round(200 + 48 * p.lvl + 12 * p.vit);
-const mpMax = p => Math.round(80 + 14 * p.lvl + 6 * p.int);
+const hpMax = p => Math.round(160 + 36 * p.lvl + 0.18 * p.lvl * p.lvl);
+const mpMax = p => Math.round(50 + 8 * p.lvl + 0.05 * p.lvl * p.lvl);
 function expFor(lvl) { return EXPTAB ? EXPTAB[lvl - 1].exp : 1000 * lvl * lvl; }
 function render() {
   const now = new Date(); $('#app').dataset.tod = todOf(now); placeOrb(now);

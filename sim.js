@@ -14,7 +14,7 @@ const RARITY = [
 ];
 // [nazwa, ikona, rodzaj gramatyczny 0=m 1=f 2=n/lm, typ slotu]
 const BASES = [
-  ['miecz', '🗡️', 0, 'weapon'], ['topór', '🪓', 0, 'weapon'], ['włócznia', '🔱', 1, 'weapon'], ['łuk', '🏹', 0, 'weapon'], ['młot', '🔨', 0, 'weapon'], ['sztylet', '🔪', 0, 'weapon'],
+  ['miecz', '🗡️', 0, 'weapon'], ['łuk', '🏹', 0, 'weapon'], ['różdżka', '🪄', 1, 'weapon'],
   ['hełm', '🪖', 0, 'helm'], ['kaptur', '🧢', 0, 'helm'], ['kolczuga', '🥋', 1, 'armor'], ['kaftan', '🧥', 0, 'armor'],
   ['buty', '🥾', 2, 'boots'], ['kolczyki', '💎', 2, 'earrings'], ['bransoleta', '📿', 1, 'bracelet'], ['pierścień', '💍', 0, 'ring'],
 ];
@@ -49,7 +49,7 @@ const MATS = { 'Złom': '⚙️', 'Szmaty': '🧵', 'Drewno': '🪵', 'Skóra': 
 const Server = (() => {
   let uidSeq = 1000, version = 0;
   const done = new Map(); // cid -> odpowiedź (idempotencja: ta sama komenda nie wykona się dwa razy)
-  const S = { slots: Array(INV_SLOTS).fill(null), items: {}, equip: {}, stash: [], mats: { 'Złom': 14, 'Szmaty': 9, 'Skóra': 4 }, gold: 150, lvl: 1, activity: null,
+  const S = { slots: Array(INV_SLOTS).fill(null), items: {}, equip: {}, stash: [], mats: { 'Złom': 14, 'Szmaty': 9, 'Skóra': 4 }, gold: 150, lvl: 1, skills: {}, activity: null,
     boards: { mining: Array(BOARD_CELLS).fill(null), sawmill: Array(BOARD_CELLS).fill(null) }, lastDrop: { mining: 0, sawmill: 0 }, lost: { mining: 0, sawmill: 0 }, gatherLvl: { mining: 1, sawmill: 1 } };
   const rnd = (a, b) => a + Math.random() * (b - a), ri = (a, b) => Math.floor(rnd(a, b + 1));
   const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -127,7 +127,7 @@ const Server = (() => {
     starter_kit() {
       if (S.starter) return { err: 'Zestaw startowy już odebrany' }; S.starter = true; const ev = [];
       const base = n => BASES.find(b => b[0] === n);
-      for (const n of ['miecz', 'hełm', 'kolczuga', 'buty']) { const it = makeItem({ base: base(n), tier: 0, rarity: 0 }); it.req = 1; ev.push({ t: 'item_added', ...putNew(it) }); }
+      for (const n of ['miecz', 'łuk', 'różdżka', 'hełm', 'kolczuga', 'buty']) { const it = makeItem({ base: base(n), tier: 0, rarity: 0 }); it.req = 1; ev.push({ t: 'item_added', ...putNew(it) }); }
       return { ev };
     },
     // Awans: tymczasowo zgłasza klient (docelowo poziom liczy serwer z EXP za zabicia). Poziom może tylko rosnąć i max o 5 naraz.
@@ -135,6 +135,18 @@ const Server = (() => {
       if (!Number.isInteger(lvl) || lvl < S.lvl || lvl > S.lvl + 5 || lvl > 99) return { err: 'Nieprawidłowy poziom' };
       if (lvl === S.lvl) return { ev: [] }; S.lvl = lvl; return { ev: [{ t: 'level', lvl }] };
     },
+    // Umiejętności: 1 punkt za każdy poziom od 2; ranga 1–20; ranga ograniczona poziomem postaci
+    skill_up({ id }) {
+      const sk = SKILLS.find(x => x.id === id); if (!sk) return { err: 'Nieznana umiejętność' };
+      const spent = Object.values(S.skills).reduce((a, b) => a + b, 0), points = S.lvl - 1 - spent;
+      if (S.lvl < sk.unlock) return { err: 'Wymagany poziom ' + sk.unlock };
+      const cur = S.skills[id] || 0;
+      if (cur >= SKILL_MAX) return { err: 'Maksymalna ranga' };
+      if (cur >= skillCap(S.lvl, sk.unlock)) return { err: 'Ranga ograniczona poziomem postaci (kolejna na poziomie ' + (sk.unlock + cur) + ')' };
+      if (points < 1) return { err: 'Brak punktów umiejętności' };
+      S.skills[id] = cur + 1; return { ev: [{ t: 'skill_up', id, rank: cur + 1 }] };
+    },
+    skill_reset() { S.skills = {}; return { ev: [{ t: 'skill_reset' }] }; },   // testowo (docelowo płatny reset)
     // Zbieractwo: serwer sam liczy, ile surowców spadło od ostatniego razu (klient nie może przyspieszyć)
     gather_tick() {
       const a = S.activity; if (!a || a.kind !== 'gather' || !BOARDS[a.detail]) return { err: 'Brak aktywnego zbierania' };
@@ -207,6 +219,7 @@ const Server = (() => {
     for (const u of Object.keys(S.items)) if (!seen.has(u)) errs.push(`osierocony ${u}`);
     for (const [k, u] of Object.entries(S.equip)) { const it = S.items[u]; if (it && !slotOfType(it.type).includes(k)) errs.push(`zły slot ${k} dla ${it.type}`); }
     if (!Number.isInteger(S.gold) || S.gold < 0) errs.push('złoto');
+    { let sum = 0; for (const [id, rk] of Object.entries(S.skills)) { const sk = SKILLS.find(x => x.id === id); if (!sk || !Number.isInteger(rk) || rk < 0 || rk > SKILL_MAX) errs.push('ranga umiejętności ' + id); sum += rk; } if (sum > S.lvl - 1) errs.push('więcej rang niż punktów'); }
     for (const b of Object.keys(BOARDS)) { const L = S.gatherLvl[b]; if (!Number.isInteger(L) || L < 1 || L > GATHER_MAX) errs.push('poziom zbierania ' + b); }
     for (const [b, B] of Object.entries(S.boards)) { if (B.length !== BOARD_CELLS) errs.push('plansza ' + b + ': zła liczba pól'); B.forEach((c, i) => { if (c && (!BOARDS[b].types.some(t => t[0] === c.t) || !Number.isInteger(c.l) || c.l < 1 || c.l > BOARD_MAXLVL)) errs.push(`plansza ${b}#${i}: zły surowiec`); }); }
     if (S.activity !== null && !(S.activity && ACTIVITY_NAMES[S.activity.kind])) errs.push('zła aktywność');
