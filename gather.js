@@ -24,43 +24,57 @@
   }
 
   // ---- rysowanie planszy ----
-  function draw() {
-    if (!root || root.hidden || !S()) return;
-    const s = S(), B = s.boards[tab], a = act(), on = running(), other = a && !(a.kind === 'gather' && a.detail === tab) ? a : null;
-    root.querySelectorAll('.gtab').forEach(b => b.classList.toggle('on', b.dataset.t === tab));
-    $('#gscene', root).dataset.scene = tab; $('#gscene', root).classList.toggle('run', on);
-    const grid = $('#ggrid', root); grid.replaceChildren();
-    B.forEach((c, i) => {
-      const cell = el('div', 'gcell' + (c ? ' has' : '') + (sel === i ? ' sel' : '') + (fresh.has(tab + ':' + i) ? ' fresh' : '') + (merged.has(tab + ':' + i) ? ' merged' : ''));
-      cell.dataset.i = i;
-      if (c) {
-        cell.dataset.l = c.l; cell.draggable = true;
-        const ic = el('span', 'gi', iconOf(tab, c.t)); ic.style.fontSize = (22 + c.l * 3) + 'px'; cell.append(ic, el('em', 'gl', ROMAN[c.l]));
-        cell.title = `${c.t} ${ROMAN[c.l]}`;
-        cell.onclick = () => { sel = sel === i ? null : i; draw(); };
-        cell.ondragstart = e => { drag = i; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(i)); };
-        cell.ondragend = () => { drag = null; grid.querySelectorAll('.over').forEach(x => x.classList.remove('over')); };
-      } else cell.onclick = () => { if (sel !== null) { sel = null; draw(); } };
+  // Pola istnieją cały czas (nie są przebudowywane), a zawartość zmienia się tylko wtedy, gdy zmienił się stan pola.
+  // Dzięki temu cosekundowe odświeżenia od serwera nie przerywają przeciągania ani klikania.
+  let cellEls = [], detSig = '';
+  function ensureGrid() {
+    const grid = $('#ggrid', root); if (cellEls.length === BOARD_CELLS) return; grid.replaceChildren(); cellEls = [];
+    for (let i = 0; i < BOARD_CELLS; i++) {
+      const cell = el('div', 'gcell'); cell.dataset.i = i; cell.draggable = true;
+      cell.onclick = () => { const c = S().boards[tab][i]; sel = c ? (sel === i ? null : i) : null; draw(); };
+      cell.ondragstart = e => { const c = S().boards[tab][i]; if (!c) { e.preventDefault(); return; } drag = i; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(i)); cell.classList.add('dragging'); };
+      cell.ondragend = () => { drag = null; cellEls.forEach(x => x.classList.remove('over', 'dragging')); };
       cell.ondragover = e => { if (drag !== null) { e.preventDefault(); cell.classList.add('over'); } };
       cell.ondragleave = () => cell.classList.remove('over');
-      cell.ondrop = async e => { e.preventDefault(); cell.classList.remove('over'); if (drag === null) return; const from = drag; drag = null; if (from === i) return; sel = null; await run('board_move', { board: tab, from, to: i }); draw(); };
-      grid.append(cell);
+      cell.ondrop = async e => {
+        e.preventDefault(); cell.classList.remove('over'); if (drag === null) return;
+        const from = drag; drag = null; cellEls.forEach(x => x.classList.remove('dragging')); if (from === i) return;
+        sel = null; await run('board_move', { board: tab, from, to: i }); draw();
+      };
+      cellEls.push(cell); grid.append(cell);
+    }
+  }
+  function draw() {
+    if (!root || root.hidden || !S()) return;
+    ensureGrid();
+    const s = S(), B = s.boards[tab], a = act(), on = running(), other = a && !(a.kind === 'gather' && a.detail === tab) ? a : null;
+    root.querySelectorAll('.gtab').forEach(b => b.classList.toggle('on', b.dataset.t === tab));
+    const sc = $('#gscene', root); sc.dataset.scene = tab; sc.classList.toggle('run', on);
+    B.forEach((c, i) => {
+      const cell = cellEls[i], key = tab + ':' + i, sig = (c ? c.t + '|' + c.l : '') + '|' + (sel === i ? 's' : '') + (fresh.has(key) ? 'f' : '') + (merged.has(key) ? 'm' : '');
+      if (cell.dataset.sig === sig) return; cell.dataset.sig = sig;
+      cell.className = 'gcell' + (c ? ' has' : '') + (sel === i ? ' sel' : '') + (fresh.has(key) ? ' fresh' : '') + (merged.has(key) ? ' merged' : '');
+      cell.replaceChildren();
+      if (c) { cell.dataset.l = c.l; const ic = el('span', 'gi', iconOf(tab, c.t)); ic.style.fontSize = (22 + c.l * 3) + 'px'; cell.append(ic, el('em', 'gl', ROMAN[c.l])); cell.title = c.t + ' ' + ROMAN[c.l]; }
+      else { delete cell.dataset.l; cell.removeAttribute('title'); }
     });
-    // panel wybranego surowca
-    const det = $('#gdet', root), it = sel !== null ? B[sel] : null; det.replaceChildren();
-    if (it) {
-      det.append(el('b', '', `${iconOf(tab, it.t)} ${it.t} ${ROMAN[it.l]}`), el('span', 'muted', it.l >= BOARD_MAXLVL ? ' · maksymalny poziom' : ' · przeciągnij na taki sam, aby scalić'));
-      const take = el('button', 'gbtn take', '📦 ZABIERZ'); take.disabled = pending; take.onclick = async () => { pending = true; const idx = sel; sel = null; await run('board_take', { board: tab, idx }); pending = false; draw(); }; det.append(take);
-    } else det.append(el('span', 'muted', 'Kliknij surowiec, aby go zabrać do ekwipunku. Dwa takie same przeciągnij na siebie, aby scalić je w jeden wyższego poziomu.'));
-    const free = B.filter(x => !x).length;
-    $('#gfree', root).textContent = free ? `Wolne pola: ${free} / ${B.length}` : '⚠ Plansza pełna: nowe surowce przepadają';
-    $('#gfree', root).classList.toggle('full', !free);
-    $('#glost', root).textContent = s.lost[tab] ? `Przepadło: ${s.lost[tab]}` : '';
-    const b = $('#gstart', root); b.disabled = pending || !!other;
-    b.textContent = other ? '🔒 Zajęty: ' + ({ exp: 'Wyprawy', gather: 'Zbieractwo', craft: 'Rzemiosło' }[other.kind]) + (other.kind === 'gather' ? ' · ' + SCENES[other.detail].n : '') : on ? '⏸ Zatrzymaj ' + SCENES[tab].n.toLowerCase() : '▶ ZACZNIJ ' + SCENES[tab].n;
-    b.classList.toggle('go', !on && !other);
-    // tab badges
-    root.querySelectorAll('.gtab').forEach(t => { const bd = s.boards[t.dataset.t].filter(Boolean).length; t.querySelector('small').textContent = `${bd}/${s.boards[t.dataset.t].length}` + (a && a.kind === 'gather' && a.detail === t.dataset.t ? ' · ●' : ''); });
+    // panel wybranego surowca (budowany tylko przy zmianie, żeby klik w ZABIERZ nie ginął)
+    const it = sel !== null ? B[sel] : null, dsig = (it ? it.t + '|' + it.l + '|' + sel : '-') + '|' + pending + '|' + tab;
+    if (dsig !== detSig) {
+      detSig = dsig; const det = $('#gdet', root); det.replaceChildren();
+      if (it) {
+        det.append(el('b', '', iconOf(tab, it.t) + ' ' + it.t + ' ' + ROMAN[it.l]), el('span', 'muted', it.l >= BOARD_MAXLVL ? ' · maksymalny poziom' : ' · przeciągnij na taki sam, aby scalić'));
+        const take = el('button', 'gbtn take', '📦 ZABIERZ'); take.disabled = pending;
+        take.onclick = async () => { if (pending) return; pending = true; const idx = sel; sel = null; draw(); await run('board_take', { board: tab, idx }); pending = false; draw(); };
+        det.append(take);
+      } else det.append(el('span', 'muted', 'Kliknij surowiec, aby go zabrać do ekwipunku. Dwa takie same przeciągnij na siebie, aby scalić je w jeden wyższego poziomu.'));
+    }
+    const free = B.filter(x => !x).length, gf = $('#gfree', root), ft = free ? 'Wolne pola: ' + free + ' / ' + B.length : '⚠ Plansza pełna: nowe surowce przepadają';
+    if (gf.textContent !== ft) gf.textContent = ft; gf.classList.toggle('full', !free);
+    const lt = s.lost[tab] ? 'Przepadło: ' + s.lost[tab] : ''; if ($('#glost', root).textContent !== lt) $('#glost', root).textContent = lt;
+    const bt = $('#gstart', root), label = other ? '🔒 Zajęty: ' + ({ exp: 'Wyprawy', gather: 'Zbieractwo', craft: 'Rzemiosło' }[other.kind]) + (other.kind === 'gather' ? ' · ' + SCENES[other.detail].n : '') : on ? '⏸ Zatrzymaj ' + SCENES[tab].n.toLowerCase() : '▶ ZACZNIJ ' + SCENES[tab].n;
+    bt.disabled = pending || !!other; if (bt.textContent !== label) bt.textContent = label; bt.classList.toggle('go', !on && !other);
+    root.querySelectorAll('.gtab').forEach(t => { const bd = s.boards[t.dataset.t].filter(Boolean).length, sm = t.querySelector('small'), tx = bd + '/' + s.boards[t.dataset.t].length + (a && a.kind === 'gather' && a.detail === t.dataset.t ? ' · ●' : ''); if (sm.textContent !== tx) sm.textContent = tx; });
   }
 
   // ---- animacje sceny ----
@@ -97,7 +111,7 @@
     document.body.append(root);
     $('#gclose', root).onclick = close; root.onclick = e => { if (e.target === root) close(); };
     addEventListener('keydown', e => { if (e.key === 'Escape' && !root.hidden) close(); });
-    root.querySelectorAll('.gtab').forEach(b => b.onclick = () => { tab = b.dataset.t; sel = null; draw(); });
+    root.querySelectorAll('.gtab').forEach(b => b.onclick = () => { tab = b.dataset.t; sel = null; cellEls.forEach(x => delete x.dataset.sig); detSig = ''; draw(); });
     $('#gstart', root).onclick = async () => {
       if (pending) return; pending = true; draw();
       if (running()) await run('activity_stop'); else await run('activity_start', { kind: 'gather', detail: tab });
@@ -106,7 +120,7 @@
     $('#gfill', root).onclick = () => run('board_debug_fill', { board: tab, n: 5 }).then(draw);
     window.addEventListener('inv:update', () => { if (!root.hidden) draw(); });
   }
-  function open(which) { if (!root) build(); if (which && SCENES[which]) tab = which; root.hidden = false; document.body.classList.add('inv-open'); sel = null; draw(); }
+  function open(which) { if (!root) build(); if (which && SCENES[which]) tab = which; root.hidden = false; document.body.classList.add('inv-open'); sel = null; cellEls.forEach(x => delete x.dataset.sig); detSig = ''; draw(); }
   function close() { root.hidden = true; document.body.classList.remove('inv-open'); }
   window.Gather = { open, close };
 })();
