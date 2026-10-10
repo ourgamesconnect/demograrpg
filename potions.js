@@ -36,7 +36,7 @@
   }
   function build() {
     root = el('div', 'pt-ov'); root.hidden = true;
-    root.innerHTML = '<div class="pt-win" role="dialog" aria-label="Alchemik"><div class="pt-head"><b>⚗️ ALCHEMIK</b><span class="pt-gold">🪙 <b id="ptgold">0</b></span><button class="x" id="ptx" aria-label="Zamknij">✕</button></div><p class="pt-note">Mikstury leczą stopniowo, tak jak w Metin2. W walce użyjesz ich klawiszami Q W E (życie) i A S D (mana) albo włączysz automat poniżej wybranego progu.</p><div class="pt-msg" id="ptmsg"></div><div id="ptlist" class="pt-list"></div></div>';
+    root.innerHTML = '<div class="pt-win" role="dialog" aria-label="Alchemik"><div class="pt-head"><b>⚗️ ALCHEMIK</b><span class="pt-gold">🪙 <b id="ptgold">0</b></span><button class="x" id="ptx" aria-label="Zamknij">✕</button></div><p class="pt-note">Mikstury leczą stopniowo, tak jak w Metin2. W walce masz dwa sloty (życie i mana): system sam wstawia najmocniejszą miksturę, a Ty możesz wybrać inną. Klawisze Q (życie) i A (mana) albo automat poniżej wybranego progu.</p><div class="pt-msg" id="ptmsg"></div><div id="ptlist" class="pt-list"></div></div>';
     document.body.append(root);
     $('#ptx', root).onclick = close; root.onclick = e => { if (e.target === root) close(); };
     addEventListener('keydown', e => { if (e.key === 'Escape' && root && !root.hidden) close(); });

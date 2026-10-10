@@ -134,7 +134,14 @@
   // ---- tik walki ----
   // ---- MIKSTURY: leczą stopniowo (co tick), automat używa poniżej progu ----
   const potCount = id => ((window.Inventory && Inventory.state && Inventory.state.potions) || {})[id] || 0;
-  const potCfg = () => (window.Inventory && Inventory.state && Inventory.state.pcfg) || { hpOn: false, hpThr: 50, hpId: 'hp_s', mpOn: false, mpThr: 30, mpId: 'mp_s' };
+  const potCfg = () => (window.Inventory && Inventory.state && Inventory.state.pcfg) || { hpOn: false, hpThr: 50, hpId: 'auto', mpOn: false, mpThr: 30, mpId: 'auto' };
+  // mikstura w slocie: wybrana ręcznie (jeśli jest) albo NAJMOCNIEJSZA posiadana danego rodzaju
+  const slotPotion = kind => {
+    const cf = potCfg(), want = cf[kind + 'Id'];
+    if (want && want !== 'auto' && potCount(want) > 0) return want;
+    for (const z of ['l', 'm', 's']) if (potCount(kind + '_' + z) > 0) return kind + '_' + z;
+    return null;
+  };
   const pending2 = kind => X.heals.filter(q => q.kind === kind).reduce((a, q) => a + q.per * q.left, 0);
   function usePotion(id) {
     const pd = POTIONS[id]; if (!pd || !X.on || X.rest > 0 || !X.enemy && false || potCount(id) < 1 || P.hp <= 0) return false;
@@ -159,8 +166,8 @@
   }
   function autoPotions(hm, mm) {
     const cf = potCfg();
-    if (cf.hpOn && (P.hp + pending2('hp')) / hm * 100 < cf.hpThr) usePotion(cf.hpId);
-    if (cf.mpOn && (P.mp + pending2('mp')) / mm * 100 < cf.mpThr) usePotion(cf.mpId);
+    if (cf.hpOn && (P.hp + pending2('hp')) / hm * 100 < cf.hpThr) { const id = slotPotion('hp'); if (id) usePotion(id); }
+    if (cf.mpOn && (P.mp + pending2('mp')) / mm * 100 < cf.mpThr) { const id = slotPotion('mp'); if (id) usePotion(id); }
   }
   function tick() {
     if (!X.on) { X.heals = []; return; }
@@ -378,37 +385,56 @@
     MAPS.forEach((m, i) => { const open = P.lvl >= m.req, b = el('button', 'xmap' + (X.map === i ? ' on' : '') + (open ? '' : ' lock')); b.disabled = !open || X.on || pending; if (X.on && open && X.map !== i) b.title = 'Zatrzymaj wyprawę, aby zmienić mapę'; b.append(el('i', '', open ? m.ic : '🔒'), el('b', '', m.k), el('small', '', open ? (m.range || `poziom potworów ${m.lvl}+`) : `od poziomu ${m.req}`)); b.onclick = () => { if (X.map === i) return; X.map = i; X.enemy = null; X.wait = 0; initSched(); stageEl.dataset.map = i; syncEnemy(false); sync(); }; tiles.append(b); });
   }
 
-  // ---- PASEK MIKSTUR ----
+  // ---- PASEK MIKSTUR: 2 sloty (życie, mana); system sam wstawia najmocniejszą posiadaną, kliknięcie otwiera wybór ----
+  let pickKind = null;
+  function savePcfg(patch) { const n = { ...potCfg(), ...patch }; return Inventory.exec('potion_cfg', n).then(() => { const b = $('#xpotbar', root); if (b) b._sig = ''; sync(); }); }
   function drawPots(force) {
     const box = $('#xpotbar', root); if (!box) return;
-    const cf = potCfg(), sig = ['hp_s', 'hp_m', 'hp_l', 'mp_s', 'mp_m', 'mp_l'].map(potCount).join(',') + JSON.stringify(cf) + X.heals.length;
+    const cf = potCfg(), sig = ['hp_s', 'hp_m', 'hp_l', 'mp_s', 'mp_m', 'mp_l'].map(potCount).join(',') + JSON.stringify(cf) + (X.heals.length ? 'h' : '') + pickKind;
     if (!force && box._sig === sig) return; box._sig = sig; box.replaceChildren();
-    const bottle = (id, key) => {
-      const pd = POTIONS[id], n = potCount(id), b = el('button', 'xbot ' + pd.kind + (n ? '' : ' empty') + (X.heals.some(q => q.kind === pd.kind) ? ' active' : ''));
-      b.title = pd.n + ': +' + pd.v + ' przez ' + pd.secs + ' s · klawisz ' + key.toUpperCase();
-      const g = el('span', 'xbotglass'); g.append(el('i', 'xbotliq'), el('em', '', pd.ic)); b.append(g, el('b', '', pd.size), el('small', '', '×' + n), el('kbd', '', key.toUpperCase()));
-      b.disabled = !n; b.onclick = () => usePotion(id); return b;
+    const slot = (kind, key) => {
+      const id = slotPotion(kind), pd = id && POTIONS[id], n = id ? potCount(id) : 0, manual = cf[kind + 'Id'] !== 'auto' && cf[kind + 'Id'] === id;
+      const wrap = el('div', 'xslotw ' + kind), b = el('button', 'xslot ' + kind + (id ? '' : ' empty') + (X.heals.some(q => q.kind === kind) ? ' active' : ''));
+      const g = el('span', 'xslotglass'); g.append(el('i', 'xbotliq'), el('em', '', id ? pd.ic : '＋'));
+      b.append(g);
+      const info = el('span', 'xslotinfo'); info.append(el('b', '', id ? pd.n : (kind === 'hp' ? 'Brak mikstur życia' : 'Brak mikstur many')), el('small', '', id ? '×' + n + ' · +' + pd.v + ' przez ' + pd.secs + ' s' : 'kup w Alchemiku'), el('em', '', id ? (manual ? '✋ wybrana ręcznie' : '⚡ AUTO: najmocniejsza') : ''));
+      b.append(info, el('kbd', '', key.toUpperCase()));
+      b.title = id ? 'Kliknij: użyj mikstury. Prawy przycisk lub strzałka obok: zmień miksturę.' : '';
+      b.onclick = () => { if (id) usePotion(id); else { pickKind = kind; drawPots(true); } };
+      const sw = el('button', 'xslotsw', '⇄'); sw.title = 'Wybierz miksturę do slotu';
+      sw.onclick = e => { e.stopPropagation(); pickKind = pickKind === kind ? null : kind; drawPots(true); };
+      b.oncontextmenu = e => { e.preventDefault(); pickKind = pickKind === kind ? null : kind; drawPots(true); };
+      wrap.append(b, sw);
+      if (pickKind === kind) {
+        const pop = el('div', 'xpick ' + kind); pop.append(el('b', '', 'Twoje mikstury — wybierz do slotu'));
+        const row = el('div', 'xpickrow');
+        const owned = ['l', 'm', 's'].map(z => kind + '_' + z).filter(q => potCount(q) > 0);
+        const auto = el('button', 'xpickc auto' + (cf[kind + 'Id'] === 'auto' ? ' on' : '')); auto.append(el('i', '', '⚡'), el('b', '', 'AUTO'), el('small', '', 'najmocniejsza'));
+        auto.onclick = () => { pickKind = null; savePcfg({ [kind + 'Id']: 'auto' }); };
+        row.append(auto);
+        owned.forEach(q => { const p2 = POTIONS[q], cc = el('button', 'xpickc' + (cf[kind + 'Id'] === q ? ' on' : '')); cc.append(el('i', '', p2.ic), el('b', '', p2.size === 'S' ? 'Mała' : p2.size === 'M' ? 'Średnia' : 'Duża'), el('small', '', '×' + potCount(q) + ' · +' + p2.v));
+          cc.onclick = () => { cc.classList.add('chosen'); flash(kind === 'hp' ? 'heal' : 'mana'); fx('potfly', { left: kind === 'hp' ? '14%' : '86%', top: '70%' }, 900, p2.ic); setTimeout(() => { pickKind = null; savePcfg({ [kind + 'Id']: q }); }, 260); };
+          row.append(cc); });
+        if (!owned.length) row.append(el('p', 'xpickempty', 'Nie masz żadnych mikstur tego rodzaju. Kup je w Alchemiku po wyprawie.'));
+        pop.append(row); wrap.append(pop);
+      }
+      return wrap;
     };
-    const grpHp = el('div', 'xbotgrp'), grpMp = el('div', 'xbotgrp');
-    [['hp_s', 'q'], ['hp_m', 'w'], ['hp_l', 'e']].forEach(([id, k]) => grpHp.append(bottle(id, k)));
-    [['mp_s', 'a'], ['mp_m', 's'], ['mp_l', 'd']].forEach(([id, k]) => grpMp.append(bottle(id, k)));
-    const auto = (kind, grp) => {
+    const auto = kind => {
       const on = cf[kind + 'On'], row = el('div', 'xauto ' + kind + (on ? ' on' : ''));
       const t = el('button', 'xautot', (on ? '✔ AUTO ' : 'AUTO ') + (kind === 'hp' ? '❤' : '💧'));
       const rng = el('input'); rng.type = 'range'; rng.min = 5; rng.max = 95; rng.step = 5; rng.value = cf[kind + 'Thr'];
       const lab = el('span', 'xautov', 'poniżej ' + cf[kind + 'Thr'] + '%');
-      const sz = el('div', 'xautosz'); ['s', 'm', 'l'].forEach(z => { const b = el('button', cf[kind + 'Id'] === kind + '_' + z ? 'on' : '', z.toUpperCase()); b.onclick = () => save({ [kind + 'Id']: kind + '_' + z }); sz.append(b); });
-      const save = patch => { const n = { ...cf, ...patch }; Inventory.exec('potion_cfg', n).then(() => { box._sig = ''; sync(); }); };
-      t.onclick = () => save({ [kind + 'On']: !on });
-      rng.oninput = () => { lab.textContent = 'poniżej ' + rng.value + '%'; }; rng.onchange = () => save({ [kind + 'Thr']: +rng.value });
-      row.append(t, rng, lab, sz); return row;
+      t.onclick = () => savePcfg({ [kind + 'On']: !on });
+      rng.oninput = () => { lab.textContent = 'poniżej ' + rng.value + '%'; }; rng.onchange = () => savePcfg({ [kind + 'Thr']: +rng.value });
+      row.append(t, rng, lab); return row;
     };
     const mid = el('div', 'xautos'); mid.append(auto('hp'), auto('mp'));
-    box.append(grpHp, mid, grpMp);
+    box.append(slot('hp', 'q'), mid, slot('mp', 'a'));
   }
   addEventListener('keydown', e => {
     if (!visible() || e.target.tagName === 'INPUT' || e.ctrlKey || e.metaKey || e.altKey) return;
-    const m = { q: 'hp_s', w: 'hp_m', e: 'hp_l', a: 'mp_s', s: 'mp_m', d: 'mp_l' }[e.key.toLowerCase()]; if (m) usePotion(m);
+    const k = e.key.toLowerCase(); const id = k === 'q' ? slotPotion('hp') : k === 'a' ? slotPotion('mp') : null; if (id) usePotion(id);
   });
   // ---- TORBA ŁUPU ----
   const bagPrev = {};

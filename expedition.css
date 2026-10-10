@@ -248,3 +248,36 @@
 .xflash.mana{background:radial-gradient(ellipse at 80% 100%,rgba(70,150,255,.55),transparent 65%)}
 .xbot.hp.active~*{}
 @media(max-width:700px){.xpotbar{grid-template-columns:1fr}.xbotgrp{justify-content:center}}
+
+/* ---- 2 sloty mikstur ---- */
+.xpotbar{grid-template-columns:minmax(210px,1fr) minmax(220px,1.2fr) minmax(210px,1fr)!important;align-items:start}
+.xslotw{position:relative;display:flex;gap:6px;align-items:stretch}
+.xslotw.mp{flex-direction:row-reverse}
+.xslot{--c:#ff5a6e;position:relative;flex:1;cursor:pointer;display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:16px;border:1px solid color-mix(in srgb,var(--c) 60%,transparent);background:radial-gradient(ellipse at 20% 0%,color-mix(in srgb,var(--c) 30%,#15162200),#0b0c14);color:#fff;text-align:left;transition:transform .15s,box-shadow .2s}
+.xslot.mp{--c:#5aa8ff;flex-direction:row-reverse;text-align:right}
+.xslot:hover{transform:translateY(-2px);box-shadow:0 8px 24px color-mix(in srgb,var(--c) 50%,transparent)}
+.xslot.empty{opacity:.55;border-style:dashed}
+.xslotglass{position:relative;flex:none;display:grid;place-items:center;width:52px;height:52px;border-radius:50%;overflow:hidden;background:rgba(0,0,0,.5);box-shadow:inset 0 0 12px #000,0 0 18px color-mix(in srgb,var(--c) 45%,transparent)}
+.xslotglass em{position:relative;font-style:normal;font-size:30px;filter:drop-shadow(0 2px 3px #000)}
+.xslot:not(.empty) .xbotliq{height:72%;animation:liqwave 2.6s ease-in-out infinite;background:linear-gradient(var(--c),color-mix(in srgb,var(--c) 40%,#000))}
+.xslotinfo{display:flex;flex-direction:column;min-width:0}
+.xslotinfo b{font-size:13px;color:var(--c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.xslotinfo small{font-size:12px;color:#dcdcf0}
+.xslotinfo em{font-style:normal;font-size:11px;color:var(--mut)}
+.xslot kbd{position:absolute;top:-7px;left:8px;padding:1px 6px;border-radius:6px;background:#222538;border:1px solid var(--line);font:700 10px system-ui;color:var(--mut)}
+.xslot.active{animation:botact 1s ease-in-out infinite}
+.xslotsw{cursor:pointer;width:34px;border-radius:12px;border:1px solid var(--line);background:#161826;color:var(--mut);font-size:16px;font-weight:900}
+.xslotsw:hover{color:#fff;border-color:#ffd36a}
+.xpick{position:absolute;bottom:calc(100% + 10px);z-index:30;min-width:290px;padding:10px 12px;border-radius:16px;border:1px solid #ffd36a;background:radial-gradient(ellipse at 50% -20%,rgba(255,200,80,.25),#0d0e18 70%);box-shadow:0 18px 50px rgba(0,0,0,.7),0 0 34px rgba(255,190,60,.25);animation:pickin .28s cubic-bezier(.2,1.5,.4,1)}
+.xpick.hp{left:0}.xpick.mp{right:0}
+@keyframes pickin{from{opacity:0;transform:translateY(14px) scale(.9)}}
+.xpick>b{display:block;margin-bottom:8px;font-size:11px;letter-spacing:.1em;color:#ffe9b0}
+.xpickrow{display:flex;gap:8px;flex-wrap:wrap}
+.xpickc{cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:78px;padding:8px 6px;border-radius:12px;border:1px solid var(--line);background:#14151f;color:#fff;transition:transform .15s,box-shadow .2s}
+.xpickc:hover{transform:translateY(-3px) scale(1.06);box-shadow:0 8px 22px rgba(255,200,80,.35);border-color:#ffd36a}
+.xpickc.on{border-color:#3ecf8e;background:rgba(62,207,142,.12)}
+.xpickc i{font-style:normal;font-size:28px}.xpickc b{font-size:12px}.xpickc small{font-size:11px;color:var(--mut)}
+.xpickc.chosen{animation:chosen .3s ease-out forwards}
+@keyframes chosen{to{transform:translateY(-40px) scale(1.4);opacity:0}}
+.xpickempty{margin:0;font-size:12px;color:var(--mut)}
+@media(max-width:900px){.xpotbar{grid-template-columns:1fr!important}}
