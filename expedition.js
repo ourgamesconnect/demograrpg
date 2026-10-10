@@ -58,9 +58,10 @@
     if (force === 'boss') { kind = 'boss'; def = sp.boss; }
     else if (force === 'target') { kind = 'target'; def = sp.target; }
     else { def = sp.mobs[pick(selMobs())]; }
-    X.enemy = { name: def.n, ic: def.ic, base: def.ic, kind, lvl: def.lvl, hp: def.hp, max: def.hp, dead: false, lo: def.lo, hi: def.hi, def: def.def || 0, xp: def.xp, g: def.g, gc: def.gc, enrage: def.enrage, cls: def.cls, t: 0 };
+    const pack = kind === 'mob' ? 3 : 1;
+    X.enemy = { pack, name: def.n, ic: def.ic, base: def.ic, kind, lvl: def.lvl, hp: def.hp, max: def.hp, dead: false, lo: def.lo, hi: def.hi, def: def.def || 0, xp: def.xp, g: def.g, gc: def.gc, enrage: def.enrage, cls: def.cls, t: 0 };
     X.wait = 0; SK.dot = null; SK.vuln = null; SK.channel = null; SK.windup = null; SK.stun = 0; SK.charges = 0; syncEnemy(true);
-    if (kind === 'boss') say('☠ BOSS', def.n); else if (kind === 'target') say('🌳 SPACZONY KORZEŃ', 'wyrósł z ziemi');
+    if (pack > 1) say(def.ic.repeat(pack), 'BANDA ×' + pack + ': ' + def.n + ' — walczą razem!'); else if (kind === 'boss') say('☠ BOSS', def.n); else if (kind === 'target') say('🌳 SPACZONY KORZEŃ', 'wyrósł z ziemi');
   }
 
   // ---- umiejętności w walce ----
@@ -77,12 +78,17 @@
   const atkBuff = () => (buffOn('sw1') ? 1 + SKILLS.find(s => s.id === 'sw1').p(rankOf('sw1')).atk : 1);
   function dealDamage(mult, skill) {
     const e = X.enemy; if (!e || e.dead) return 0;
+    if (e.lvl - P.lvl >= 4 && Math.random() < 0.3) { if (visible()) fx('skilltxt', { left: '50%', top: '38%' }, 700, '✖ PUDŁO'); return 0; }   // kara za różnicę poziomów
     let dmg = playerDmg(!!skill) * mult - (e.def || 0);   // obrona potwora odejmowana od ataku (jak w Metin2)
-    if (dmg < 3) dmg = Math.floor(rnd(1, 6));   // Metin2: poniżej 3 obrażeń → losowo 1–5 const crit = false;   // brak bazowego krytyka: bonusy dopiero z ekwipunku
+    if (dmg < 3) dmg = Math.floor(rnd(1, 6));   // Metin2: poniżej 3 obrażeń → losowo 1–5
+    const crit = false;   // brak bazowego krytyka: bonusy dopiero z ekwipunku
     if (SK.vuln && SK.vuln.until > Date.now()) dmg *= 1 + SK.vuln.v;
     dmg = Math.max(1, Math.round(dmg)); e.hp = Math.max(0, e.hp - dmg);
     fxHit(dmg, crit, skill);
-    if (e.hp <= 0 && !e.dead) { e.dead = true; kill(e); }
+    if (e.hp <= 0 && !e.dead) {
+      if (e.pack > 1) { kill(e); e.pack--; e.hp = e.max; if (visible()) { fx('skilltxt', { left: '50%', top: '30%' }, 900, e.ic.repeat(e.pack) + ' zostało: ' + e.pack); say(e.pack === 1 ? '☝ OSTATNI' : '✌ DRUGI', e.name); } syncEnemy(true); }
+      else { e.dead = true; kill(e); }
+    }
     return dmg;
   }
   function canCast(s) {
@@ -158,7 +164,7 @@
     {
       if (SK.stun > 0) { SK.stun--; if (visible()) fx('skilltxt', { left: '50%', top: '30%' }, 800, '💫 ogłuszony'); }
       else {
-        let hit = rnd(e.lo, e.hi) * 0.9 * (e.enraged ? e.enrage.mult : 1);
+        let hit = 0; for (let q = 0; q < (e.pack || 1); q++) hit += rnd(e.lo, e.hi) * 0.9 * (e.enraged ? e.enrage.mult : 1);   // każdy żywy z bandy atakuje w każdym ticku
         { const dd = totalDef(); hit *= 1 - dd / (dd + 40 + 14 * e.lvl); }   // obrona wyłącznie z pancerza i punktów Życia (malejące przyrosty)
         if (buffOn('sw1')) hit *= 1.2;
         if (buffOn('sw2')) hit *= 1 - SKILLS.find(s => s.id === 'sw2').p(rankOf('sw2')).red;
@@ -241,11 +247,11 @@
   function syncEnemy(spawned) {
     if (!root) return; const en = $('#xe', root), pan = $('#xpanel', root), e = X.enemy;
     if (!e) { en.classList.add('gone'); pan.classList.add('hidden'); return; }
-    const left = e.unit ? Math.max(1, Math.ceil(e.hp / e.unit)) : 1; e._left = left;
-    en.textContent = e.unit ? e.base.repeat(left) : e.ic; en.className = 'xenemy ' + e.kind + (e.cls ? ' ' + e.cls : ''); if (spawned) { void en.offsetWidth; en.classList.add('spawn'); }
+    const left = e.pack || 1; e._left = left;
+    en.textContent = e.ic.repeat(left); en.className = 'xenemy ' + e.kind + (e.cls ? ' ' + e.cls : ''); if (spawned) { void en.offsetWidth; en.classList.add('spawn'); }
     stageEl.classList.toggle('bosswin', e.kind === 'boss'); stageEl.classList.toggle('targetwin', e.kind === 'target');
     pan.classList.remove('hidden'); pan.className = 'xpanel ' + e.kind + (e.cls ? ' ' + e.cls : '');
-    $('#xname', root).textContent = (e.kind === 'boss' ? '☠ BOSS · ' : e.kind === 'target' ? '🎯 CEL · ' : '') + e.name + (e.unit ? ' ×' + left : '') + `  (poz. ${e.lvl})`;
+    $('#xname', root).textContent = (e.kind === 'boss' ? '☠ BOSS · ' : e.kind === 'target' ? '🎯 CEL · ' : '') + e.name + (left > 1 ? ' ×' + left : '') + `  (poz. ${e.lvl})`;
   }
   // stan „czy trwa wyprawa" zawsze pochodzi z serwera (klient go nie zmienia sam)
   function applyServer() {
