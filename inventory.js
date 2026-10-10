@@ -40,7 +40,7 @@
 
   // ---- pomocnicze ----
   const totals = () => { let atk = 0, def = 0; for (const u of Object.values(ST.equip)) { const it = ST.items[u]; if (it) { const q = itemStats(it); atk += q.atk; def += q.def; } } return { atk, def }; };
-  const equippedFor = it => { const ks = it.type === 'ring' ? ['ring1', 'ring2'] : [it.type]; const k = ks.find(q => !ST.equip[q]) || ks[0]; return ST.items[ST.equip[k]]; };
+  const equippedFor = it => { const ks = it.type === 'ring' ? ['ring1'] : [it.type]; const k = ks.find(q => !ST.equip[q]) || ks[0]; return ST.items[ST.equip[k]]; };
   const rng = (a, lo, hi) => (lo !== hi ? lo + '–' + hi : String(a));
   const statLine = it => { const q = itemStats(it); return [q.atk ? `⚔ Atak ${rng(q.atk, q.lo, q.hi)}` : '', q.mag && !(q.mag === q.atk && q.mlo === q.lo && q.mhi === q.hi) ? `🔮 Magia ${rng(q.mag, q.mlo, q.mhi)}` : '', q.def ? `🛡 Obrona ${q.def}` : ''].filter(Boolean).join('   '); };
 
@@ -98,7 +98,7 @@
     const eqUids = Object.values(ST.equip), best = eqUids.length ? Math.max(...eqUids.map(u => ST.items[u].rarity)) : -1;
     pd.style.setProperty('--aura', best >= 0 ? RARITY[best].c : '#5a5f7a');
     pd.style.setProperty('--p', Math.round(100 * eqUids.length / EQUIP_SLOTS.length));
-    const POS = { helm: 0, earrings: 40, bracelet: 80, ring1: 120, boots: 160, ring2: 200, shield: 240, weapon: 280, armor: 320 }, R = 33;
+    const POS = { helm: 0, earrings: 45, bracelet: 90, ring1: 135, boots: 180, shield: 225, weapon: 270, armor: 315 }, R = 33;
     let beams = '', slotsEls = [];
     EQUIP_SLOTS.forEach(s => {
       const an = POS[s.k] * Math.PI / 180, x = 50 + R * Math.sin(an), y = 50 - R * Math.cos(an), u = ST.equip[s.k], col = u ? RARITY[ST.items[u].rarity].c : '#3a3d52';
@@ -174,7 +174,7 @@
     for (let i = 0; i < n; i++) {
       const sn = Server.snapshot(), anyUid = () => { const all = Object.keys(sn.items); return all.length ? all[Math.floor(Math.random() * all.length)] : 'nie-ma'; };
       const t = types[Math.floor(Math.random() * types.length)];
-      const p = { move: { from: Math.floor(Math.random() * 52) - 2, to: Math.floor(Math.random() * 52) - 2 }, equip: { uid: anyUid() }, unequip: { slot: slotsK[Math.floor(Math.random() * 9)] }, sell: { uid: anyUid() }, claim: { uid: anyUid() }, sort: {}, debug_drop: { n: 1 + Math.floor(Math.random() * 6), boss: Math.random() < 0.2 }, activity_start: { kind: ['exp', 'gather', 'craft', 'x'][Math.floor(Math.random() * 4)], detail: ['test', 'mining', 'sawmill'][Math.floor(Math.random() * 3)] }, board_move: { board: ['mining', 'sawmill', 'x'][Math.floor(Math.random() * 3)], from: Math.floor(Math.random() * 22) - 1, to: Math.floor(Math.random() * 22) - 1 }, board_take: { board: ['mining', 'sawmill'][Math.floor(Math.random() * 2)], idx: Math.floor(Math.random() * 22) - 1 }, board_debug_fill: { board: ['mining', 'sawmill'][Math.floor(Math.random() * 2)], n: 1 + Math.floor(Math.random() * 8) }, gather_tick: {}, activity_stop: {}, kill_reward: { tier: Math.floor(Math.random() * 5), kind: ['mob', 'boss', 'target'][Math.floor(Math.random() * 3)] } }[t];
+      const p = { move: { from: Math.floor(Math.random() * 52) - 2, to: Math.floor(Math.random() * 52) - 2 }, equip: { uid: anyUid() }, unequip: { slot: slotsK[Math.floor(Math.random() * slotsK.length)] }, sell: { uid: anyUid() }, claim: { uid: anyUid() }, sort: {}, debug_drop: { n: 1 + Math.floor(Math.random() * 6), boss: Math.random() < 0.2 }, activity_start: { kind: ['exp', 'gather', 'craft', 'x'][Math.floor(Math.random() * 4)], detail: ['test', 'mining', 'sawmill'][Math.floor(Math.random() * 3)] }, board_move: { board: ['mining', 'sawmill', 'x'][Math.floor(Math.random() * 3)], from: Math.floor(Math.random() * 22) - 1, to: Math.floor(Math.random() * 22) - 1 }, board_take: { board: ['mining', 'sawmill'][Math.floor(Math.random() * 2)], idx: Math.floor(Math.random() * 22) - 1 }, board_debug_fill: { board: ['mining', 'sawmill'][Math.floor(Math.random() * 2)], n: 1 + Math.floor(Math.random() * 8) }, gather_tick: {}, activity_stop: {}, kill_reward: { tier: Math.floor(Math.random() * 5), kind: ['mob', 'boss', 'target'][Math.floor(Math.random() * 3)] } }[t];
       const cid = 's' + Date.now() + '-' + i, r = Server.execSync({ type: t, cid, ...p });
       if (r.ok) ok++; else rej++;
       if (t === 'activity_start' && sn.activity && r.ok) lockBad++; // zmiana aktywności bez zatrzymania = błąd blokady

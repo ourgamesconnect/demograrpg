@@ -60,10 +60,12 @@ const POTIONS = {
 // t = trzy wartości (najmocniejsza najtrudniejsza, wagi BONUS_TIER_W). types = typy przedmiotów, w których bon może się pojawić (brak = każdy).
 const BONUS_TIER_W = [70, 25, 5];
 const BONUSES = {
-  dmg:      { n: 'Zwiększone obrażenia', ic: '⚔️', u: '%', types: ['weapon'], hint: 'o tyle % więcej niż pokazuje atak broni (może być ujemny)' },
+  dmg:      { n: 'Zwiększone obrażenia', ic: '⚔️', u: '%', types: ['weapon'], w: 4, hint: 'o tyle % więcej niż pokazuje atak broni (może być ujemny)' },
   def:      { n: 'Obrona', ic: '🛡️', u: '', types: ['armor'], t: [10, 25, 50] },
   crit:     { n: 'Szansa na cios krytyczny', ic: '💥', u: '%', t: [1, 2, 3], hint: 'cios krytyczny zadaje podwójne obrażenia' },
   aspd:     { n: 'Szybkość ataku', ic: '⚡', u: '%', t: [1, 2, 3] },
+  mob:      { n: 'Silny przeciwko potworom', ic: '🐾', u: '%', t: [1, 2, 3], hint: 'więcej obrażeń wszystkim potworom na każdej mapie' },
+  res_mob:  { n: 'Odporny na potwory', ic: '🧱', u: '%', t: [1, 2, 3], hint: 'wszystkie potwory zadają o tyle % mniej obrażeń' },
   boss:     { n: 'Silny przeciwko bossom', ic: '☠️', u: '%', t: [1, 2, 3] },
   vs_k:     { n: 'Silny przeciwko Rycerzom', ic: '🛡️', u: '%', t: [1, 3, 5], pvp: true },
   vs_s:     { n: 'Silny przeciwko Zwiadowcom', ic: '🏹', u: '%', t: [1, 3, 5], pvp: true },
@@ -76,7 +78,7 @@ const BONUSES = {
   mp:       { n: 'Mana', ic: '💧', u: '', types: ['armor'], t: [50, 150, 300] },
 };
 // Zwiększone obrażenia: ciągłe −15…+50; powyżej 20% coraz trudniej, 50% praktycznie nieosiągalne
-const DMG_BUCKETS = [[-15, -1, 6], [1, 10, 52], [11, 20, 27], [21, 30, 10], [31, 40, 4], [41, 49, 0.9], [50, 50, 0.1]];
+const DMG_BUCKETS = [[-15, -1, 6], [1, 10, 62], [11, 20, 24], [21, 30, 6], [31, 40, 1.6], [41, 49, 0.35], [50, 50, 0.05]];
 function rollBonusValue(id) {
   if (id === 'dmg') {
     let x = Math.random() * 100;

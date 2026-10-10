@@ -5,7 +5,7 @@
 const INV_SLOTS = 48, STASH_MAX = 60;
 const EQUIP_SLOTS = [
   { k: 'helm', n: 'Hełm', ic: '🪖' }, { k: 'armor', n: 'Zbroja', ic: '🥋' }, { k: 'boots', n: 'Buty', ic: '🥾' }, { k: 'weapon', n: 'Broń', ic: '🗡️' },
-  { k: 'ring1', n: 'Pierścień', ic: '💍' }, { k: 'ring2', n: 'Pierścień', ic: '💍' }, { k: 'earrings', n: 'Kolczyki', ic: '💎' }, { k: 'bracelet', n: 'Bransoletka', ic: '📿' },
+  { k: 'ring1', n: 'Pierścień', ic: '💍' }, { k: 'earrings', n: 'Kolczyki', ic: '💎' }, { k: 'bracelet', n: 'Bransoletka', ic: '📿' },
   { k: 'shield', n: 'Tarcza', ic: '🛡️' },
 ];
 const TIERS = [['Drewniany', 'Drewniana', 'Drewniane'], ['Miedziany', 'Miedziana', 'Miedziane'], ['Brązowy', 'Brązowa', 'Brązowe'], ['Żelazny', 'Żelazna', 'Żelazne'], ['Hartowany', 'Hartowana', 'Hartowane'],
@@ -76,7 +76,10 @@ const Server = (() => {
       atk: Math.round(st.atk * rm), mag: Math.round(st.mag * rm), def: isWeapon ? 0 : isArmor ? Math.round(ARMOR_TABLE[b[3]][tier][0] * rm) : Math.max(1, Math.round(sw * slotW * rm)), req: lvl };
     // bony: r różnych, pasujących do typu przedmiotu
     { const pool = Object.keys(BONUSES).filter(id => bonusFits(id, it.type)), bon = [];
-      while (bon.length < r && pool.length) { const id = pool.splice(Math.floor(Math.random() * pool.length), 1)[0]; bon.push({ id, v: rollBonusValue(id) }); }
+      while (bon.length < r && pool.length) {
+        const wt = pool.map(id => BONUSES[id].w || 1); let x = Math.random() * wt.reduce((a, q) => a + q, 0), i = 0; for (; i < pool.length - 1; i++) { x -= wt[i]; if (x <= 0) break; }
+        const id = pool.splice(i, 1)[0]; bon.push({ id, v: rollBonusValue(id) });
+      }
       it.bonus = bon; it.rarity = bon.length; }
     const power = it.atk + Math.round(it.mag * 0.5) + it.def;
     it.value = Math.max(2, Math.round(power * 3.2 * (1 + 0.5 * it.rarity)));
@@ -89,7 +92,7 @@ const Server = (() => {
     if (S.stash.length < STASH_MAX) { S.items[it.uid] = it; S.stash.push(it.uid); return { uid: it.uid, where: 'stash' }; }
     S.gold += it.value; return { uid: it.uid, where: 'sold', gold: it.value, name: it.name, ic: it.ic };
   }
-  const slotOfType = t => t === 'ring' ? ['ring1', 'ring2'] : [t];
+  const slotOfType = t => t === 'ring' ? ['ring1'] : [t];
   const find = uid => { const i = S.slots.indexOf(uid); if (i >= 0) return { w: 'bag', i }; const k = Object.keys(S.equip).find(q => S.equip[q] === uid); if (k) return { w: 'equip', k }; const s = S.stash.indexOf(uid); if (s >= 0) return { w: 'stash', s }; return null; };
 
   const H = {

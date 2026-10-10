@@ -81,7 +81,7 @@
     const e = X.enemy; if (!e || e.dead) return 0;
     if (e.lvl - P.lvl >= 4 && Math.random() < 0.3) { if (visible()) fx('skilltxt', { left: '50%', top: '38%' }, 700, '✖ PUDŁO'); return 0; }   // kara za różnicę poziomów
     const B = bon();
-    let dmg = playerDmg(!!skill) * mult * (e.kind === 'boss' ? 1 + B.boss / 100 : 1) - (e.def || 0);   // obrona potwora odejmowana od ataku (jak w Metin2)
+    let dmg = playerDmg(!!skill) * mult * (1 + B.mob / 100) * (e.kind === 'boss' ? 1 + B.boss / 100 : 1) - (e.def || 0);   // obrona potwora odejmowana od ataku (jak w Metin2)
     if (dmg < 3) dmg = Math.floor(rnd(1, 6));   // Metin2: poniżej 3 obrażeń → losowo 1–5
     const crit = Math.random() * 100 < B.crit;   // szansa na krytyka wyłącznie z bonów ekwipunku (bazowo 0)
     if (crit) dmg *= 2;
@@ -208,6 +208,7 @@
       else {
         let hit = 0; for (let q = 0; q < (e.pack || 1); q++) hit += rnd(e.lo, e.hi) * 0.9 * (e.enraged ? e.enrage.mult : 1);   // każdy żywy z bandy atakuje w każdym ticku
         { const dd = totalDef(); hit *= 1 - dd / (dd + 40 + 14 * e.lvl); }   // obrona wyłącznie z pancerza i punktów Życia (malejące przyrosty)
+        hit *= 1 - bon().res_mob / 100;   // bon „Odporny na potwory”
         if (e.kind === 'boss') hit *= 1 - bon().res_boss / 100;   // bon „Odporny na bossy”
         if (buffOn('sw1')) hit *= 1.2;
         if (buffOn('sw2')) hit *= 1 - SKILLS.find(s => s.id === 'sw2').p(rankOf('sw2')).red;
