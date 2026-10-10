@@ -20,7 +20,8 @@ const BASES = [
 ];
 const ACTIVITY_NAMES = { exp: 'Wyprawy', gather: 'Zbieractwo', craft: 'Rzemiosło' };
 // PLANSZE ZBIERACTWA (scalanie): dwa takie same surowce tego samego poziomu = jeden wyższego poziomu
-const BOARD_CELLS = 20, BOARD_MAXLVL = 7, BOARD_EVERY_MS = 3000;
+// jeden surowiec co 5 minut (do testów można skrócić parametrem ?tempo=N w adresie, np. ?tempo=60 = co 5 s)
+const BOARD_CELLS = 20, BOARD_MAXLVL = 7, BOARD_EVERY_MS = Math.round(300000 / Math.max(1, parseFloat(new URLSearchParams(location.search).get('tempo')) || 1));
 const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
 const BOARDS = {
   mining: { n: 'Górnictwo', types: [['Kamień', '🪨', 60], ['Ruda', '🟤', 25], ['Węgiel', '⚫', 15]] },

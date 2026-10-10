@@ -87,26 +87,27 @@
   }
   // Cel (skała lub kłoda) ma pasek HP = czas do następnego dropu. Uderzenia i pęknięcie napędza postęp liczony z czasu serwera,
   // więc umiejętności skracające czas dropu będą szybciej "rozbijać" cel bez zmian w animacji.
-  const STRIKES = [0.12, 0.36, 0.60, 0.84];
+  const STRIKE_EVERY_MS = Math.max(700, Math.min(6000, Server.BOARD_EVERY_MS / 8));   // uderzenie co ~6 s przy cyklu 5 min
   let lastSeen = 0, strikeIdx = 0, pLast = 0;
+  const fmtLeft = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return s >= 60 ? Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') : s + ' s'; };
   function targetLoop() {
     if (!root || root.hidden || !S()) return;
     const s = S(), sc = $('#gscene', root), on = running(), every = Server.BOARD_EVERY_MS;
-    const last = s.lastDrop[tab] || 0, now = Date.now();
-    const p = on && last ? Math.min(1, Math.max(0, (now - last) / every)) : 0;
-    const hp = Math.round(100 * (1 - p)), nm = tab === 'mining' ? 'Skała' : 'Kłoda';
-    $('#gtname', root).textContent = nm; $('#gthp', root).style.width = hp + '%';
-    $('#gttxt', root).textContent = on ? hp + ' / 100 HP · pęka za ' + Math.max(0, (every * (1 - p) / 1000)).toFixed(1) + ' s' : 'Rozpocznij, aby zacząć ' + (tab === 'mining' ? 'kopać' : 'ciąć');
+    const last = s.lastDrop[tab] || 0, now = Date.now(), el2 = on && last ? Math.max(0, now - last) : 0;
+    const p = Math.min(1, el2 / every), hp = Math.max(0, Math.ceil(100 * (1 - p))), nm = tab === 'mining' ? 'Skała' : 'Kłoda';
+    $('#gtname', root).textContent = nm; $('#gthp', root).style.width = (100 * (1 - p)).toFixed(1) + '%';
+    $('#gttxt', root).textContent = on ? hp + ' / 100 HP · pęka za ' + fmtLeft(every - el2) : 'Rozpocznij, aby zacząć ' + (tab === 'mining' ? 'kopać' : 'ciąć');
     sc.classList.toggle('c1', on && p > 0.33); sc.classList.toggle('c2', on && p > 0.66);
     if (!on) { strikeIdx = 0; pLast = 0; lastSeen = last; return; }
     if (last !== lastSeen) { lastSeen = last; strikeIdx = 0; breakTarget(); }   // nowy drop = cel pękł
-    while (strikeIdx < STRIKES.length && p >= STRIKES[strikeIdx]) { strike(strikeIdx); strikeIdx++; }
+    const due = Math.floor(el2 / STRIKE_EVERY_MS);
+    if (due > strikeIdx) { strikeIdx = due; strike(due); }
     pLast = p;
   }
   function strike(k) {
-    const sc = $('#gscene', root), tool = $(tab === 'mining' ? '#gpick' : '#gblade', root), tgt = $(tab === 'mining' ? '#grock' : '#glog', root);
+    const tool = $(tab === 'mining' ? '#gpick' : '#gblade', root), tgt = $(tab === 'mining' ? '#grock' : '#glog', root), dmg = Math.max(1, Math.round(100 * STRIKE_EVERY_MS / Server.BOARD_EVERY_MS));
     tool.classList.remove('strike'); void tool.offsetWidth; tool.classList.add('strike');
-    setTimeout(() => { tgt.classList.remove('hit'); void tgt.offsetWidth; tgt.classList.add('hit'); num('−25', k === 3); burst(); }, 170);
+    setTimeout(() => { tgt.classList.remove('hit'); void tgt.offsetWidth; tgt.classList.add('hit'); num('−' + dmg, false); burst(); }, 170);
   }
   function breakTarget() {
     const sc = $('#gscene', root); sc.classList.remove('break'); void sc.offsetWidth; sc.classList.add('break');
