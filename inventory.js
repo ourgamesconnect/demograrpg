@@ -50,7 +50,7 @@
     if (!tip) { tip = el('div', 'inv-tip'); document.body.append(tip); }
     const r = RARITY[it.rarity], cmp = !equippedNow && equippedFor(it);
     tip.replaceChildren();
-    const h = el('b', '', it.name + (it.plus ? ` +${it.plus}` : '')); h.style.color = r.c; tip.append(h, el('div', 'tt-r', r.n + ' · ' + it.type));
+    const h = el('b', '', it.name + (it.plus ? ` +${it.plus}` : '')); h.style.color = r.c; tip.append(h, el('div', 'tt-r', r.n + ' · ' + ({ weapon: 'broń', helm: 'hełm', armor: 'zbroja', boots: 'buty', shield: 'tarcza', ring: 'pierścień', earrings: 'kolczyki', bracelet: 'bransoleta', necklace: 'naszyjnik' }[it.type] || it.type)));
     tip.append(el('div', 'tt-s', statLine(it) || '—'));
     if (cmp) { const qa = itemStats(it), qc = itemStats(cmp), da = (qa.atk + qa.mag) - (qc.atk + qc.mag), dd = qa.def - qc.def; const c = el('div', 'tt-c', `W porównaniu z założonym: ${da ? (da > 0 ? '▲ +' : '▼ ') + da + ' atak  ' : ''}${dd ? (dd > 0 ? '▲ +' : '▼ ') + dd + ' obrona' : ''}` || '—'); c.classList.add(da > 0 || dd > 0 ? 'up' : 'down'); tip.append(c); }
     tip.append(el('div', it.req > ST.lvl ? 'tt-req bad' : 'tt-req', `Wymagany poziom: ${it.req}`), el('div', 'tt-v', `Wartość: ${fmt(it.value)} 🪙`));
