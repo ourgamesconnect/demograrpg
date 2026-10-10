@@ -167,7 +167,7 @@ const Server = (() => {
       if (S.cls) return { err: 'Klasa została już wybrana' };
       if (!CLASSES[cls]) return { err: 'Nieznana klasa' };
       if (!WEAPON_AVAILABLE[CLASSES[cls].w]) return { err: 'Ta klasa będzie dostępna wkrótce' };
-      S.cls = cls; const ev = [{ t: 'class_chosen', cls }];
+      S.cls = cls; S.potions = { hp_s: 10, mp_s: 10 }; const ev = [{ t: 'class_chosen', cls }];   // na start po 10 małych mikstur
       const wn = { sword: 'miecz', bow: 'łuk', wand: 'różdżka' }[CLASSES[cls].w], base = n => BASES.find(b => b[0] === n);
       for (const n of [wn]) {   // postać zaczyna wyłącznie z bronią 1 poziomu +0
         const it = makeItem({ base: base(n), tier: 0, rarity: 0 }); it.req = 1; S.items[it.uid] = it;
@@ -236,6 +236,7 @@ const Server = (() => {
     // ALCHEMIK: zakup mikstur (do POTION_MAX sztuk każdej), użycie i ustawienia automatu
     potion_buy({ id, n }) {
       const pd = POTIONS[id]; if (!pd) return { err: 'Nieznana mikstura' };
+      if (S.activity && S.activity.kind === 'exp') return { err: 'Alchemik jest dostępny dopiero po zakończeniu wyprawy' };
       const have = S.potions[id] || 0, want = Math.max(1, Math.floor(+n) || 1), room = POTION_MAX - have;
       if (room < 1) return { err: 'Masz już maksimum tej mikstury (' + POTION_MAX + ')' };
       const cnt = Math.min(want, room, Math.floor(S.gold / pd.price));

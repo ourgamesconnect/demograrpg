@@ -42,7 +42,9 @@
     addEventListener('keydown', e => { if (e.key === 'Escape' && root && !root.hidden) close(); });
     window.addEventListener('inv:update', draw);
   }
-  function open() { if (!root) build(); root.hidden = false; document.body.classList.add('inv-open'); draw(); }
+  function open() {
+    const a = S().activity; if (a && a.kind === 'exp') { if (window.GameFeed) GameFeed('⚗️ Alchemik jest dostępny dopiero po zakończeniu wyprawy.', 'warn'); return; }
+    if (!root) build(); root.hidden = false; document.body.classList.add('inv-open'); draw(); }
   function close() { if (!root) return; root.hidden = true; document.body.classList.remove('inv-open'); }
   window.Potions = { open, close };
 })();

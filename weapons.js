@@ -44,13 +44,13 @@ const MAP_DROPS = {
     gold: { 1: [5, 15], 2: [10, 25], 3: [15, 35], 4: [20, 45], 5: [20, 65] }, goldChance: 0.5, goldMaxGap: 10, bossGold: [100, 300], targetGold: [50, 150] }   // złoto losuje serwer   // boss i Spaczony Korzeń: łup jeszcze nieustalony,
 };
 
-// MIKSTURY (Alchemik). Leczą stopniowo (jak w Metinie), nie natychmiast. Ceny: tymczasowe, do ustalenia przez właściciela.
+// MIKSTURY (Alchemik). Leczą stopniowo (jak w Metinie), nie natychmiast. Ceny od właściciela (mała 40, średnia 160, duża 320).
 const POTION_MAX = 1000;   // maks. liczba sztuk każdej mikstury, jaką można mieć
 const POTIONS = {
-  hp_s: { n: 'Mała mikstura życia', ic: '🧪', kind: 'hp', size: 'S', v: 300, secs: 6, price: 25 },
-  hp_m: { n: 'Średnia mikstura życia', ic: '🧪', kind: 'hp', size: 'M', v: 800, secs: 9, price: 60 },
-  hp_l: { n: 'Duża mikstura życia', ic: '🧪', kind: 'hp', size: 'L', v: 1200, secs: 12, price: 90 },
-  mp_s: { n: 'Mała mikstura many', ic: '💧', kind: 'mp', size: 'S', v: 100, secs: 6, price: 20 },
-  mp_m: { n: 'Średnia mikstura many', ic: '💧', kind: 'mp', size: 'M', v: 250, secs: 9, price: 50 },
-  mp_l: { n: 'Duża mikstura many', ic: '💧', kind: 'mp', size: 'L', v: 400, secs: 12, price: 75 },
+  hp_s: { n: 'Mała mikstura życia', ic: '🧪', kind: 'hp', size: 'S', v: 300, secs: 6, price: 40 },
+  hp_m: { n: 'Średnia mikstura życia', ic: '🧪', kind: 'hp', size: 'M', v: 800, secs: 9, price: 160 },
+  hp_l: { n: 'Duża mikstura życia', ic: '🧪', kind: 'hp', size: 'L', v: 1200, secs: 12, price: 320 },
+  mp_s: { n: 'Mała mikstura many', ic: '💧', kind: 'mp', size: 'S', v: 100, secs: 6, price: 40 },
+  mp_m: { n: 'Średnia mikstura many', ic: '💧', kind: 'mp', size: 'M', v: 250, secs: 9, price: 160 },
+  mp_l: { n: 'Duża mikstura many', ic: '💧', kind: 'mp', size: 'L', v: 400, secs: 12, price: 320 },
 };
