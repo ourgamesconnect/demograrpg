@@ -71,15 +71,16 @@ setInterval(() => document.querySelectorAll('.cnt').forEach(e => { const t = +e.
 const TILES = [
   { id: 'exp', ic: '⚔️', t: 'WYPRAWY', d: 'Mapy, bossowie i cele specjalne', c: '#4fe39a' },
   { id: 'gather', ic: '⛏️', t: 'ZBIERACTWO', d: 'Górnictwo i tartak: scalaj surowce', c: '#ffb347' },
-  { id: 'craft', ic: '🔨', t: 'RZEMIOSŁO', d: 'Wytwarzaj broń, pancerze, dodatki', c: '#ffd24d' },
+  { id: 'skills', ic: '✨', t: 'UMIEJĘTNOŚCI', d: 'Talenty, umiejętności broni i zbierania', c: '#ffd24d' },
   { id: 'gear', ic: '🛡️', t: 'EKWIPUNEK', d: 'Broń definiuje styl, bez klas', c: '#6ab4ff' },
   { id: 'duel', ic: '🥊', t: 'ARENA 1v1', d: 'Rankingowe pojedynki w ligach', c: '#ff5a6e' },
-  { id: 'city', ic: '🏰', t: 'MIASTO', d: 'Kowal, kupiec, alchemik i inni NPC', c: '#c58bff' },
+  { id: 'city', ic: '🏰', t: 'MIASTO', d: 'Kowal, rzemieślnicy, kupiec i inni NPC', c: '#c58bff' },
 ];
 function status(id) {
   const s = P.sessions;
   if (id === 'exp') return window.Expedition && Expedition.running ? ['● W TOKU · ' + Expedition.map, true] : ['Bezczynne', false];
-  if (id === 'gather' || id === 'craft') return ['Bezczynne', false];
+  if (id === 'gather') return ['Bezczynne', false];
+  if (id === 'skills') return ['Punkty do wydania: ' + (P.pts || 0), false];
   if (id === 'gear') { const s = window.Inventory && Inventory.state; return [s ? 'Plecak ' + s.slots.filter(Boolean).length + ' / ' + s.slots.length + (s.stash.length ? ' · skrytka ' + s.stash.length : '') : 'Plecak', !!(s && s.stash.length)]; }
   if (id === 'duel') return ['Dziś: 3 / 10', false];
   return ['Sklepy i NPC', false];
@@ -89,7 +90,7 @@ function buildTiles() {
   TILES.forEach(t => {
     const b = document.createElement('button'); b.className = 'tile'; b.dataset.id = t.id; b.style.setProperty('--c', t.c);
     b.innerHTML = `<span class="ic">${t.ic}</span><b>${t.t}</b><small>${t.d}</small><em id="st-${t.id}"></em>`;
-    b.onclick = () => (t.id === 'gear' ? Inventory.open() : t.id === 'exp' ? Expedition.open() : t.id === 'gather' ? Gather.open() : t.id === 'craft' ? stubActivity(t) : toast(`${t.ic} ${t.t}: ten ekran powstanie w następnym kroku.`));
+    b.onclick = () => (t.id === 'gear' ? Inventory.open() : t.id === 'exp' ? Expedition.open() : t.id === 'gather' ? Gather.open() : t.id === 'city' ? openCity() : toast(`${t.ic} ${t.t}: ten ekran powstanie w następnym kroku.`));
     b.onmousemove = e => { const r = b.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5; b.style.setProperty('--ry', (x * 10).toFixed(1) + 'deg'); b.style.setProperty('--rx', (-y * 10).toFixed(1) + 'deg'); };
     b.onmouseleave = () => { b.style.setProperty('--rx', '0deg'); b.style.setProperty('--ry', '0deg'); };
     box.append(b);
@@ -99,7 +100,7 @@ function renderTiles() {
   const a = window.Inventory && Inventory.state && Inventory.state.activity, NAMES = { exp: 'Wyprawy', gather: 'Zbieractwo', craft: 'Rzemiosło' };
   for (const t of TILES) {
     let [txt, live] = status(t.id), locked = false;
-    if (a && NAMES[a.kind] && ['exp', 'gather', 'craft'].includes(t.id)) {
+    if (a && NAMES[a.kind] && ['exp', 'gather'].includes(t.id)) {
       if (t.id === a.kind) { txt = '● W TOKU · ' + ({ mining: 'Górnictwo', sawmill: 'Tartak' }[a.detail] || a.detail || NAMES[a.kind]); live = true; }
       else { txt = '🔒 Zajęty: ' + NAMES[a.kind]; live = false; locked = true; }
     }
@@ -115,6 +116,29 @@ async function stubActivity(t) {
   if (a && a.kind === t.id) { const r = await Inventory.exec('activity_stop'); if (r.ok) toast('⏹ Zatrzymano: ' + t.t); return; }
   const r = await Inventory.exec('activity_start', { kind: t.id, detail: t.t });
   if (r.ok) toast(t.ic + ' ' + t.t + ': sesja rozpoczęta (test blokady). Kliknij kafel ponownie, aby zatrzymać.');
+}
+// ---- Miasto: NPC i sklepy (okno zapowiedzi, ekrany powstaną w kolejnych krokach) ----
+const CITY_NPC = [
+  ['🔨', 'Kowal', 'Ulepszanie przedmiotów +0 … +9 i naprawa', 'Wkrótce'],
+  ['🧵', 'Rzemieślnicy', 'Wytwarzanie broni, pancerzy i dodatków z surowców', 'Wkrótce'],
+  ['💰', 'Kupiec', 'Sprzedaż i zakup przedmiotów', 'Wkrótce'],
+  ['⚗️', 'Alchemik', 'Mikstury życia i many, wzmocnienia', 'Wkrótce'],
+  ['🍺', 'Karczmarz', 'Odpoczynek, zadania dzienne i plotki', 'Wkrótce'],
+  ['🏦', 'Skarbiec', 'Bezpieczny magazyn przedmiotów i złota', 'Wkrótce'],
+];
+function openCity() {
+  let ov = $('#city-ov');
+  if (!ov) {
+    ov = document.createElement('div'); ov.id = 'city-ov'; ov.className = 'city-ov';
+    ov.innerHTML = '<div class="city-win" role="dialog" aria-label="Miasto"><div class="city-head"><b>🏰 MIASTO</b><button class="x" aria-label="Zamknij">✕</button></div><p class="muted">Tu znajdziesz wszystkich NPC i sklepy. Ekrany poszczególnych postaci powstaną w kolejnych krokach.</p><div class="city-grid"></div></div>';
+    const g = ov.querySelector('.city-grid');
+    CITY_NPC.forEach(([ic, n, d, s]) => { const c = document.createElement('div'); c.className = 'npc'; c.innerHTML = '<i></i><b></b><small></small><em></em>'; c.children[0].textContent = ic; c.children[1].textContent = n; c.children[2].textContent = d; c.children[3].textContent = s; g.append(c); });
+    document.body.append(ov);
+    const close = () => { ov.hidden = true; document.body.classList.remove('inv-open'); };
+    ov.querySelector('.x').onclick = close; ov.onclick = e => { if (e.target === ov) close(); };
+    addEventListener('keydown', e => { if (e.key === 'Escape' && !ov.hidden) close(); });
+  }
+  ov.hidden = false; document.body.classList.add('inv-open');
 }
 // ---- toast i zdarzenia ----
 let toastT = null;

@@ -116,3 +116,20 @@
 .tbar i{transition:none!important}
 .crack{inset:10% 8%;background:linear-gradient(112deg,transparent 49.3%,rgba(20,10,0,.85) 49.7% 50.5%,transparent 50.9%),linear-gradient(68deg,transparent 58.3%,rgba(20,10,0,.8) 58.7% 59.5%,transparent 59.9%)}
 .gscene.c2 .crack{background:linear-gradient(112deg,transparent 49.3%,rgba(20,10,0,.9) 49.7% 50.5%,transparent 50.9%),linear-gradient(68deg,transparent 58.3%,rgba(20,10,0,.85) 58.7% 59.5%,transparent 59.9%),linear-gradient(172deg,transparent 40.3%,rgba(20,10,0,.85) 40.7% 41.5%,transparent 41.9%),linear-gradient(20deg,transparent 30.3%,rgba(20,10,0,.8) 30.7% 31.5%,transparent 31.9%)}
+
+/* poziom zbierania i jawne szanse */
+.g-skill{margin:0 14px;padding:12px 14px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid var(--line)}
+.gsk-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.gsk-row b{letter-spacing:.04em}
+.gsk-bar{flex:1;min-width:80px;height:10px;border-radius:6px;background:rgba(0,0,0,.5);overflow:hidden;border:1px solid rgba(255,255,255,.1)}
+.gsk-bar i{display:block;height:100%;background:linear-gradient(90deg,#4fe39a,#ffd24d)}
+.gsk-row span{color:var(--mut);font-size:13px}
+.g-skill details{margin-top:8px;color:var(--mut);font-size:13px}
+.g-skill summary{cursor:pointer;color:var(--ink);font-weight:700}
+.gsk-p{margin:6px 0 0;line-height:1.5}
+.g-msg{min-height:20px;margin:10px auto 0;max-width:540px;text-align:center;font-weight:800;font-size:13.5px}
+.g-msg.ok{color:var(--green)}.g-msg.bad{color:#ff8a8a}
+.gcell.failed{animation:gfail .6s ease-out}
+@keyframes gfail{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px);box-shadow:0 0 18px #ff4a4a}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+.gcell[data-l="8"]{--lc:#ff9ad0}.gcell[data-l="9"]{--lc:#ffffff}
+.gcell[data-l="8"],.gcell[data-l="9"]{animation:glow 2s ease-in-out infinite}
