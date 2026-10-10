@@ -7,11 +7,10 @@ const fmtHMS = sec => { sec = Math.max(0, Math.floor(sec)); return [Math.floor(s
 
 // ---- stan przykładowy (docelowo z serwera) ----
 const P = {
-  name: 'Gracz', guild: 'Strażnicy Zmierzchu', server: 'Serwer Wschód', lvl: 1, xp: 0, vit: 5, int: 5, pts: 0, atk: 0, def: 0, gold: 150, glory: 0,
+  name: 'Gracz', guild: 'Strażnicy Zmierzchu', server: 'Serwer Wschód', lvl: 1, xp: 0, vit: 5, int: 5, pts: 0, atk: 0, def: 0, gold: 0, glory: 0,
   bag: 38, bagMax: 60, weapon: '🗡️', style: 'Miecz · cięcia', armor: 'Pancerz średni', set: 'Zestaw 3/6',
   sessions: { exp: { on: false, map: 'Wrogie mosty' }, gather: { on: true, loc: 'Jezioro', left: 9420 }, craft: { on: false } },
 };
-let EXPTAB = null;
 
 // ---- pora dnia ----
 function todOf(d) { const h = d.getHours() + d.getMinutes() / 60; return h >= 5 && h < 8 ? 'dawn' : h >= 8 && h < 17 ? 'day' : h >= 17 && h < 20 ? 'dusk' : 'night'; }
@@ -119,8 +118,6 @@ async function stubActivity(t) {
 }
 // ---- Miasto: NPC i sklepy (okno zapowiedzi, ekrany powstaną w kolejnych krokach) ----
 const CITY_NPC = [
-  ['🔨', 'Kowal', 'Ulepszanie przedmiotów +0 … +9 i naprawa', 'Wkrótce'],
-  ['🧵', 'Rzemieślnicy', 'Wytwarzanie broni, pancerzy i dodatków z surowców', 'Wkrótce'],
   ['💰', 'Kupiec', 'Sprzedaż i zakup przedmiotów', 'Wkrótce'],
   ['⚗️', 'Alchemik', 'Mikstury życia i many, wzmocnienia', 'Wkrótce'],
   ['🍺', 'Karczmarz', 'Odpoczynek, zadania dzienne i plotki', 'Wkrótce'],
@@ -155,9 +152,11 @@ function drawFeed() {
 // modele robocze (wiki Metin2 nie podaje liczb HP i SP): życie i mana rosną z poziomem i punktami statystyk
 const stBonus = () => statBonus(window.Inventory && Inventory.state ? Inventory.state.stats : null);
 const clsOf = () => { const c = window.Inventory && Inventory.state ? Inventory.state.cls : null; return CLASSES[c] || null; };
-const hpMax = p => Math.round((160 + 36 * p.lvl + 0.18 * p.lvl * p.lvl) * (clsOf() ? clsOf().hp : 1) + stBonus().hp);
-const mpMax = p => Math.round((50 + 8 * p.lvl + 0.05 * p.lvl * p.lvl) * (clsOf() ? clsOf().mp : 1) + stBonus().mp);
-function expFor(lvl) { return EXPTAB ? EXPTAB[lvl - 1].exp : 1000 * lvl * lvl; }
+const hpMax = p => Math.round((clsOf() ? clsOf().hp0 : 730) + HP_PER_LEVEL * (p.lvl - 1) + stBonus().hp);
+const mpMax = p => Math.round((clsOf() ? clsOf().mp0 : 260) + MP_PER_LEVEL * (p.lvl - 1) + stBonus().mp);
+// EXP potrzebny na kolejny poziom: tabela Metin2 (wiki), poziomy 1→2 … 99→100
+const EXP_TABLE = [300,800,1500,2500,4300,7200,11000,17000,24000,33000,43000,58000,76000,100000,130000,169000,219000,283000,365000,472000,610000,705000,813000,937000,1077000,1237000,1418000,1624000,1857000,2122000,2421000,2761000,3145000,3580000,4073000,4632000,5194000,5717000,6264000,6837000,7600000,8274000,8990000,9753000,10560000,11410000,12320000,13270000,14280000,15340000,16870000,18960000,19980000,21420000,22930000,24580000,26200000,27960000,29800000,32780000,36060000,39670000,43640000,48000000,52800000,58080000,63890000,70280000,77310000,85040000,93540000,102900000,113200000,124500000,137000000,150700000,165700000,236990000,260650000,286780000,315000000,346970000,381680000,419770000,461760000,508040000,558740000,614640000,676130000,743730000,1041222000,1145344200,1259878620,1385866482,1524453130,1676898443,1844588288,2029047116,2050000000];
+function expFor(lvl) { return EXP_TABLE[Math.min(lvl, EXP_TABLE.length) - 1]; }
 function render() {
   const now = new Date(); $('#app').dataset.tod = todOf(now); placeOrb(now);
   $('#r-clock').textContent = now.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
@@ -166,7 +165,7 @@ function render() {
   const need = expFor(P.lvl), have = Math.round(need * P.xp);
   $('#ring-xp').style.strokeDashoffset = (440 * (1 - P.xp)).toFixed(1);
   $('#xp-fill').style.width = (P.xp * 100).toFixed(1) + '%'; $('#xp-txt').textContent = `${fmt(have)} / ${fmt(need)} EXP`;
-  const hm = hpMax(P), mm = mpMax(P); P.hp = Math.min(hm, P.hp === undefined ? hm * 0.82 : P.hp); P.mp = Math.min(mm, P.mp === undefined ? mm * 0.64 : P.mp);
+  const hm = hpMax(P), mm = mpMax(P); P.hp = Math.min(hm, P.hp === undefined ? hm : P.hp); P.mp = Math.min(mm, P.mp === undefined ? mm : P.mp);
   $('#hp-fill').style.width = (100 * P.hp / hm).toFixed(1) + '%'; $('#hp-txt').textContent = fmt(P.hp) + ' / ' + fmt(hm);
   $('#mp-fill').style.width = (100 * P.mp / mm).toFixed(1) + '%'; $('#mp-txt').textContent = fmt(P.mp) + ' / ' + fmt(mm);
   if (P.sessions.gather.on) P.sessions.gather.left = Math.max(0, P.sessions.gather.left - 1);
@@ -179,4 +178,4 @@ function init() {
   feed('Witaj w grze! Zacznij od Wypraw: pierwsza mapa czeka na Ciebie.', 'good');
   render(); setInterval(render, 1000);
 }
-fetch('dane/krzywa_exp_v2.json').then(r => r.json()).then(j => { EXPTAB = j.poziomy; }).catch(() => {}).finally(init);
+init();

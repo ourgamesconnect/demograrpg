@@ -53,7 +53,7 @@ const MATS = { 'Złom': '⚙️', 'Szmaty': '🧵', 'Drewno': '🪵', 'Skóra': 
 const Server = (() => {
   let uidSeq = 1000, version = 0;
   const done = new Map(); // cid -> odpowiedź (idempotencja: ta sama komenda nie wykona się dwa razy)
-  const S = { slots: Array(INV_SLOTS).fill(null), items: {}, equip: {}, stash: [], mats: { 'Złom': 14, 'Szmaty': 9, 'Skóra': 4 }, gold: 150, lvl: 1, cls: null, skills: {}, stats: { life: 0, mana: 0, str: 0, dex: 0, mag: 0 }, enc: {}, activity: null,
+  const S = { slots: Array(INV_SLOTS).fill(null), items: {}, equip: {}, stash: [], mats: {}, gold: 0, lvl: 1, cls: null, mobFilter: {}, skills: {}, stats: { life: 0, mana: 0, str: 0, dex: 0, mag: 0 }, enc: {}, activity: null,
     boards: { mining: Array(BOARD_CELLS).fill(null), sawmill: Array(BOARD_CELLS).fill(null) }, lastDrop: { mining: 0, sawmill: 0 }, lost: { mining: 0, sawmill: 0 }, gatherLvl: { mining: 1, sawmill: 1 } };
   const rnd = (a, b) => a + Math.random() * (b - a), ri = (a, b) => Math.floor(rnd(a, b + 1));
   const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -168,7 +168,7 @@ const Server = (() => {
       if (!WEAPON_AVAILABLE[CLASSES[cls].w]) return { err: 'Ta klasa będzie dostępna wkrótce' };
       S.cls = cls; const ev = [{ t: 'class_chosen', cls }];
       const wn = { sword: 'miecz', bow: 'łuk', wand: 'różdżka' }[CLASSES[cls].w], base = n => BASES.find(b => b[0] === n);
-      for (const n of [wn, 'hełm', 'zbroja', 'buty', 'tarcza']) {
+      for (const n of [wn]) {   // postać zaczyna wyłącznie z bronią 1 poziomu +0
         const it = makeItem({ base: base(n), tier: 0, rarity: 0 }); it.req = 1; S.items[it.uid] = it;
         const slot = it.type === 'ring' ? 'ring1' : it.type; S.equip[slot] = it.uid;
         ev.push({ t: 'item_added', uid: it.uid, where: 'equip', slot });
@@ -177,8 +177,8 @@ const Server = (() => {
     },
     // testowo: nowa postać (docelowo: tworzenie nowej postaci na koncie)
     class_reset() {
-      S.cls = null; S.lvl = 1; S.gold = 150; S.skills = {}; S.stats = { life: 0, mana: 0, str: 0, dex: 0, mag: 0 };
-      S.items = {}; S.equip = {}; S.slots = Array(INV_SLOTS).fill(null); S.stash = []; S.mats = { 'Złom': 14, 'Szmaty': 9, 'Skóra': 4 }; S.enc = {}; S.activity = null; S.starter = false;
+      S.cls = null; S.mobFilter = {}; S.lvl = 1; S.gold = 150; S.skills = {}; S.stats = { life: 0, mana: 0, str: 0, dex: 0, mag: 0 };
+      S.items = {}; S.equip = {}; S.slots = Array(INV_SLOTS).fill(null); S.stash = []; S.mats = {}; S.gold = 0; S.enc = {}; S.activity = null; S.starter = false;
       return { ev: [{ t: 'class_reset' }] };
     },
     // Awans: tymczasowo zgłasza klient (docelowo poziom liczy serwer z EXP za zabicia). Poziom może tylko rosnąć i max o 5 naraz.
@@ -205,6 +205,13 @@ const Server = (() => {
       const spent = Object.values(S.stats).reduce((a, b) => a + b, 0), left = STAT_PER_LEVEL * (S.lvl - 1) - spent;
       if (left < 1) return { err: 'Brak punktów statusu' };
       const add = Math.min(n, left); S.stats[stat] += add; return { ev: [{ t: 'stat_add', stat, n: add }] };
+    },
+    // wybór potworów na mapie (co najmniej jeden)
+    mob_filter({ map, ids }) {
+      if (typeof map !== 'string' || !Array.isArray(ids) || !ids.length || ids.length > 10) return { err: 'Zły wybór potworów' };
+      const u = [...new Set(ids.map(v => v | 0))].filter(v => v >= 0 && v < 10).sort((a, b) => a - b);
+      if (!u.length) return { err: 'Zły wybór potworów' };
+      S.mobFilter[map] = u; return { ev: [{ t: 'mob_filter', map, ids: u }] };
     },
     stat_reset() { for (const q of STATS) S.stats[q.k] = 0; return { ev: [{ t: 'stat_reset' }] }; },   // testowo (docelowo płatny reset)   // testowo (docelowo płatny reset)
     // Zbieractwo: serwer sam liczy, ile surowców spadło od ostatniego razu (klient nie może przyspieszyć)
@@ -261,9 +268,9 @@ const Server = (() => {
       }
       const t = Math.max(0, Math.min(9, Math.floor(+tier) || 0)), ev = [];
       const rollR = () => { const x = Math.random() * 100; return kind === 'boss' ? (x < 45 ? 2 : x < 85 ? 3 : 4) : kind === 'target' ? (x < 50 ? 1 : x < 82 ? 2 : x < 96 ? 3 : 4) : (x < 70 ? 0 : x < 90 ? 1 : x < 98 ? 2 : 3); };
-      const n = kind === 'boss' ? ri(2, 3) : kind === 'target' ? 1 : (Math.random() < 0.16 ? 1 : 0);
+      const n = 0;   // na razie potwory dają tylko EXP i złoto (klient); przedmiotów nie wypuszczają
       for (let k = 0; k < n; k++) ev.push({ t: 'item_added', ...putNew(makeItem({ tier: Math.min(9, t + (Math.random() < 0.3 ? 1 : 0)), rarity: rollR() })) });
-      const mats = Object.keys(MATS), cnt = kind === 'mob' ? (Math.random() < 0.6 ? 1 : 0) : 2;
+      const mats = Object.keys(MATS), cnt = 0;
       for (let k = 0; k < cnt; k++) { const m = pick(mats), q = ri(1, kind === 'mob' ? 3 : 7); S.mats[m] = (S.mats[m] || 0) + q; ev.push({ t: 'mat_added', mat: m, qty: q }); }
       return { ev };
     },

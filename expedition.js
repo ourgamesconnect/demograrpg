@@ -6,33 +6,33 @@
   const rnd = (a, b) => a + Math.random() * (b - a), pick = a => a[Math.floor(Math.random() * a.length)];
   const fmt = n => Math.round(n).toLocaleString('pl-PL');
 
-  // mapy: [nazwa, ikona, waga, poziom potwora (offset), czas zabicia w sekundach]
+  // MAPY: na razie tylko POLANKA. Potwory: hp, atak (min–max na sekundę), stałe EXP, złoto (min–max) z szansą 50%.
   const MAPS = [
     { id: 'polanka', k: 'POLANKA', ic: '🌼', req: 1, lvl: 1, tier: 0, range: 'poziom 1–5', spec: {
-      interval: 30 * 60 * 1000,   // boss i cel specjalny pojawiają się co 30 minut (co 30 min każdy, przesunięci o 15 min)
+      interval: 30 * 60 * 1000,
       mobs: [
-        { n: 'Polny Żuk', ic: '🪲', lvl: 1, hp: 70, w: 30, dmg: 2, every: 4 },
-        { n: 'Wściekły Lis', ic: '🦊', lvl: 2, hp: 140, w: 28, dmg: 2, every: 3, group: [2, 3] },
-        { n: 'Kolczasty Dzik', ic: '🐗', lvl: 3, hp: 250, w: 20, dmg: 4, every: 3, charge: 5 },
-        { n: 'Leśny Włóczęga', ic: '👺', lvl: 4, hp: 380, w: 14, dmg: 6, every: 3 },
-        { n: 'Młody Niedźwiedź', ic: '🐻', lvl: 5, hp: 550, w: 8, dmg: 10, every: 5 },
+        { n: 'Polny Żuk', ic: '🪲', lvl: 1, hp: 31, lo: 6, hi: 8, xp: 15, g: [5, 15], gc: 0.5 },
+        { n: 'Wściekły Lis', ic: '🦊', lvl: 2, hp: 48, lo: 5, hi: 12, xp: 29, g: [10, 25], gc: 0.5 },
+        { n: 'Kolczasty Dzik', ic: '🐗', lvl: 3, hp: 65, lo: 10, hi: 20, xp: 45, g: [15, 35], gc: 0.5 },
+        { n: 'Leśny Włóczęga', ic: '👺', lvl: 4, hp: 85, lo: 15, hi: 25, xp: 67, g: [20, 45], gc: 0.5 },
+        { n: 'Młody Niedźwiedź', ic: '🐻', lvl: 5, hp: 110, lo: 20, hi: 35, xp: 93, g: [20, 65], gc: 0.5 },
       ],
-      boss: { n: 'Krwawy Rogacz', ic: '🦌', lvl: 7, hp: 3200, dmg: 12, every: 3, enrage: { at: 0.3, every: 2 } },
-      target: { n: 'Spaczony Korzeń', ic: '🌳', lvl: 5, hp: 5000, dmg: 0, every: 99, cls: 'root' },
-    }, mobs: [] },
-    { id: 'bor', k: 'Mroczny bór', ic: '🌲', req: 8, lvl: 10, tier: 1, mobs: [['Borsuk', '🦡', 34, 0, 4], ['Pająk leśny', '🕷️', 26, 1, 5], ['Wilk alfa', '🐺', 20, 2, 6], ['Leśny rozbójnik', '🏹', 12, 3, 7], ['Wiedźma z bagien', '🧙‍♀️', 8, 4, 9]], boss: ['Król Boru', '🐻'], target: ['Pogański kamień', '🗿'] },
-    { id: 'kopalnia', k: 'Opuszczona kopalnia', ic: '⛏️', req: 16, lvl: 20, tier: 2, mobs: [['Nietoperz', '🦇', 34, 0, 4], ['Szczur kopalniany', '🐀', 26, 1, 5], ['Zmarły górnik', '🧟', 20, 2, 6], ['Szkielet', '💀', 12, 3, 7], ['Golem skalny', '🪨', 8, 4, 9]], boss: ['Strażnik Szybu', '☠️'], target: ['Zapieczętowana krypta', '⚰️'] },
-    { id: 'zamek', k: 'Zamek w ruinie', ic: '🏰', req: 26, lvl: 30, tier: 3, mobs: [['Zbrojny najemnik', '🛡️', 34, 0, 4], ['Łucznik z wieży', '🏹', 26, 1, 5], ['Rycerz renegat', '🤺', 20, 2, 6], ['Kat', '🪓', 12, 3, 7], ['Mroczny kapłan', '🧙', 8, 4, 9]], boss: ['Czarny Rycerz', '🦹'], target: ['Brama zamku', '🚪'] },
+      boss: { n: 'Krwawy Rogacz', ic: '🦌', lvl: 7, hp: 400, lo: 45, hi: 60, xp: 400, g: [100, 300], gc: 1, enrage: { at: 0.3, mult: 1.5 } },   // EXP/złoto/szał: tymczasowe
+      target: { n: 'Spaczony Korzeń', ic: '🌳', lvl: 5, hp: 2000, lo: 0, hi: 0, xp: 200, g: [50, 150], gc: 1, cls: 'root' },   // EXP/złoto: tymczasowe
+    } },
   ];
+  const REWARD_LVL_GAP = 10;   // EXP i złoto tylko, gdy poziom gracza − poziom potwora ≤ 10
+  // wybór potworów na mapie (zatwierdza serwer: Inventory.state.mobFilter[mapId] = [indeksy])
+  const selMobs = () => { const m = MAPS[X.map], s = window.Inventory && Inventory.state, f = s && s.mobFilter && s.mobFilter[m.id]; const n = m.spec.mobs.length; const all = m.spec.mobs.map((_, i) => i); const ids = (f && f.length ? f : all).filter(i => i < n); return ids.length ? ids : all; };
   let pending = false;
   const serverExp = () => { const s = window.Inventory && Inventory.state; return !!(s && s.activity && s.activity.kind === 'exp'); };
   const ACT_NAMES = { exp: 'Wyprawy', gather: 'Zbieractwo', craft: 'Rzemiosło' };
   const X = { on: false, map: 0, enemy: null, wait: 0, rest: 0, n: 0, kills: 0, bosses: 0, targets: 0, recent: [] };
   let root, stageEl;
 
-  // mnożnik EXP za różnicę poziomów (wzorowany na tabeli z wiki Metin2)
+  // mnożnik EXP za różnicę poziomów (poziom potwora − poziom gracza): tabela Metin2
   function diffMult(d) {
-    if (d >= 15) return 1.3; if (d >= 0) return 1 + 0.02 * d;
+    if (d >= 15) return 1.3; if (d >= 10) return 1.2; if (d >= 5) return 1.1; if (d >= 1) return 1.02; if (d >= 0) return 1;
     const t = { '-1': 1, '-2': .98, '-3': .96, '-4': .94, '-5': .92, '-6': .9, '-7': .85, '-8': .8, '-9': .7, '-10': .5, '-11': .3, '-12': .2, '-13': .1, '-14': .05 };
     return d <= -15 ? 0.01 : t[d];
   }
@@ -40,12 +40,9 @@
   const weaponKind = () => { const s = Inventory.state; return (s && s.cls && CLASSES[s.cls].w) || 'sword'; };
   const stb = () => statBonus(window.Inventory && Inventory.state ? Inventory.state.stats : null);
   const statAtk = useMag => { const w = weaponKind(), b = stb(); return w === 'sword' ? b.sword : w === 'bow' ? b.bow : (useMag ? b.mag : 0); };   // Magia dodaje się do ataku magicznego (umiejętności Różdżki)
-  const clsMul = k => { const s = window.Inventory && Inventory.state, c = s && CLASSES[s.cls]; return c ? c[k] : 1; };
-  const playerDmg = useMag => (12 + P.lvl * 3 + equipAtk(useMag) + statAtk(useMag)) * clsMul('dmg');
-  const totalDef = () => { const s = window.Inventory && Inventory.state; let d = stb().def; if (s) for (const u of Object.values(s.equip)) d += itemStats(s.items[u]).def; return d * clsMul('def'); };
+    const playerDmg = useMag => equipAtk(useMag) + statAtk(useMag);   // tylko założona broń + punkty statusu (bez bazy z poziomu i bez mnożników klasy)
+  const totalDef = () => { const s = window.Inventory && Inventory.state; let d = stb().def; if (s) for (const u of Object.values(s.equip)) d += itemStats(s.items[u]).def; return d; };
   // moc wzorcowa mapy: podstawa postaci + miecz etapu mapy z ulepszeniem +4 (średni sprzęt)
-  const refDmg = m => 12 + m.lvl * 3 + weaponStats('sword', m.tier, 4).atk;
-  const hpOf = (m, t) => Math.round(refDmg(m) * t / 0.9);
 
   const TEMPO = Math.max(1, parseFloat(new URLSearchParams(location.search).get('tempo')) || 1);   // do testów: ?tempo=60 skraca 30 min do 30 s
   const interval = m => (m.spec ? m.spec.interval : 0) / TEMPO;
@@ -57,26 +54,13 @@
     return undefined;
   }
   function spawn(force) {
-    const m = MAPS[X.map];
-    if (m.spec) {
-      const sp = m.spec, now = Date.now(); let def = null, kind = 'mob';
-      if (force === 'boss') { kind = 'boss'; def = sp.boss; }
-      else if (force === 'target') { kind = 'target'; def = sp.target; }
-      else { const tw = sp.mobs.reduce((a, q) => a + q.w, 0); let q = Math.random() * tw; def = sp.mobs[0]; for (const mb of sp.mobs) { q -= mb.w; if (q <= 0) { def = mb; break; } } }
-      const n = def.group ? Math.floor(rnd(def.group[0], def.group[1] + 1)) : 1, unit = def.hp, max = unit * n;
-      X.enemy = { name: def.n, ic: def.ic, base: def.ic, kind, lvl: def.lvl, hp: max, max, dead: false, unit: n > 1 ? unit : 0, dmg: def.dmg, every: def.every || 3, charge: def.charge, enrage: def.enrage, cls: def.cls, t: 0 };
-      X.wait = 0; SK.dot = null; SK.vuln = null; SK.channel = null; SK.windup = null; SK.stun = 0; SK.charges = 0; syncEnemy(true);
-      if (kind === 'boss') say('☠ BOSS', def.n); else if (kind === 'target') say('🌳 SPACZONY KORZEŃ', 'wyrósł z ziemi'); else if (n > 1) say(def.ic.repeat(n), def.n + ' ×' + n);
-      return;
-    }
-    let kind = 'mob', def;
-    if (force === 'boss') { kind = 'boss'; def = [m.boss[0], m.boss[1], 0, 6, 40]; }
-    else if (force === 'target') { kind = 'target'; def = [m.target[0], m.target[1], 0, 4, 20]; }
-    else { const tw = m.mobs.reduce((a, q) => a + q[2], 0); let q = Math.random() * tw; def = m.mobs[0]; for (const mb of m.mobs) { q -= mb[2]; if (q <= 0) { def = mb; break; } } }
-    const hp = hpOf(m, def[4]);
-    X.enemy = { name: def[0], ic: def[1], kind, lvl: m.lvl + def[3], hp, max: hp, dead: false };
+    const m = MAPS[X.map], sp = m.spec; let def, kind = 'mob';
+    if (force === 'boss') { kind = 'boss'; def = sp.boss; }
+    else if (force === 'target') { kind = 'target'; def = sp.target; }
+    else { def = sp.mobs[pick(selMobs())]; }
+    X.enemy = { name: def.n, ic: def.ic, base: def.ic, kind, lvl: def.lvl, hp: def.hp, max: def.hp, dead: false, lo: def.lo, hi: def.hi, xp: def.xp, g: def.g, gc: def.gc, enrage: def.enrage, cls: def.cls, t: 0 };
     X.wait = 0; SK.dot = null; SK.vuln = null; SK.channel = null; SK.windup = null; SK.stun = 0; SK.charges = 0; syncEnemy(true);
-    if (kind === 'boss') say('☠ BOSS', def[0]); else if (kind === 'target') say('🎯 CEL SPECJALNY', def[0]);
+    if (kind === 'boss') say('☠ BOSS', def.n); else if (kind === 'target') say('🌳 SPACZONY KORZEŃ', 'wyrósł z ziemi');
   }
 
   // ---- umiejętności w walce ----
@@ -93,7 +77,7 @@
   const atkBuff = () => (buffOn('sw1') ? 1 + SKILLS.find(s => s.id === 'sw1').p(rankOf('sw1')).atk : 1);
   function dealDamage(mult, skill) {
     const e = X.enemy; if (!e || e.dead) return 0;
-    let dmg = playerDmg(!!skill) * mult * rnd(0.9, 1.1); const crit = Math.random() < 0.18; if (crit) dmg *= 1.8;
+    let dmg = playerDmg(!!skill) * mult; const crit = false;   // brak bazowego krytyka: bonusy dopiero z ekwipunku
     if (SK.vuln && SK.vuln.until > Date.now()) dmg *= 1 + SK.vuln.v;
     dmg = Math.max(1, Math.round(dmg)); e.hp = Math.max(0, e.hp - dmg);
     fxHit(dmg, crit, skill);
@@ -168,17 +152,13 @@
       }
     }
     if (e.dead) { sync(); return; }
-    // przeciwnik oddaje we własnym rytmie (nie, gdy ogłuszony)
-    e.t = (e.t || 0) + 1;
-    if (e.enrage && !e.enraged && e.hp / e.max < e.enrage.at) { e.enraged = true; e.every = e.enrage.every; say('💢 SZAŁ', e.name + ' atakuje szybciej'); }
-    const every = e.every || 3;
-    if (e.t % every === 0) {
+    // przeciwnik zadaje obrażenia co tick (0,9 s): losowane z przedziału „atak na sekundę" × 0,9
+    if (e.enrage && !e.enraged && e.hp / e.max < e.enrage.at) { e.enraged = true; say('💢 SZAŁ', e.name + ' atakuje mocniej'); }
+    {
       if (SK.stun > 0) { SK.stun--; if (visible()) fx('skilltxt', { left: '50%', top: '30%' }, 800, '💫 ogłuszony'); }
       else {
-        const left = e.unit ? Math.ceil(e.hp / e.unit) : 1;
-        let hit = e.dmg !== undefined ? e.dmg * left * rnd(0.85, 1.15) : (3 + e.lvl * 2.4) * (e.kind === 'boss' ? 2.2 : e.kind === 'target' ? 0 : 1) * rnd(0.8, 1.2);
-        if (e.charge && e.dmg !== undefined && (e.t / every) % e.charge === 0) { hit *= 2; if (visible()) fx('skilltxt', { left: '50%', top: '30%' }, 900, e.ic + ' Szarża!'); }
-        { const dd = totalDef(); hit *= 1 - dd / (dd + 40 + 14 * e.lvl); }   // obrona z pancerza i punktów Życia (malejące przyrosty)
+        let hit = rnd(e.lo, e.hi) * 0.9 * (e.enraged ? e.enrage.mult : 1);
+        { const dd = totalDef(); hit *= 1 - dd / (dd + 40 + 14 * e.lvl); }   // obrona wyłącznie z pancerza i punktów Życia (malejące przyrosty)
         if (buffOn('sw1')) hit *= 1.2;
         if (buffOn('sw2')) hit *= 1 - SKILLS.find(s => s.id === 'sw2').p(rankOf('sw2')).red;
         hit = Math.round(hit);
@@ -196,10 +176,10 @@
 
   function kill(e) {
     X.kills++; if (e.kind === 'boss') X.bosses++; if (e.kind === 'target') X.targets++;
-    const m = MAPS[X.map], mult = diffMult(e.lvl - P.lvl), kmul = e.kind === 'boss' ? 6 : e.kind === 'target' ? 3 : 1;
-    const xp = Math.max(1, Math.round(expFor(e.lvl) / 450 * mult * kmul)), gold = Math.round(e.lvl * 2.2 * kmul);
+    const m = MAPS[X.map], far = P.lvl - e.lvl > REWARD_LVL_GAP;   // za słaby potwór: brak EXP i złota
+    const xp = far ? 0 : Math.max(1, Math.round(e.xp * diffMult(e.lvl - P.lvl))), gold = far || Math.random() >= e.gc ? 0 : Math.floor(rnd(e.g[0], e.g[1] + 1));
     const need = expFor(P.lvl); P.xp += xp / need; P.gold += gold;
-    const cards = [{ t: `+${fmt(xp)} EXP${mult < 0.5 ? ' (za słaby potwór)' : ''}`, c: 'xp' }, { t: `🪙 +${fmt(gold)}`, c: 'gold' }];
+    const cards = far ? [{ t: 'za słaby potwór: brak EXP i złota', c: 'xp' }] : [{ t: `+${fmt(xp)} EXP`, c: 'xp' }]; if (gold) cards.push({ t: `🪙 +${fmt(gold)}`, c: 'gold' });
     let lv = false; while (P.xp >= 1) { P.xp -= 1; P.lvl++; lv = true; }
     if (lv) { P.hp = hpMax(P); P.mp = mpMax(P); say('⭐ AWANS!', 'Poziom ' + P.lvl); Inventory.exec('sync_level', { lvl: P.lvl }); if (window.GameFeed) { GameFeed('⭐ Awans na poziom ' + P.lvl + '!', 'good'); GameFeed('✨ Nowe punkty: 1 umiejętności i 3 statusu. Otwórz Umiejętności.', 'good'); } }
     if (window.GameFeed) { if (e.kind === 'boss') GameFeed('☠ Pokonano bossa: ' + e.name, 'boss'); else if (e.kind === 'target') GameFeed('🎯 Zniszczono cel specjalny: ' + e.name, 'good'); }
@@ -335,6 +315,12 @@
     sb.disabled = pending || !!busyOther; sb.classList.toggle('go', !X.on && !busyOther);
     $('#xstat', root).textContent = `Pokonanych: ${X.kills} · Bossów: ${X.bosses} · Celów specjalnych: ${X.targets}`;
     const rc = $('#xrecent', root); rc.replaceChildren(); X.recent.forEach(r => { const c = el('span', 'xchip', r.ic + ' ' + r.n); c.style.borderColor = r.col; rc.append(c); });
+    { const box = $('#xmobs', root), m = MAPS[X.map], sel = selMobs(), sig = X.map + ':' + sel.join(',');
+      if (box._sig !== sig) { box._sig = sig; box.replaceChildren(); box.append(el('b', '', 'Potwory na mapie (kliknij, aby wyłączyć):'));
+        m.spec.mobs.forEach((mb, i) => { const on = sel.includes(i), c = el('button', 'xmob' + (on ? ' on' : '')); c.title = 'HP ' + mb.hp + ' · atak ' + mb.lo + '–' + mb.hi + '/s · ' + mb.xp + ' EXP';
+          c.append(el('i', '', mb.ic), el('span', '', mb.n + ' (poz. ' + mb.lvl + ')'), el('small', '', mb.xp + ' EXP'));
+          c.onclick = async () => { const next = on ? sel.filter(q => q !== i) : sel.concat(i).sort(); if (!next.length) return; await Inventory.exec('mob_filter', { map: m.id, ids: next }); box._sig = ''; sync(); };
+          box.append(c); }); } }
     const tiles = $('#xmaps', root); tiles.replaceChildren();
     MAPS.forEach((m, i) => { const open = P.lvl >= m.req, b = el('button', 'xmap' + (X.map === i ? ' on' : '') + (open ? '' : ' lock')); b.disabled = !open || X.on || pending; if (X.on && open && X.map !== i) b.title = 'Zatrzymaj wyprawę, aby zmienić mapę'; b.append(el('i', '', open ? m.ic : '🔒'), el('b', '', m.k), el('small', '', open ? (m.range || `poziom potworów ${m.lvl}+`) : `od poziomu ${m.req}`)); b.onclick = () => { if (X.map === i) return; X.map = i; X.enemy = null; X.wait = 0; initSched(); stageEl.dataset.map = i; syncEnemy(false); sync(); }; tiles.append(b); });
   }
@@ -354,6 +340,7 @@
       </div>
       <div class="xp-ctl"><button class="xstart go" id="xstart">▶ ZACZNIJ WYPRAWĘ</button></div>
       <div class="xenc" id="xenc"></div>
+      <div class="xmobs" id="xmobs"></div>
       <div id="xmaps" class="xmaps"></div>
       <div class="xp-foot"><span id="xstat"></span><span id="xtimers" class="xtimers"></span><div id="xrecent" class="xrecent"></div></div>
     </div>`;

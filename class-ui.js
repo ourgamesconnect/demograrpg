@@ -15,7 +15,7 @@
       const card = el('div', 'clcard' + (picked === key ? ' picked' : '')); card.style.setProperty('--cc', c.c); card.style.setProperty('--i', idx);
       card.append(el('div', 'clic', c.ic), el('h2', '', c.n), el('div', 'cltag', c.tag), el('p', 'cldesc', c.desc));
       const stats = el('div', 'clstats');
-      stats.append(bar('Życie', c.hp, 1.6, '#ff5a6e'), bar('Mana', c.mp, 1.6, '#6ab4ff'), bar('Obrażenia', c.dmg, 1.6, '#ffb347'), bar('Obrona', c.def, 1.9, '#9aa0c8'));
+      stats.append(bar('Życie ' + c.hp0, c.hp0, 800, '#ff5a6e'), bar('Mana ' + c.mp0, c.mp0, 320, '#6ab4ff'), bar('Obrażenia', c.dmg, 1.6, '#ffb347'), bar('Obrona', c.def, 1.9, '#9aa0c8'));
       card.append(stats);
       card.append(el('div', 'clweapon', WEAPON_AVAILABLE[c.w] ? '🗡 Broń startowa: ' + START_WEAPON[c.w] : '🗡 Broń startowa: wkrótce'));
       const sk = SKILLS.filter(s => s.w === c.w); const sl = el('div', 'clskills'); sk.forEach(s => sl.append(el('span', '', s.ic + ' ' + s.n))); card.append(sl);

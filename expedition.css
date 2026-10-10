@@ -172,3 +172,9 @@
 .enc.active{border-color:#ff9a3a;background:rgba(255,154,58,.12);box-shadow:0 0 22px rgba(255,154,58,.45)}
 .enc.cool,.enc.off{filter:grayscale(1);opacity:.6;cursor:not-allowed}
 .enc.cool small{color:#cfcfda;font-variant-numeric:tabular-nums}
+
+.xmobs{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 14px}
+.xmobs>b{font-size:12px;color:var(--mut);letter-spacing:.06em;width:100%}
+.xmob{cursor:pointer;display:flex;gap:6px;align-items:center;padding:6px 10px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--mut);opacity:.6}
+.xmob.on{opacity:1;color:var(--ink);border-color:#3ecf8e;background:rgba(62,207,142,.12)}
+.xmob i{font-style:normal;font-size:18px}.xmob small{color:var(--gold)}
