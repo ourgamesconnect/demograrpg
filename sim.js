@@ -30,10 +30,9 @@ const BOARDS = {
 const MATS = { 'Złom': '⚙️', 'Szmaty': '🧵', 'Drewno': '🪵', 'Skóra': '🟤', 'Ruda': '🪨', 'Części': '🔩', 'Zioła': '🌿', 'Mięso': '🍖' };
 
 const Server = (() => {
-  const PLAYER_LVL = 27;
   let uidSeq = 1000, version = 0;
   const done = new Map(); // cid -> odpowiedź (idempotencja: ta sama komenda nie wykona się dwa razy)
-  const S = { slots: Array(INV_SLOTS).fill(null), items: {}, equip: {}, stash: [], mats: { 'Złom': 14, 'Szmaty': 9, 'Skóra': 4 }, gold: 128450, activity: null,
+  const S = { slots: Array(INV_SLOTS).fill(null), items: {}, equip: {}, stash: [], mats: { 'Złom': 14, 'Szmaty': 9, 'Skóra': 4 }, gold: 150, lvl: 1, activity: null,
     boards: { mining: Array(BOARD_CELLS).fill(null), sawmill: Array(BOARD_CELLS).fill(null) }, lastDrop: { mining: 0, sawmill: 0 }, lost: { mining: 0, sawmill: 0 } };
   const rnd = (a, b) => a + Math.random() * (b - a), ri = (a, b) => Math.floor(rnd(a, b + 1));
   const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -67,7 +66,7 @@ const Server = (() => {
     },
     equip({ uid }) {
       const f = find(uid); if (!f || f.w !== 'bag') return { err: 'Przedmiot nie jest w plecaku' };
-      const it = S.items[uid]; if (it.req > PLAYER_LVL) return { err: `Wymagany poziom ${it.req}` };
+      const it = S.items[uid]; if (it.req > S.lvl) return { err: `Wymagany poziom ${it.req}` };
       const opts = slotOfType(it.type); let slot = opts.find(k => !S.equip[k]) || opts[0];
       const old = S.equip[slot]; S.equip[slot] = uid; S.slots[f.i] = old || null;
       return { ev: [{ t: 'equipped', uid, slot, swapped: old || null }] };
@@ -106,6 +105,18 @@ const Server = (() => {
     activity_stop() {
       if (!S.activity) return { ev: [] }; // zatrzymanie jest idempotentne
       const k = S.activity.kind; S.activity = null; return { ev: [{ t: 'activity_stopped', kind: k }] };
+    },
+    // Zestaw startowy nowej postaci (poziom 1): drewniana broń i podstawowy pancerz
+    starter_kit() {
+      if (S.starter) return { err: 'Zestaw startowy już odebrany' }; S.starter = true; const ev = [];
+      const base = n => BASES.find(b => b[0] === n);
+      for (const n of ['miecz', 'hełm', 'kolczuga', 'buty']) { const it = makeItem({ base: base(n), tier: 0, rarity: 0 }); it.req = 1; ev.push({ t: 'item_added', ...putNew(it) }); }
+      return { ev };
+    },
+    // Awans: tymczasowo zgłasza klient (docelowo poziom liczy serwer z EXP za zabicia). Poziom może tylko rosnąć i max o 5 naraz.
+    sync_level({ lvl }) {
+      if (!Number.isInteger(lvl) || lvl < S.lvl || lvl > S.lvl + 5 || lvl > 99) return { err: 'Nieprawidłowy poziom' };
+      if (lvl === S.lvl) return { ev: [] }; S.lvl = lvl; return { ev: [{ t: 'level', lvl }] };
     },
     // Zbieractwo: serwer sam liczy, ile surowców spadło od ostatniego razu (klient nie może przyspieszyć)
     gather_tick() {
@@ -175,7 +186,7 @@ const Server = (() => {
     if (S.activity !== null && !(S.activity && ACTIVITY_NAMES[S.activity.kind])) errs.push('zła aktywność');
     return errs;
   }
-  const snap = () => JSON.parse(JSON.stringify({ version, ...S, lvl: PLAYER_LVL }));
+  const snap = () => JSON.parse(JSON.stringify({ version, ...S }));
   function execSync(cmd) {
     if (cmd.cid && done.has(cmd.cid)) return done.get(cmd.cid);
     const h = H[cmd.type]; let res;

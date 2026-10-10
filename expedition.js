@@ -76,7 +76,8 @@
     const need = expFor(P.lvl); P.xp += xp / need; P.gold += gold;
     const cards = [{ t: `+${fmt(xp)} EXP${mult < 0.5 ? ' (za słaby potwór)' : ''}`, c: 'xp' }, { t: `🪙 +${fmt(gold)}`, c: 'gold' }];
     let lv = false; while (P.xp >= 1) { P.xp -= 1; P.lvl++; lv = true; }
-    if (lv) { P.hp = hpMax(P); P.mp = mpMax(P); say('⭐ AWANS!', 'Poziom ' + P.lvl); }
+    if (lv) { P.hp = hpMax(P); P.mp = mpMax(P); say('⭐ AWANS!', 'Poziom ' + P.lvl); Inventory.exec('sync_level', { lvl: P.lvl }); if (window.GameFeed) GameFeed('⭐ Awans na poziom ' + P.lvl + '!', 'good'); }
+    if (window.GameFeed) { if (e.kind === 'boss') GameFeed('☠ Pokonano bossa: ' + e.name, 'boss'); else if (e.kind === 'target') GameFeed('🎯 Zniszczono cel specjalny: ' + e.name, 'good'); }
     window.Inventory.reward({ tier: m.tier, kind: e.kind }).then(res => {
       if (res && !res.ok) { applyServer(); sync(); return; }
       if (res && res.ok) for (const ev of res.events) {

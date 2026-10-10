@@ -199,9 +199,9 @@
 
   // start: kilka przedmiotów początkowych i założone: broń + zbroja
   (async () => {
-    Server.execSync({ type: 'debug_drop', n: 16, cid: 'seed-1' });
-    const s = Server.snapshot(), w = s.slots.map((u, i) => [u, i]).filter(([u]) => u && s.items[u].type === 'weapon' && s.items[u].req <= s.lvl)[0];
-    if (w) Server.execSync({ type: 'equip', uid: w[0], cid: 'seed-2' });
+    Server.execSync({ type: 'starter_kit', cid: 'seed-1' });
+    const s0 = Server.snapshot();
+    s0.slots.forEach(u => { if (u) { const t = s0.items[u].type; if (['weapon', 'helm', 'armor', 'boots'].includes(t)) Server.execSync({ type: 'equip', uid: u, cid: 'seed-eq-' + u }); } });
     ST = Server.snapshot();
   })();
 

@@ -7,7 +7,7 @@ const fmtHMS = sec => { sec = Math.max(0, Math.floor(sec)); return [Math.floor(s
 
 // ---- stan przykładowy (docelowo z serwera) ----
 const P = {
-  name: 'Gracz', guild: 'Strażnicy Zmierzchu', server: 'Serwer Wschód', lvl: 27, xp: 0.62, vit: 20, int: 12, pts: 3, atk: 842, def: 615, gold: 128450, glory: 3120,
+  name: 'Gracz', guild: 'Strażnicy Zmierzchu', server: 'Serwer Wschód', lvl: 1, xp: 0, vit: 5, int: 5, pts: 0, atk: 0, def: 0, gold: 150, glory: 0,
   bag: 38, bagMax: 60, weapon: '🗡️', style: 'Miecz · cięcia', armor: 'Pancerz średni', set: 'Zestaw 3/6',
   sessions: { exp: { on: false, map: 'Wrogie mosty' }, gather: { on: true, loc: 'Jezioro', left: 9420 }, craft: { on: false } },
 };
@@ -121,6 +121,7 @@ let toastT = null;
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2600); }
 const FEED = [];
 function feed(text, cls = '') { FEED.unshift({ t: Date.now(), text, cls }); if (FEED.length > 6) FEED.pop(); drawFeed(); }
+window.GameFeed = feed;
 function drawFeed() {
   const box = $('#feed'); box.replaceChildren();
   for (const f of FEED) { const r = document.createElement('div'); r.className = 'frow ' + f.cls; const s = document.createElement('small'); s.textContent = new Date(f.t).toLocaleTimeString('pl-PL'); const sp = document.createElement('span'); sp.textContent = f.text; r.append(s, sp); box.append(r); }
@@ -149,13 +150,7 @@ function render() {
 // ---- start ----
 function init() {
   buildStars(); buildClouds(); buildSkyline(); embers(); buildTiles();
-  feed('Witaj w Dowództwie! Ten panel to prototyp wizualny.', 'good');
-  feed('📦 Zbieractwo: Jezioro (sesja trwa)', '');
-  feed('☠ Boss Herszt Bandytów pokonany (dane przykładowe)', 'boss');
-  feed('🎁 Drop: Hartowany Miecz Garnizonu (dobry)', 'loot');
+  feed('Witaj w grze! Zacznij od Wypraw: pierwsza mapa czeka na Ciebie.', 'good');
   render(); setInterval(render, 1000);
-  // przykładowe zdarzenia na żywo (symulacja)
-  const sample = [['🎁 Drop: Stalowa Tarcza Straży (wybitny)', 'loot'], ['🎯 Cel specjalny zniszczony: Obóz bandytów (+35 🏅)', 'good'], ['⛏️ Zebrano: Szmaty ×12', ''], ['⚔️ Poziom +1! Awans na ' + (P.lvl + 1), 'good']];
-  let k = 0; setInterval(() => { const [t, c] = sample[k++ % sample.length]; feed(t, c); P.gold += Math.round(rnd(60, 400)); P.xp = Math.min(0.97, P.xp + rnd(0.004, 0.02)); }, 6000);
 }
 fetch('dane/krzywa_exp_v2.json').then(r => r.json()).then(j => { EXPTAB = j.poziomy; }).catch(() => {}).finally(init);
