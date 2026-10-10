@@ -87,7 +87,7 @@
   }
   // Cel (skała lub kłoda) ma pasek HP = czas do następnego dropu. Uderzenia i pęknięcie napędza postęp liczony z czasu serwera,
   // więc umiejętności skracające czas dropu będą szybciej "rozbijać" cel bez zmian w animacji.
-  const STRIKE_EVERY_MS = Math.max(700, Math.min(6000, Server.BOARD_EVERY_MS / 8));   // uderzenie co ~6 s przy cyklu 5 min
+  const STRIKE_EVERY_MS = 2000;   // uderzenie ZAWSZE co 2 s; zmienia się tylko czas całego cyklu (5 min, w przyszłości skracany umiejętnościami)
   let lastSeen = 0, strikeIdx = 0, pLast = 0;
   const fmtLeft = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return s >= 60 ? Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') : s + ' s'; };
   function targetLoop() {
@@ -96,7 +96,7 @@
     const last = s.lastDrop[tab] || 0, now = Date.now(), el2 = on && last ? Math.max(0, now - last) : 0;
     const p = Math.min(1, el2 / every), hp = Math.max(0, Math.ceil(100 * (1 - p))), nm = tab === 'mining' ? 'Skała' : 'Kłoda';
     $('#gtname', root).textContent = nm; $('#gthp', root).style.width = (100 * (1 - p)).toFixed(1) + '%';
-    $('#gttxt', root).textContent = on ? hp + ' / 100 HP · pęka za ' + fmtLeft(every - el2) : 'Rozpocznij, aby zacząć ' + (tab === 'mining' ? 'kopać' : 'ciąć');
+    $('#gttxt', root).textContent = on ? (tab === 'mining' ? 'Skała pęknie za ' : 'Kłoda zostanie przecięta za ') + fmtLeft(every - el2) : 'Rozpocznij, aby zacząć ' + (tab === 'mining' ? 'kopać' : 'ciąć');
     sc.classList.toggle('c1', on && p > 0.33); sc.classList.toggle('c2', on && p > 0.66);
     if (!on) { strikeIdx = 0; pLast = 0; lastSeen = last; return; }
     if (last !== lastSeen) { lastSeen = last; strikeIdx = 0; breakTarget(); }   // nowy drop = cel pękł
@@ -105,9 +105,9 @@
     pLast = p;
   }
   function strike(k) {
-    const tool = $(tab === 'mining' ? '#gpick' : '#gblade', root), tgt = $(tab === 'mining' ? '#grock' : '#glog', root), dmg = Math.max(1, Math.round(100 * STRIKE_EVERY_MS / Server.BOARD_EVERY_MS));
+    const tool = $(tab === 'mining' ? '#gpick' : '#gblade', root), tgt = $(tab === 'mining' ? '#grock' : '#glog', root), dmg = (100 * STRIKE_EVERY_MS / Server.BOARD_EVERY_MS).toFixed(1).replace('.', ',').replace(/,0$/, '');
     tool.classList.remove('strike'); void tool.offsetWidth; tool.classList.add('strike');
-    setTimeout(() => { tgt.classList.remove('hit'); void tgt.offsetWidth; tgt.classList.add('hit'); num('−' + dmg, false); burst(); }, 170);
+    setTimeout(() => { tgt.classList.remove('hit'); void tgt.offsetWidth; tgt.classList.add('hit'); burst(); }, 170);
   }
   function breakTarget() {
     const sc = $('#gscene', root); sc.classList.remove('break'); void sc.offsetWidth; sc.classList.add('break');
