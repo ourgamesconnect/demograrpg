@@ -36,8 +36,8 @@
     for (let i = 0; i < BOARD_CELLS; i++) {
       const cell = el('div', 'gcell'); cell.dataset.i = i; cell.draggable = true;
       cell.onclick = () => { const c = S().boards[tab][i]; sel = c ? (sel === i ? null : i) : null; draw(); };
-      cell.ondragstart = e => { const c = S().boards[tab][i]; if (!c) { e.preventDefault(); return; } drag = i; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(i)); cell.classList.add('dragging'); };
-      cell.ondragend = () => { drag = null; cellEls.forEach(x => x.classList.remove('over', 'dragging')); };
+      cell.ondragstart = e => { const c = S().boards[tab][i]; if (!c) { e.preventDefault(); return; } drag = i; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(i)); cell.classList.add('dragging'); applyHints(); };
+      cell.ondragend = () => { drag = null; cellEls.forEach(x => x.classList.remove('over', 'dragging')); applyHints(); };
       cell.ondragover = e => { if (drag !== null) { e.preventDefault(); cell.classList.add('over'); } };
       cell.ondragleave = () => cell.classList.remove('over');
       cell.ondrop = async e => {
@@ -47,6 +47,18 @@
       };
       cellEls.push(cell); grid.append(cell);
     }
+  }
+  // Podpowiedź: na polach z takim samym surowcem (tego samego rodzaju i poziomu co wybrany lub przeciągany) widać szansę scalenia.
+  function applyHints() {
+    if (!S() || !cellEls.length) return;
+    const B = S().boards[tab], si = drag !== null ? drag : sel, src = si !== null ? B[si] : null;
+    cellEls.forEach((cell, i) => {
+      const c = B[i];
+      if (src && i !== si && c && c.t === src.t && c.l === src.l && c.l < BOARD_MAXLVL) cell.dataset.hint = Math.round(Server.MERGE_P[c.l + 1] * 100);
+      else delete cell.dataset.hint;
+    });
+    const want = src && src.l < BOARD_MAXLVL ? src.l + 1 : 0;
+    root.querySelectorAll('#gchances .gch').forEach(c => c.classList.toggle('on', +c.dataset.l === want));
   }
   function draw() {
     if (!root || root.hidden || !S()) return;
@@ -62,6 +74,7 @@
       if (c) { cell.dataset.l = c.l; const ic = el('span', 'gi', iconOf(tab, c.t)); ic.style.fontSize = (22 + c.l * 3) + 'px'; cell.append(ic, el('em', 'gl', ROMAN[c.l])); cell.title = c.t + ' ' + ROMAN[c.l]; }
       else { delete cell.dataset.l; cell.removeAttribute('title'); }
     });
+    applyHints();
     // panel wybranego surowca (budowany tylko przy zmianie, żeby klik w ZABIERZ nie ginął)
     const it = sel !== null ? B[sel] : null, dsig = (it ? it.t + '|' + it.l + '|' + sel : '-') + '|' + pending + '|' + tab;
     // poziom zbierania, czas cyklu i jawne szanse dropu (przebudowa tylko przy zmianie poziomu lub zakładki)
@@ -152,12 +165,14 @@
       <div class="g-board">
         <div class="g-bhead"><b>Plansza surowców</b><span id="gfree"></span><span id="glost" class="lostc"></span></div>
         <div class="ggrid" id="ggrid"></div>
+        <div class="g-chances" id="gchances"><span class="gch-t">Szansa scalenia:</span></div>
         <div class="gdet" id="gdet"></div>
         <div class="g-msg" id="gmsg"></div>
         <div class="g-dev"><small>TEST:</small><button class="gdev" id="gfill">🎁 +5 surowców</button><button class="gdev" id="glv1">📖 +1 poziom</button><button class="gdev" id="glv10">📖 +10 poziomów</button><button class="gdev" id="glvr">↺ poziom 1</button></div>
       </div>
     </div>`;
     document.body.append(root);
+    { const gc = $('#gchances', root); for (let l = 2; l <= BOARD_MAXLVL; l++) { const c = el('span', 'gch', ROMAN[l] + ' · ' + Math.round(Server.MERGE_P[l] * 100) + '%'); c.dataset.l = l; c.title = ROMAN[l - 1] + ' + ' + ROMAN[l - 1] + ' → ' + ROMAN[l] + ': ' + Math.round(Server.MERGE_P[l] * 100) + '% szansy'; gc.append(c); } }
     $('#gclose', root).onclick = close; root.onclick = e => { if (e.target === root) close(); };
     addEventListener('keydown', e => { if (e.key === 'Escape' && !root.hidden) close(); });
     root.querySelectorAll('.gtab').forEach(b => b.onclick = () => { tab = b.dataset.t; sel = null; cellEls.forEach(x => delete x.dataset.sig); detSig = ''; draw(); });
