@@ -205,5 +205,5 @@
   // postać startuje bez klasy i bez przedmiotów: zestaw startowy nadaje serwer po wyborze klasy
   ST = Server.snapshot();
 
-  window.Inventory = { open: openInv, close, exec: (t, p) => cmd(t, p || {}), reward: (p) => cmd('kill_reward', p, { silent: true }), drop: n => cmd('debug_drop', { n }), get state() { return ST; } };
+  window.Inventory = { tip: { show: showTip, move: moveTip, hide: hideTip }, open: openInv, close, exec: (t, p) => cmd(t, p || {}), reward: (p) => cmd('kill_reward', p, { silent: true }), drop: n => cmd('debug_drop', { n }), get state() { return ST; } };
 })();

@@ -361,19 +361,19 @@
     box.replaceChildren();
     const total = keys.reduce((a, k) => a + L[k].qty, 0), worth = keys.reduce((a, k) => a + L[k].qty * L[k].it.value, 0);
     const h = el('div', 'xbaghead'); h.append(el('b', '', '🎁 ŁUP Z WYPRAWY'), el('span', '', total + ' przedmiotów · warte ' + fmt(worth) + ' 🪙')); box.append(h);
-    box.append(el('p', 'xbagnote', 'Odbierz łup do plecaka albo sprzedaj go od razu. Dopóki nie zabierzesz łupu, nie wyruszysz na kolejną wyprawę.'));
+    box.append(el('p', 'xbagnote', 'Najedź na przedmiot, aby zobaczyć statystyki. Odbierz łup do plecaka albo sprzedaj go; dopóki tego nie zrobisz, nie wyruszysz na kolejną wyprawę.'));
     const row = el('div', 'xbagrow');
     keys.forEach(k => {
       const e = L[k], it = e.it, c = el('div', 'xbagcard' + (bagPrev[k] !== undefined && e.qty > bagPrev[k] ? ' pop' : bagPrev[k] === undefined ? ' newc' : ''));
       c.append(el('i', 'xbagic', it.ic), el('b', '', it.name + (it.plus ? ' +' + it.plus : ' +0')), el('span', 'xbagq', '×' + e.qty));
       const bt = el('div', 'xbagbt'); const a = el('button', 'xclaim', '🎒 Do EQ'), sl = el('button', 'xsell', '💰 +' + fmt(e.qty * it.value));
       a.onclick = () => bagAct('loot_claim', { key: k }, c); sl.onclick = () => bagAct('loot_sell', { key: k }, c); bt.append(a, sl); c.append(bt); row.append(c);
+      c.onmouseenter = ev => { const m = { ...it, uid: 'loot' }; Inventory.tip.show(m, ev, false); }; c.onmousemove = ev => Inventory.tip.move(ev); c.onmouseleave = () => Inventory.tip.hide();
       bagPrev[k] = e.qty;
     });
     for (const k of Object.keys(bagPrev)) if (!L[k]) delete bagPrev[k];
     box.append(row);
-    const all = el('div', 'xbagall'), ca = el('button', 'xclaimall', '🎒 ODBIERZ WSZYSTKO'), sa = el('button', 'xsellall', '💰 SPRZEDAJ WSZYSTKO (+' + fmt(worth) + ')');
-    ca.onclick = () => bagAct('loot_claim_all', {}); sa.onclick = () => bagAct('loot_sell_all', {}); all.append(ca, sa); box.append(all);
+
   }
   function build() {
     root = el('div', 'xp-ov'); root.hidden = true;
