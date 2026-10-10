@@ -10,9 +10,9 @@ const EQUIP_SLOTS = [
 ];
 const TIERS = [['Drewniany', 'Drewniana', 'Drewniane'], ['Miedziany', 'Miedziana', 'Miedziane'], ['Brązowy', 'Brązowa', 'Brązowe'], ['Żelazny', 'Żelazna', 'Żelazne'], ['Hartowany', 'Hartowana', 'Hartowane'],
   ['Stalowy', 'Stalowa', 'Stalowe'], ['Damasceński', 'Damasceńska', 'Damasceńskie'], ['Mithrilowy', 'Mithrilowa', 'Mithrilowe'], ['Smoczy', 'Smocza', 'Smocze'], ['Legendarny', 'Legendarna', 'Legendarne']];
-const RARITY = [
-  { n: 'Zwykły', c: '#b8bdd0', m: 1.0 }, { n: 'Dobry', c: '#5ee08a', m: 1.04 }, { n: 'Rzadki', c: '#5aa9ff', m: 1.08 },
-  { n: 'Wybitny', c: '#c58bff', m: 1.13 }, { n: 'Legendarny', c: '#ffb347', m: 1.20 },   // tymczasowo: rzadkość lekko podbija statystyki (docelowo: liczba bonusów)
+const RARITY = [   // rzadkość = liczba bonów (0–5)
+  { n: 'Zwykły', c: '#b8bdd0', m: 1 }, { n: 'Rzadki', c: '#5aa9ff', m: 1 }, { n: 'Wybitny', c: '#c58bff', m: 1 },
+  { n: 'Epicki', c: '#ffb347', m: 1 }, { n: 'Legendarny', c: '#ff5a6e', m: 1 }, { n: 'Mityczny', c: '#ffe066', m: 1 },
 ];
 // [nazwa, ikona, rodzaj gramatyczny 0=m 1=f 2=n/lm, typ slotu]
 const BASES = [
@@ -62,7 +62,7 @@ const Server = (() => {
     let b = opt.base || pick(BASES);
     if (b[3] === 'weapon') { const kk = b[0] === 'miecz' ? 'sword' : b[0] === 'łuk' ? 'bow' : 'wand'; if (!WEAPON_AVAILABLE[kk]) b = BASES.find(q => q[0] === 'miecz'); }   // na razie istnieje tylko miecz
     if (!opt.base && b[3] === 'weapon' && S.cls) { const wn = { sword: 'miecz', bow: 'łuk', wand: 'różdżka' }[CLASSES[S.cls].w]; b = BASES.find(q => q[0] === wn); }   // drop broni tylko dla klasy gracza
-    const r = opt.rarity !== undefined ? opt.rarity : (() => { const x = Math.random() * 100; return x < 58 ? 0 : x < 82 ? 1 : x < 94 ? 2 : x < 99 ? 3 : 4; })();
+    const r = opt.rarity !== undefined ? Math.max(0, Math.min(5, opt.rarity | 0)) : (() => { let x = Math.random() * BONUS_COUNT_W.reduce((a, q) => a + q, 0); for (let i = 0; i < 6; i++) { x -= BONUS_COUNT_W[i]; if (x <= 0) return i; } return 0; })();   // liczba bonów
     const tierRaw = Math.max(0, Math.min(9, opt.tier !== undefined ? opt.tier : Math.floor(Math.random() * Math.random() * 10)));
     const isWeapon = b[3] === 'weapon', kind = b[0] === 'miecz' ? 'sword' : b[0] === 'łuk' ? 'bow' : b[0] === 'różdżka' ? 'wand' : null;
     const isArmor = !!ARMOR_TABLE[b[3]];
@@ -74,8 +74,12 @@ const Server = (() => {
     const st = isWeapon ? weaponStats(kind, tier, 0) : { atk: 0, mag: 0 };
     const it = { uid: 'i' + (uidSeq++), name: isWeapon ? WEAPON_NAMES[kind][tier] : isArmor ? ARMOR_NAMES[b[3]][tier] : TIERS[tier][b[2]] + ' ' + b[0], ic: b[1], type: b[3], kind, tier, rarity: r, rm, plus: 0,
       atk: Math.round(st.atk * rm), mag: Math.round(st.mag * rm), def: isWeapon ? 0 : isArmor ? Math.round(ARMOR_TABLE[b[3]][tier][0] * rm) : Math.max(1, Math.round(sw * slotW * rm)), req: lvl };
+    // bony: r różnych, pasujących do typu przedmiotu
+    { const pool = Object.keys(BONUSES).filter(id => bonusFits(id, it.type)), bon = [];
+      while (bon.length < r && pool.length) { const id = pool.splice(Math.floor(Math.random() * pool.length), 1)[0]; bon.push({ id, v: rollBonusValue(id) }); }
+      it.bonus = bon; it.rarity = bon.length; }
     const power = it.atk + Math.round(it.mag * 0.5) + it.def;
-    it.value = Math.max(2, Math.round(power * 3.2));
+    it.value = Math.max(2, Math.round(power * 3.2 * (1 + 0.5 * it.rarity)));
     return it;
   }
   const freeSlot = () => S.slots.indexOf(null);
@@ -334,9 +338,9 @@ const Server = (() => {
         const pc = dr.mob[Math.max(1, Math.min(5, Math.floor(+lvl) || 1))] || 0;
         for (const part of dr.parts) {
           if (Math.random() >= pc) continue;
-          const it = makeItem({ base: BASES.find(q => q[0] === nameOf[part]), tier: 0, rarity: 0 }); it.plus = Math.random() < dr.plus1 ? 1 : 0;
-          const st = itemStats(it); it.value = Math.max(2, Math.round((st.atk + st.mag * 0.5 + st.def) * 3.2));
-          const key = it.name + '|' + it.plus, tpl = { ...it }; delete tpl.uid;
+          const it = makeItem({ base: BASES.find(q => q[0] === nameOf[part]), tier: 0 }); it.plus = Math.random() < dr.plus1 ? 1 : 0;
+          const st = itemStats(it); it.value = Math.max(2, Math.round((st.atk + st.mag * 0.5 + st.def) * 3.2 * (1 + 0.5 * it.rarity)));
+          const key = it.name + '|' + it.plus + '|' + (it.bonus || []).map(b => b.id + b.v).sort().join(','), tpl = { ...it }; delete tpl.uid;
           const e = S.loot[key] || (S.loot[key] = { key, it: tpl, qty: 0 }); e.qty++;
           ev.push({ t: 'loot_added', key, name: it.name, ic: it.ic, plus: it.plus, qty: e.qty });
         }
@@ -346,9 +350,15 @@ const Server = (() => {
       return { ev };
     },
     // test: serwer losuje łup (w prawdziwej grze to wynik walki liczony po stronie serwera)
+    // test: po jednym przedmiocie z 0,1,2,3,4,5 bonami (do sprawdzenia działania i wyglądu)
+    debug_bonus() {
+      const ev = [], nm = ['hełm', 'zbroja', 'buty', 'tarcza'];
+      for (let k = 0; k <= 5; k++) { const wn = S.cls ? { sword: 'miecz', bow: 'łuk', wand: 'różdżka' }[CLASSES[S.cls].w] : 'miecz'; const base = BASES.find(q => q[0] === ([wn, wn, 'zbroja', wn, 'zbroja', 'hełm'][k])); ev.push({ t: 'item_added', ...putNew(makeItem({ base, tier: 0, rarity: k })) }); }
+      return { ev };
+    },
     debug_drop({ n = 1, boss = false }) {
       const ev = [];
-      for (let k = 0; k < n; k++) { const it = makeItem(boss ? { rarity: ri(2, 4), tier: ri(2, 4) } : {}); ev.push({ t: 'item_added', ...putNew(it) }); }
+      for (let k = 0; k < n; k++) { const it = makeItem(boss ? { rarity: ri(0, 5) } : {}); ev.push({ t: 'item_added', ...putNew(it) }); }
       const m = pick(Object.keys(MATS)), q = ri(1, boss ? 9 : 4); S.mats[m] = (S.mats[m] || 0) + q; ev.push({ t: 'mat_added', mat: m, qty: q });
       return { ev };
     },
@@ -363,6 +373,7 @@ const Server = (() => {
     for (const [k, u] of Object.entries(S.equip)) { const it = S.items[u]; if (it && !slotOfType(it.type).includes(k)) errs.push(`zły slot ${k} dla ${it.type}`); }
     if (!Number.isInteger(S.gold) || S.gold < 0) errs.push('złoto');
     if (S.cls !== null && !CLASSES[S.cls]) errs.push('zła klasa');
+    for (const [u, it] of Object.entries(S.items)) { const b = it.bonus || []; if (b.length !== it.rarity) errs.push('bony ' + u); for (const q of b) if (!BONUSES[q.id] || !bonusFits(q.id, it.type)) errs.push('zły bon ' + u); if (new Set(b.map(q => q.id)).size !== b.length) errs.push('duplikat bonu ' + u); }
     for (const [k, v] of Object.entries(S.potions)) if (!POTIONS[k] || !Number.isInteger(v) || v < 1 || v > POTION_MAX) errs.push('mikstura ' + k);
     for (const [k, e] of Object.entries(S.loot)) if (!e || !Number.isInteger(e.qty) || e.qty < 1 || !e.it) errs.push('łup ' + k);
     { let st = 0; for (const q of STATS) { const v = S.stats[q.k]; if (!Number.isInteger(v) || v < 0) errs.push('cecha ' + q.k); st += v; } if (st > STAT_PER_LEVEL * (S.lvl - 1)) errs.push('więcej punktów statusu niż przyznano'); }

@@ -52,6 +52,8 @@
     tip.replaceChildren();
     const h = el('b', '', it.name + (it.plus ? ` +${it.plus}` : '')); h.style.color = r.c; tip.append(h, el('div', 'tt-r', r.n + ' · ' + ({ weapon: 'broń', helm: 'hełm', armor: 'zbroja', boots: 'buty', shield: 'tarcza', ring: 'pierścień', earrings: 'kolczyki', bracelet: 'bransoleta', necklace: 'naszyjnik' }[it.type] || it.type)));
     tip.append(el('div', 'tt-s', statLine(it) || '—'));
+    if (it.bonus && it.bonus.length) { const bl = el('div', 'tt-b'); it.bonus.forEach(b => { const q = BONUSES[b.id], l = el('div', 'bonline' + (b.v < 0 ? ' neg' : '')); l.textContent = q.ic + ' ' + q.n + ' ' + fmtBonus(b.id, b.v) + (q.pvp ? ' (PvP)' : ''); bl.append(l); }); tip.append(bl); }
+    else tip.append(el('div', 'tt-nob', 'Brak bonów'));
     if (cmp) { const qa = itemStats(it), qc = itemStats(cmp), da = (qa.atk + qa.mag) - (qc.atk + qc.mag), dd = qa.def - qc.def; const c = el('div', 'tt-c', `W porównaniu z założonym: ${da ? (da > 0 ? '▲ +' : '▼ ') + da + ' atak  ' : ''}${dd ? (dd > 0 ? '▲ +' : '▼ ') + dd + ' obrona' : ''}` || '—'); c.classList.add(da > 0 || dd > 0 ? 'up' : 'down'); tip.append(c); }
     tip.append(el('div', it.req > ST.lvl ? 'tt-req bad' : 'tt-req', `Wymagany poziom: ${it.req}`), el('div', 'tt-v', `Wartość: ${fmt(it.value)} 🪙`));
     tip.classList.add('on'); moveTip(e);
@@ -113,6 +115,13 @@
     const kit = el('div', 'kit'); kit.append(el('span', '', `Wyposażenie ${eqN}/${EQUIP_SLOTS.length}`)); const kb = el('div', 'kitbar'); const ki = el('i'); ki.style.width = (100 * eqN / EQUIP_SLOTS.length) + '%'; kb.append(ki); kit.append(kb);
     const row = el('div', 'srow2'); row.append(el('div', '', '⚔ Atak'), el('b', '', fmt(t.atk)), el('div', '', '🛡 Obrona'), el('b', '', fmt(t.def)));
     st.append(kit, row, el('div', 'muted', 'Poziom postaci: ' + ST.lvl)); left.append(st);
+    {   // bony z założonego ekwipunku (działają naprawdę: atak, obrona, krytyk, szybkość, życie, mana, bossy)
+      const bt = bonusTotals(ST.items, ST.equip), box = el('div', 'inv-bonus'); box.append(el('h4', '', '✨ BONY Z EKWIPUNKU'));
+      const act = Object.keys(BONUSES).filter(k => bt[k] !== 0);
+      if (!act.length) box.append(el('div', 'bonempty', 'Brak bonów. Zwykłe przedmioty ich nie mają — rzadsze mają od 1 do 5.'));
+      act.forEach(k => { const q = BONUSES[k], l = el('div', 'bonrow' + (bt[k] < 0 ? ' neg' : '')); l.title = q.hint || ''; l.append(el('span', '', q.ic + ' ' + q.n + (q.pvp ? ' · PvP' : '')), el('b', '', fmtBonus(k, bt[k]))); box.append(l); });
+      left.append(box);
+    }
     // prawa kolumna: zakładki
     const right = el('div', 'inv-right'), tabs = el('div', 'inv-tabs');
     const used = ST.slots.filter(Boolean).length;
@@ -185,7 +194,7 @@
       <div class="inv-head"><b>🎒 EKWIPUNEK</b><span class="inv-gold">🪙 <b id="inv-gold">0</b></span><span id="inv-sync" class="sync" title="Zsynchronizowano"></span><button class="x" id="inv-x" aria-label="Zamknij">✕</button></div>
       <div class="inv-body"></div>
       <div class="inv-dev"><small>TEST:</small>
-        <button class="btn" data-d="1">🎁 Drop ×1</button><button class="btn" data-d="5">🎁 Drop ×5</button><button class="btn" data-d="boss">☠ Drop z bossa</button><button class="btn" data-d="fill">📦 Zapełnij plecak (test skrytki)</button><button class="btn" data-d="stress">🧪 Test spójności (600 operacji)</button>
+        <button class="btn" data-d="1">🎁 Drop ×1</button><button class="btn" data-d="5">🎁 Drop ×5</button><button class="btn" data-d="bon">🎲 Test bonów (po 1 z 0–5 bonami)</button><button class="btn" data-d="fill">📦 Zapełnij plecak (test skrytki)</button><button class="btn" data-d="stress">🧪 Test spójności (600 operacji)</button>
         <span id="inv-report" class="report"></span></div>
     </div>`;
     document.body.append(root);
@@ -195,7 +204,7 @@
       const d = b.dataset.d;
       if (d === 'stress') { Server.execSync({ type: 'activity_stop', cid: 'st-' + Date.now() }); const r = stress(); Server.execSync({ type: 'activity_stop', cid: 'st2-' + Date.now() }); ST = Server.snapshot(); selUid = null; draw(); const rep = $('#inv-report', root); rep.className = 'report ' + (r.bad.length ? 'bad' : 'good'); rep.textContent = r.bad.length ? '✖ BŁĘDY: ' + r.bad.slice(0, 3).join('; ') : `✔ Spójność OK · wykonano ${r.ok}, odrzucono ${r.rej}, powtórzeń ${r.dup} · przedmiotów ${r.items} (plecak ${r.bag}, skrytka ${r.stash})`; return; }
       if (d === 'fill') return cmd('debug_drop', { n: 60 });
-      if (d === 'boss') return cmd('debug_drop', { n: 3, boss: true });
+      if (d === 'bon') return cmd('debug_bonus', {});
       cmd('debug_drop', { n: +d });
     });
   }

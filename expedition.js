@@ -40,8 +40,9 @@
   const weaponKind = () => { const s = Inventory.state; return (s && s.cls && CLASSES[s.cls].w) || 'sword'; };
   const stb = () => statBonus(window.Inventory && Inventory.state ? Inventory.state.stats : null);
   const statAtk = useMag => { const w = weaponKind(), b = stb(); return w === 'sword' ? b.sword : w === 'bow' ? b.bow : (useMag ? b.mag : 0); };   // Magia dodaje się do ataku magicznego (umiejętności Różdżki)
-    const playerDmg = useMag => equipAtk(useMag) + statAtk(useMag);   // tylko założona broń + punkty statusu (bez bazy z poziomu i bez mnożników klasy)
-  const totalDef = () => { const s = window.Inventory && Inventory.state; let d = stb().def; if (s) for (const u of Object.values(s.equip)) d += itemStats(s.items[u]).def; return d; };
+    const bon = () => { const s = window.Inventory && Inventory.state; return bonusTotals(s && s.items, s && s.equip); };
+  const playerDmg = useMag => equipAtk(useMag) * (1 + bon().dmg / 100) + statAtk(useMag);   // bon „Zwiększone obrażenia” działa na atak broni   // tylko założona broń + punkty statusu (bez bazy z poziomu i bez mnożników klasy)
+  const totalDef = () => { const s = window.Inventory && Inventory.state; let d = stb().def; if (s) for (const u of Object.values(s.equip)) d += itemStats(s.items[u]).def; return d + bon().def; };
   // moc wzorcowa mapy: podstawa postaci + miecz etapu mapy z ulepszeniem +4 (średni sprzęt)
 
   const TEMPO = Math.max(1, parseFloat(new URLSearchParams(location.search).get('tempo')) || 1);   // do testów: ?tempo=60 skraca 30 min do 30 s
@@ -74,14 +75,16 @@
   const cdLeft = s => Math.max(0, ((SK.ready[s.id] || 0) - Date.now()) / 1000);
   const costOf = s => (buffOn('wd1') && s.id !== 'wd1' ? 0 : s.mana);
   const isAuto = s => SK.auto[s.id] !== false;     // domyślnie automatyczne użycie włączone
-  const aspdFactor = () => Math.max(0.4, 1 + (buffOn('bw1') ? SKILLS.find(s => s.id === 'bw1').p(rankOf('bw1')).aspd : 0) + (buffOn('sw2') ? SKILLS.find(s => s.id === 'sw2').p(rankOf('sw2')).aspd : 0));
+  const aspdFactor = () => Math.max(0.4, 1 + bon().aspd / 100 + (buffOn('bw1') ? SKILLS.find(s => s.id === 'bw1').p(rankOf('bw1')).aspd : 0) + (buffOn('sw2') ? SKILLS.find(s => s.id === 'sw2').p(rankOf('sw2')).aspd : 0));
   const atkBuff = () => (buffOn('sw1') ? 1 + SKILLS.find(s => s.id === 'sw1').p(rankOf('sw1')).atk : 1);
   function dealDamage(mult, skill) {
     const e = X.enemy; if (!e || e.dead) return 0;
     if (e.lvl - P.lvl >= 4 && Math.random() < 0.3) { if (visible()) fx('skilltxt', { left: '50%', top: '38%' }, 700, '✖ PUDŁO'); return 0; }   // kara za różnicę poziomów
-    let dmg = playerDmg(!!skill) * mult - (e.def || 0);   // obrona potwora odejmowana od ataku (jak w Metin2)
+    const B = bon();
+    let dmg = playerDmg(!!skill) * mult * (e.kind === 'boss' ? 1 + B.boss / 100 : 1) - (e.def || 0);   // obrona potwora odejmowana od ataku (jak w Metin2)
     if (dmg < 3) dmg = Math.floor(rnd(1, 6));   // Metin2: poniżej 3 obrażeń → losowo 1–5
-    const crit = false;   // brak bazowego krytyka: bonusy dopiero z ekwipunku
+    const crit = Math.random() * 100 < B.crit;   // szansa na krytyka wyłącznie z bonów ekwipunku (bazowo 0)
+    if (crit) dmg *= 2;
     if (SK.vuln && SK.vuln.until > Date.now()) dmg *= 1 + SK.vuln.v;
     dmg = Math.max(1, Math.round(dmg)); e.hp = Math.max(0, e.hp - dmg);
     fxHit(dmg, crit, skill);
@@ -205,6 +208,7 @@
       else {
         let hit = 0; for (let q = 0; q < (e.pack || 1); q++) hit += rnd(e.lo, e.hi) * 0.9 * (e.enraged ? e.enrage.mult : 1);   // każdy żywy z bandy atakuje w każdym ticku
         { const dd = totalDef(); hit *= 1 - dd / (dd + 40 + 14 * e.lvl); }   // obrona wyłącznie z pancerza i punktów Życia (malejące przyrosty)
+        if (e.kind === 'boss') hit *= 1 - bon().res_boss / 100;   // bon „Odporny na bossy”
         if (buffOn('sw1')) hit *= 1.2;
         if (buffOn('sw2')) hit *= 1 - SKILLS.find(s => s.id === 'sw2').p(rankOf('sw2')).red;
         hit = Math.round(hit);

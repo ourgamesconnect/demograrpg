@@ -54,3 +54,51 @@ const POTIONS = {
   mp_m: { n: 'Średnia mikstura many', ic: '💧', kind: 'mp', size: 'M', v: 250, secs: 9, price: 160 },
   mp_l: { n: 'Duża mikstura many', ic: '💧', kind: 'mp', size: 'L', v: 400, secs: 12, price: 320 },
 };
+
+// ===== BONY PRZEDMIOTÓW =====
+// Liczba bonów = rzadkość: 0 Zwykły, 1 Rzadki, 2 Wybitny, 3 Epicki, 4 Legendarny, 5 Mityczny.
+// t = trzy wartości (najmocniejsza najtrudniejsza, wagi BONUS_TIER_W). types = typy przedmiotów, w których bon może się pojawić (brak = każdy).
+const BONUS_TIER_W = [70, 25, 5];
+const BONUSES = {
+  dmg:      { n: 'Zwiększone obrażenia', ic: '⚔️', u: '%', types: ['weapon'], hint: 'o tyle % więcej niż pokazuje atak broni (może być ujemny)' },
+  def:      { n: 'Obrona', ic: '🛡️', u: '', types: ['armor'], t: [10, 25, 50] },
+  crit:     { n: 'Szansa na cios krytyczny', ic: '💥', u: '%', t: [1, 2, 3], hint: 'cios krytyczny zadaje podwójne obrażenia' },
+  aspd:     { n: 'Szybkość ataku', ic: '⚡', u: '%', t: [1, 2, 3] },
+  boss:     { n: 'Silny przeciwko bossom', ic: '☠️', u: '%', t: [1, 2, 3] },
+  vs_k:     { n: 'Silny przeciwko Rycerzom', ic: '🛡️', u: '%', t: [1, 3, 5], pvp: true },
+  vs_s:     { n: 'Silny przeciwko Zwiadowcom', ic: '🏹', u: '%', t: [1, 3, 5], pvp: true },
+  vs_m:     { n: 'Silny przeciwko Magom', ic: '🔮', u: '%', t: [1, 3, 5], pvp: true },
+  res_k:    { n: 'Odporny na Rycerzy', ic: '🛡️', u: '%', t: [1, 2, 3], pvp: true },
+  res_s:    { n: 'Odporny na Zwiadowców', ic: '🏹', u: '%', t: [1, 2, 3], pvp: true },
+  res_m:    { n: 'Odporny na Magów', ic: '🔮', u: '%', t: [1, 2, 3], pvp: true },
+  res_boss: { n: 'Odporny na bossy', ic: '🐲', u: '%', t: [1, 2, 3] },
+  hp:       { n: 'Życie', ic: '❤️', u: '', types: ['armor'], t: [150, 300, 500] },
+  mp:       { n: 'Mana', ic: '💧', u: '', types: ['armor'], t: [50, 150, 300] },
+};
+// Zwiększone obrażenia: ciągłe −15…+50; powyżej 20% coraz trudniej, 50% praktycznie nieosiągalne
+const DMG_BUCKETS = [[-15, -1, 6], [1, 10, 52], [11, 20, 27], [21, 30, 10], [31, 40, 4], [41, 49, 0.9], [50, 50, 0.1]];
+function rollBonusValue(id) {
+  if (id === 'dmg') {
+    let x = Math.random() * 100;
+    for (const [lo, hi, wgt] of DMG_BUCKETS) { x -= wgt; if (x <= 0) return lo === hi ? lo : lo + Math.floor((hi - lo + 1) * Math.pow(Math.random(), 1.6)); }
+    return 1;
+  }
+  let x = Math.random() * 100, i = 0; for (; i < 2; i++) { x -= BONUS_TIER_W[i]; if (x <= 0) break; }
+  return BONUSES[id].t[i];
+}
+const bonusFits = (id, type) => !BONUSES[id].types || BONUSES[id].types.includes(type);
+// ile bonów ma wypaść (waga): zwykłe są najczęstsze, 5 bonów prawie nie występuje
+const BONUS_COUNT_W = [78, 16, 4.5, 1.2, 0.25, 0.05];
+const RARITY_NAMES = ['Zwykły', 'Rzadki', 'Wybitny', 'Epicki', 'Legendarny', 'Mityczny'];
+const fmtBonus = (id, v) => { const b = BONUSES[id]; return (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v) + b.u; };
+// suma bonów z założonego ekwipunku: items = mapa uid→przedmiot, equip = mapa slot→uid
+function bonusTotals(items, equip) {
+  const t = {}; for (const k of Object.keys(BONUSES)) t[k] = 0;
+  if (items && equip) for (const u of Object.values(equip)) { const it = items[u]; if (it && it.bonus) for (const b of it.bonus) if (t[b.id] !== undefined) t[b.id] += b.v; }
+  return t;
+}
+// PvP (Arena — wkrótce): mnożniki obrażeń atakującego wobec klasy obrońcy
+function pvpMult(att, def, defCls) {
+  const k = { knight: 'k', scout: 's', mage: 'm' }[defCls]; if (!k) return 1;
+  return (1 + att['vs_' + k] / 100) * (1 - def['res_' + k] / 100);
+}
