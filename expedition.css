@@ -178,3 +178,8 @@
 .xmob{cursor:pointer;display:flex;gap:6px;align-items:center;padding:6px 10px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--mut);opacity:.6}
 .xmob.on{opacity:1;color:var(--ink);border-color:#3ecf8e;background:rgba(62,207,142,.12)}
 .xmob i{font-style:normal;font-size:18px}.xmob small{color:var(--gold)}
+
+.xenemy{white-space:nowrap;width:max-content}
+.xenemy[data-n="3"]{font-size:118px;letter-spacing:-6px}
+.xenemy[data-n="2"]{font-size:150px;letter-spacing:-4px}
+@media(max-width:640px){.xenemy[data-n="3"]{font-size:78px}.xenemy[data-n="2"]{font-size:100px}}

@@ -248,7 +248,7 @@
     if (!root) return; const en = $('#xe', root), pan = $('#xpanel', root), e = X.enemy;
     if (!e) { en.classList.add('gone'); pan.classList.add('hidden'); return; }
     const left = e.pack || 1; e._left = left;
-    en.textContent = e.ic.repeat(left); en.className = 'xenemy ' + e.kind + (e.cls ? ' ' + e.cls : ''); if (spawned) { void en.offsetWidth; en.classList.add('spawn'); }
+    en.textContent = e.ic.repeat(left); en.dataset.n = left; en.className = 'xenemy ' + e.kind + (e.cls ? ' ' + e.cls : ''); if (spawned) { void en.offsetWidth; en.classList.add('spawn'); }
     stageEl.classList.toggle('bosswin', e.kind === 'boss'); stageEl.classList.toggle('targetwin', e.kind === 'target');
     pan.classList.remove('hidden'); pan.className = 'xpanel ' + e.kind + (e.cls ? ' ' + e.cls : '');
     $('#xname', root).textContent = (e.kind === 'boss' ? '☠ BOSS · ' : e.kind === 'target' ? '🎯 CEL · ' : '') + e.name + (left > 1 ? ' ×' + left : '') + `  (poz. ${e.lvl})`;
