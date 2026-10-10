@@ -27,7 +27,7 @@
   let pending = false;
   const serverExp = () => { const s = window.Inventory && Inventory.state; return !!(s && s.activity && s.activity.kind === 'exp'); };
   const ACT_NAMES = { exp: 'Wyprawy', gather: 'Zbieractwo', craft: 'Rzemiosło' };
-  const X = { on: false, map: 0, enemy: null, wait: 0, rest: 0, n: 0, kills: 0, bosses: 0, targets: 0, recent: [] };
+  const X = { heals: [], potLock: { hp: 0, mp: 0 }, on: false, map: 0, enemy: null, wait: 0, rest: 0, n: 0, kills: 0, bosses: 0, targets: 0, recent: [] };
   let root, stageEl;
 
   // mnożnik EXP za różnicę poziomów (poziom potwora − poziom gracza): tabela Metin2
@@ -132,10 +132,42 @@
   function cardMsg(s) { if (!visible()) return; const why = cdLeft(s) > 0 ? 'odnowienie ' + Math.ceil(cdLeft(s)) + ' s' : P.mp < costOf(s) ? 'brak many' : (!X.on ? 'wyprawa nie trwa' : 'teraz niedostępne'); say(s.ic + ' ' + s.n, why); }
 
   // ---- tik walki ----
+  // ---- MIKSTURY: leczą stopniowo (co tick), automat używa poniżej progu ----
+  const potCount = id => ((window.Inventory && Inventory.state && Inventory.state.potions) || {})[id] || 0;
+  const potCfg = () => (window.Inventory && Inventory.state && Inventory.state.pcfg) || { hpOn: false, hpThr: 50, hpId: 'hp_s', mpOn: false, mpThr: 30, mpId: 'mp_s' };
+  const pending2 = kind => X.heals.filter(q => q.kind === kind).reduce((a, q) => a + q.per * q.left, 0);
+  function usePotion(id) {
+    const pd = POTIONS[id]; if (!pd || !X.on || X.rest > 0 || !X.enemy && false || potCount(id) < 1 || P.hp <= 0) return false;
+    if (X.potLock[pd.kind] > Date.now()) return false;
+    X.potLock[pd.kind] = Date.now() + 1400;
+    Inventory.exec('potion_use', { id }).then(res => {
+      if (!(res && res.ok)) { X.potLock[pd.kind] = 0; return; }
+      const ticks = Math.max(2, Math.round(pd.secs / 0.9)); X.heals.push({ kind: pd.kind, per: pd.v / ticks, left: ticks, ic: pd.ic });
+      if (visible()) { flash(pd.kind === 'hp' ? 'heal' : 'mana'); fx('potfly', { left: '50%', top: '60%' }, 900, pd.ic); say(pd.kind === 'hp' ? '❤ MIKSTURA ŻYCIA' : '💧 MIKSTURA MANY', '+' + pd.v + ' przez ' + pd.secs + ' s'); }
+      drawPots(true); sync();
+    });
+    return true;
+  }
+  function healTick(hm, mm) {
+    if (!X.heals.length) return;
+    for (const q of X.heals) {
+      q.left--;
+      if (q.kind === 'hp') { const a = Math.min(hm - P.hp, q.per); if (a > 0) { P.hp += a; if (visible()) fx('hnum heal', { left: (18 + rnd(-4, 4)) + '%', top: '72%' }, 900, '+' + Math.round(q.per)); } }
+      else { const a = Math.min(mm - P.mp, q.per); if (a > 0) { P.mp += a; if (visible()) fx('hnum mana', { left: (80 + rnd(-4, 4)) + '%', top: '72%' }, 900, '+' + Math.round(q.per)); } }
+    }
+    X.heals = X.heals.filter(q => q.left > 0);
+  }
+  function autoPotions(hm, mm) {
+    const cf = potCfg();
+    if (cf.hpOn && (P.hp + pending2('hp')) / hm * 100 < cf.hpThr) usePotion(cf.hpId);
+    if (cf.mpOn && (P.mp + pending2('mp')) / mm * 100 < cf.mpThr) usePotion(cf.mpId);
+  }
   function tick() {
-    if (!X.on) return;
+    if (!X.on) { X.heals = []; return; }
     const hm = hpMax(P), mm = mpMax(P);
     if (P.hp === undefined) P.hp = hm; if (P.mp === undefined) P.mp = mm;
+    if (X.rest > 0) { X.heals = []; }
+    else { healTick(hm, mm); autoPotions(hm, mm); }
     if (X.rest > 0) { X.rest--; if (X.rest === 0) { P.hp = Math.round(hm * 0.6); say('✔ WSTAJESZ', 'Wracasz do walki'); } sync(); return; }
     if (!X.enemy) { if (X.wait > 0) { X.wait--; return; } spawn(takeQueued()); }
     const e = X.enemy; if (e.dead) { X.enemy = null; X.wait = 1; syncEnemy(false); return; }
@@ -184,15 +216,17 @@
   function kill(e) {
     X.kills++; if (e.kind === 'boss') X.bosses++; if (e.kind === 'target') X.targets++;
     const m = MAPS[X.map], far = P.lvl - e.lvl > REWARD_LVL_GAP;   // za słaby potwór: brak EXP i złota
-    const xp = far ? 0 : Math.max(1, Math.round(e.xp * diffMult(e.lvl - P.lvl))), gold = far || Math.random() >= e.gc ? 0 : Math.floor(rnd(e.g[0], e.g[1] + 1));
-    const need = expFor(P.lvl); P.xp += xp / need; P.gold += gold;
-    const cards = far ? [{ t: 'za słaby potwór: brak EXP i złota', c: 'xp' }] : [{ t: `+${fmt(xp)} EXP`, c: 'xp' }]; if (gold) cards.push({ t: `🪙 +${fmt(gold)}`, c: 'gold' });
+    const xp = far ? 0 : Math.max(1, Math.round(e.xp * diffMult(e.lvl - P.lvl)));
+    const need = expFor(P.lvl); P.xp += xp / need;
+    const cards = far ? [{ t: 'za słaby potwór: brak EXP i złota', c: 'xp' }] : [{ t: `+${fmt(xp)} EXP`, c: 'xp' }];
     let lv = false; while (P.xp >= 1) { P.xp -= 1; P.lvl++; lv = true; }
     if (lv) { P.hp = hpMax(P); P.mp = mpMax(P); say('⭐ AWANS!', 'Poziom ' + P.lvl); Inventory.exec('sync_level', { lvl: P.lvl }); if (window.GameFeed) { GameFeed('⭐ Awans na poziom ' + P.lvl + '!', 'good'); GameFeed('✨ Nowe punkty: 1 umiejętności i 3 statusu. Otwórz Umiejętności.', 'good'); } }
     if (window.GameFeed) { if (e.kind === 'boss') GameFeed('☠ Pokonano bossa: ' + e.name, 'boss'); else if (e.kind === 'target') GameFeed('🎯 Zniszczono cel specjalny: ' + e.name, 'good'); }
     window.Inventory.reward({ tier: m.tier, kind: e.kind, map: m.id, lvl: e.lvl }).then(res => {
       if (res && !res.ok) { applyServer(); sync(); return; }
+      if (res && res.ok && res.snapshot) P.gold = res.snapshot.gold;
       if (res && res.ok) for (const ev of res.events) {
+        if (ev.t === 'gold_added') cards.push({ t: `🪙 +${fmt(ev.gold)}`, c: 'gold' });
         if (ev.t === 'loot_added') cards.push({ t: `${ev.ic} ${ev.name} +${ev.plus} → torba łupu ×${ev.qty}`, c: 'item' });
         else if (ev.t === 'item_added') { if (ev.where === 'sold') cards.push({ t: `${ev.ic} ${ev.name} → sprzedano (+${ev.gold} 🪙)`, c: 'gold' }); else { const it = res.snapshot.items[ev.uid]; if (it) { cards.push({ t: `${it.ic} ${it.name} (${RARITY[it.rarity].n})${ev.where === 'stash' ? ' → skrytka' : ''}`, c: 'item', col: RARITY[it.rarity].c }); X.recent.unshift({ ic: it.ic, n: it.name, col: RARITY[it.rarity].c }); X.recent.length = Math.min(X.recent.length, 10); } } }
         else if (ev.t === 'mat_added') cards.push({ t: `${MATS[ev.mat] || '📦'} ${ev.mat} ×${ev.qty}`, c: 'mat' });
@@ -319,6 +353,7 @@
     $('#xmp', root).style.width = (100 * P.mp / mm) + '%'; $('#xmpt', root).textContent = `${fmt(P.mp)} / ${fmt(mm)}`;
     $('#xxp', root).style.width = (100 * P.xp) + '%'; $('#xlvl', root).textContent = 'Poz. ' + P.lvl;
     $('#xgold', root).textContent = fmt(P.gold);
+    drawPots(false);
     const sb = $('#xstart', root); sb.textContent = busyOther ? '🔒 Zajęty: ' + busyOther : (X.on ? '⏸ Zatrzymaj wyprawę' : '▶ ZACZNIJ WYPRAWĘ');
     const lootN = (() => { const l = Inventory.state && Inventory.state.loot; return l ? Object.values(l).reduce((a, q) => a + q.qty, 0) : 0; })();
     if (!X.on && !busyOther && lootN) sb.textContent = '🔒 Odbierz łup (' + lootN + '), aby wyruszyć';
@@ -343,6 +378,38 @@
     MAPS.forEach((m, i) => { const open = P.lvl >= m.req, b = el('button', 'xmap' + (X.map === i ? ' on' : '') + (open ? '' : ' lock')); b.disabled = !open || X.on || pending; if (X.on && open && X.map !== i) b.title = 'Zatrzymaj wyprawę, aby zmienić mapę'; b.append(el('i', '', open ? m.ic : '🔒'), el('b', '', m.k), el('small', '', open ? (m.range || `poziom potworów ${m.lvl}+`) : `od poziomu ${m.req}`)); b.onclick = () => { if (X.map === i) return; X.map = i; X.enemy = null; X.wait = 0; initSched(); stageEl.dataset.map = i; syncEnemy(false); sync(); }; tiles.append(b); });
   }
 
+  // ---- PASEK MIKSTUR ----
+  function drawPots(force) {
+    const box = $('#xpotbar', root); if (!box) return;
+    const cf = potCfg(), sig = ['hp_s', 'hp_m', 'hp_l', 'mp_s', 'mp_m', 'mp_l'].map(potCount).join(',') + JSON.stringify(cf) + X.heals.length;
+    if (!force && box._sig === sig) return; box._sig = sig; box.replaceChildren();
+    const bottle = (id, key) => {
+      const pd = POTIONS[id], n = potCount(id), b = el('button', 'xbot ' + pd.kind + (n ? '' : ' empty') + (X.heals.some(q => q.kind === pd.kind) ? ' active' : ''));
+      b.title = pd.n + ': +' + pd.v + ' przez ' + pd.secs + ' s · klawisz ' + key.toUpperCase();
+      const g = el('span', 'xbotglass'); g.append(el('i', 'xbotliq'), el('em', '', pd.ic)); b.append(g, el('b', '', pd.size), el('small', '', '×' + n), el('kbd', '', key.toUpperCase()));
+      b.disabled = !n; b.onclick = () => usePotion(id); return b;
+    };
+    const grpHp = el('div', 'xbotgrp'), grpMp = el('div', 'xbotgrp');
+    [['hp_s', 'q'], ['hp_m', 'w'], ['hp_l', 'e']].forEach(([id, k]) => grpHp.append(bottle(id, k)));
+    [['mp_s', 'a'], ['mp_m', 's'], ['mp_l', 'd']].forEach(([id, k]) => grpMp.append(bottle(id, k)));
+    const auto = (kind, grp) => {
+      const on = cf[kind + 'On'], row = el('div', 'xauto ' + kind + (on ? ' on' : ''));
+      const t = el('button', 'xautot', (on ? '✔ AUTO ' : 'AUTO ') + (kind === 'hp' ? '❤' : '💧'));
+      const rng = el('input'); rng.type = 'range'; rng.min = 5; rng.max = 95; rng.step = 5; rng.value = cf[kind + 'Thr'];
+      const lab = el('span', 'xautov', 'poniżej ' + cf[kind + 'Thr'] + '%');
+      const sz = el('div', 'xautosz'); ['s', 'm', 'l'].forEach(z => { const b = el('button', cf[kind + 'Id'] === kind + '_' + z ? 'on' : '', z.toUpperCase()); b.onclick = () => save({ [kind + 'Id']: kind + '_' + z }); sz.append(b); });
+      const save = patch => { const n = { ...cf, ...patch }; Inventory.exec('potion_cfg', n).then(() => { box._sig = ''; sync(); }); };
+      t.onclick = () => save({ [kind + 'On']: !on });
+      rng.oninput = () => { lab.textContent = 'poniżej ' + rng.value + '%'; }; rng.onchange = () => save({ [kind + 'Thr']: +rng.value });
+      row.append(t, rng, lab, sz); return row;
+    };
+    const mid = el('div', 'xautos'); mid.append(auto('hp'), auto('mp'));
+    box.append(grpHp, mid, grpMp);
+  }
+  addEventListener('keydown', e => {
+    if (!visible() || e.target.tagName === 'INPUT' || e.ctrlKey || e.metaKey || e.altKey) return;
+    const m = { q: 'hp_s', w: 'hp_m', e: 'hp_l', a: 'mp_s', s: 'mp_m', d: 'mp_l' }[e.key.toLowerCase()]; if (m) usePotion(m);
+  });
   // ---- TORBA ŁUPU ----
   const bagPrev = {};
   async function bagAct(cmd, payload, cardEl) {
@@ -350,7 +417,7 @@
     await new Promise(q => setTimeout(q, 380));
     const res = await Inventory.exec(cmd, payload); pending = false;
     if (res && res.ok) { const ev = res.events || []; const g = ev.filter(q => q.t === 'loot_sold').reduce((a, q) => a + q.gold, 0), n = ev.filter(q => q.t === 'loot_claimed' || q.t === 'loot_sold').reduce((a, q) => a + q.n, 0);
-      if (g) { P.gold += g; say('💰 SPRZEDANO ×' + n, '+' + fmt(g) + ' złota'); } else say('🎒 ODEBRANO ×' + n, 'przedmioty są w plecaku'); }
+      if (g) { say('💰 SPRZEDANO ×' + n, '+' + fmt(g) + ' złota'); } else say('🎒 ODEBRANO ×' + n, 'przedmioty są w plecaku'); }
     else if (res && res.error) say('⚠', res.error);
     sync();
   }
@@ -388,6 +455,7 @@
         <div class="xvitals"><div class="vb hp"><i id="xhp"></i><span>ŻYCIE <b id="xhpt"></b></span></div><div class="vb mp"><i id="xmp"></i><span>MANA <b id="xmpt"></b></span></div></div>
         <div class="xskills" id="xskills"></div>
       </div>
+      <div class="xpotbar" id="xpotbar"></div>
       <div class="xp-ctl"><button class="xstart go" id="xstart">▶ ZACZNIJ WYPRAWĘ</button></div>
       <div class="xenc" id="xenc"></div>
       <div class="xmobs" id="xmobs"></div>

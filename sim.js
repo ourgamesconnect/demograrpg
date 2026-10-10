@@ -53,7 +53,7 @@ const MATS = { 'Złom': '⚙️', 'Szmaty': '🧵', 'Drewno': '🪵', 'Skóra': 
 const Server = (() => {
   let uidSeq = 1000, version = 0;
   const done = new Map(); // cid -> odpowiedź (idempotencja: ta sama komenda nie wykona się dwa razy)
-  const S = { slots: Array(INV_SLOTS).fill(null), items: {}, equip: {}, stash: [], mats: {}, gold: 0, lvl: 1, cls: null, loot: {}, mobFilter: {}, skills: {}, stats: { life: 0, mana: 0, str: 0, dex: 0, mag: 0 }, enc: {}, activity: null,
+  const S = { slots: Array(INV_SLOTS).fill(null), items: {}, equip: {}, stash: [], mats: {}, gold: 0, lvl: 1, cls: null, loot: {}, potions: {}, pcfg: { hpOn: false, hpThr: 50, hpId: 'hp_s', mpOn: false, mpThr: 30, mpId: 'mp_s' }, mobFilter: {}, skills: {}, stats: { life: 0, mana: 0, str: 0, dex: 0, mag: 0 }, enc: {}, activity: null,
     boards: { mining: Array(BOARD_CELLS).fill(null), sawmill: Array(BOARD_CELLS).fill(null) }, lastDrop: { mining: 0, sawmill: 0 }, lost: { mining: 0, sawmill: 0 }, gatherLvl: { mining: 1, sawmill: 1 } };
   const rnd = (a, b) => a + Math.random() * (b - a), ri = (a, b) => Math.floor(rnd(a, b + 1));
   const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -178,7 +178,7 @@ const Server = (() => {
     },
     // testowo: nowa postać (docelowo: tworzenie nowej postaci na koncie)
     class_reset() {
-      S.cls = null; S.loot = {}; S.mobFilter = {}; S.lvl = 1; S.gold = 150; S.skills = {}; S.stats = { life: 0, mana: 0, str: 0, dex: 0, mag: 0 };
+      S.cls = null; S.loot = {}; S.potions = {}; S.mobFilter = {}; S.lvl = 1; S.gold = 0; S.skills = {}; S.stats = { life: 0, mana: 0, str: 0, dex: 0, mag: 0 };
       S.items = {}; S.equip = {}; S.slots = Array(INV_SLOTS).fill(null); S.stash = []; S.mats = {}; S.gold = 0; S.enc = {}; S.activity = null; S.starter = false;
       return { ev: [{ t: 'class_reset' }] };
     },
@@ -232,6 +232,28 @@ const Server = (() => {
     loot_sell_all() {
       const ev = []; for (const key of Object.keys(S.loot)) { const r = H.loot_sell({ key }); ev.push(...r.ev); }
       return ev.length ? { ev } : { err: 'Torba łupu jest pusta' };
+    },
+    // ALCHEMIK: zakup mikstur (do POTION_MAX sztuk każdej), użycie i ustawienia automatu
+    potion_buy({ id, n }) {
+      const pd = POTIONS[id]; if (!pd) return { err: 'Nieznana mikstura' };
+      const have = S.potions[id] || 0, want = Math.max(1, Math.floor(+n) || 1), room = POTION_MAX - have;
+      if (room < 1) return { err: 'Masz już maksimum tej mikstury (' + POTION_MAX + ')' };
+      const cnt = Math.min(want, room, Math.floor(S.gold / pd.price));
+      if (cnt < 1) return { err: 'Za mało złota' };
+      S.gold -= cnt * pd.price; S.potions[id] = have + cnt;
+      return { ev: [{ t: 'potion_bought', id, n: cnt, cost: cnt * pd.price }] };
+    },
+    potion_use({ id }) {
+      const pd = POTIONS[id]; if (!pd) return { err: 'Nieznana mikstura' };
+      if (!(S.potions[id] > 0)) return { err: 'Brak mikstury' };
+      S.potions[id]--; if (S.potions[id] === 0) delete S.potions[id];
+      return { ev: [{ t: 'potion_used', id }] };
+    },
+    potion_cfg({ hpOn, hpThr, hpId, mpOn, mpThr, mpId }) {
+      const th = (v, a, b) => Math.max(a, Math.min(b, Math.round(+v) || a));
+      if (!POTIONS[hpId] || POTIONS[hpId].kind !== 'hp' || !POTIONS[mpId] || POTIONS[mpId].kind !== 'mp') return { err: 'Zła mikstura' };
+      S.pcfg = { hpOn: !!hpOn, hpThr: th(hpThr, 5, 95), hpId, mpOn: !!mpOn, mpThr: th(mpThr, 5, 95), mpId };
+      return { ev: [{ t: 'potion_cfg' }] };
     },
     // wybór potworów na mapie (co najmniej jeden)
     mob_filter({ map, ids }) {
@@ -295,6 +317,15 @@ const Server = (() => {
       }
       const t = Math.max(0, Math.min(9, Math.floor(+tier) || 0)), ev = [];
       const rollR = () => { const x = Math.random() * 100; return kind === 'boss' ? (x < 45 ? 2 : x < 85 ? 3 : 4) : kind === 'target' ? (x < 50 ? 1 : x < 82 ? 2 : x < 96 ? 3 : 4) : (x < 70 ? 0 : x < 90 ? 1 : x < 98 ? 2 : 3); };
+      {   // złoto: losuje serwer (tabela MAP_DROPS); poziom gracza − poziom potwora ≤ 10
+        const dg = MAP_DROPS[String(map)];
+        if (dg) {
+          let g = 0; const L = Math.max(1, Math.min(5, Math.floor(+lvl) || 1));
+          if (kind === 'mob') { if (S.lvl - L <= dg.goldMaxGap && Math.random() < dg.goldChance) { const q = dg.gold[L]; g = ri(q[0], q[1]); } }
+          else { const q = kind === 'boss' ? dg.bossGold : dg.targetGold; g = ri(q[0], q[1]); }
+          if (g > 0) { S.gold += g; ev.push({ t: 'gold_added', gold: g }); }
+        }
+      }
       // łup z mapy: drewniane EQ +0/+1 (MAP_DROPS) trafia do TORBY ŁUPU (stosy), gracz odbiera go po wyprawie
       const dr = MAP_DROPS[String(map)];
       if (dr && S.cls && kind === 'mob') {
@@ -331,6 +362,7 @@ const Server = (() => {
     for (const [k, u] of Object.entries(S.equip)) { const it = S.items[u]; if (it && !slotOfType(it.type).includes(k)) errs.push(`zły slot ${k} dla ${it.type}`); }
     if (!Number.isInteger(S.gold) || S.gold < 0) errs.push('złoto');
     if (S.cls !== null && !CLASSES[S.cls]) errs.push('zła klasa');
+    for (const [k, v] of Object.entries(S.potions)) if (!POTIONS[k] || !Number.isInteger(v) || v < 1 || v > POTION_MAX) errs.push('mikstura ' + k);
     for (const [k, e] of Object.entries(S.loot)) if (!e || !Number.isInteger(e.qty) || e.qty < 1 || !e.it) errs.push('łup ' + k);
     { let st = 0; for (const q of STATS) { const v = S.stats[q.k]; if (!Number.isInteger(v) || v < 0) errs.push('cecha ' + q.k); st += v; } if (st > STAT_PER_LEVEL * (S.lvl - 1)) errs.push('więcej punktów statusu niż przyznano'); }
     { let sum = 0; for (const [id, rk] of Object.entries(S.skills)) { const sk = SKILLS.find(x => x.id === id); if (!sk || !Number.isInteger(rk) || rk < 0 || rk > SKILL_MAX) errs.push('ranga umiejętności ' + id); sum += rk; } if (sum > S.lvl - 1) errs.push('więcej rang niż punktów'); }

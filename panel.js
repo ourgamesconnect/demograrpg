@@ -107,7 +107,7 @@ function renderTiles() {
     e.parentElement.classList.toggle('locked', locked);
   }
 }
-window.addEventListener('inv:update', () => renderTiles());
+window.addEventListener('inv:update', () => { if (window.Inventory && Inventory.state) P.gold = Inventory.state.gold; renderTiles(); });
 
 // Zbieractwo i Rzemiosło: ekrany powstaną później, ale blokada aktywności działa już teraz
 async function stubActivity(t) {
@@ -119,7 +119,7 @@ async function stubActivity(t) {
 // ---- Miasto: NPC i sklepy (okno zapowiedzi, ekrany powstaną w kolejnych krokach) ----
 const CITY_NPC = [
   ['💰', 'Kupiec', 'Sprzedaż i zakup przedmiotów', 'Wkrótce'],
-  ['⚗️', 'Alchemik', 'Mikstury życia i many, wzmocnienia', 'Wkrótce'],
+  ['⚗️', 'Alchemik', 'Mikstury życia i many (mała, średnia, duża)', 'Wkrótce'],
   ['🍺', 'Karczmarz', 'Odpoczynek, zadania dzienne i plotki', 'Wkrótce'],
   ['🏦', 'Skarbiec', 'Bezpieczny magazyn przedmiotów i złota', 'Wkrótce'],
 ];
@@ -129,7 +129,7 @@ function openCity() {
     ov = document.createElement('div'); ov.id = 'city-ov'; ov.className = 'city-ov';
     ov.innerHTML = '<div class="city-win" role="dialog" aria-label="Miasto"><div class="city-head"><b>🏰 MIASTO</b><button class="x" aria-label="Zamknij">✕</button></div><p class="muted">Tu znajdziesz wszystkich NPC i sklepy. Ekrany poszczególnych postaci powstaną w kolejnych krokach.</p><div class="city-grid"></div></div>';
     const g = ov.querySelector('.city-grid');
-    CITY_NPC.forEach(([ic, n, d, s]) => { const c = document.createElement('div'); c.className = 'npc'; c.innerHTML = '<i></i><b></b><small></small><em></em>'; c.children[0].textContent = ic; c.children[1].textContent = n; c.children[2].textContent = d; c.children[3].textContent = s; g.append(c); });
+    CITY_NPC.forEach(([ic, n, d, s]) => { const c = document.createElement('div'); c.className = 'npc'; c.innerHTML = '<i></i><b></b><small></small><em></em>'; c.children[0].textContent = ic; c.children[1].textContent = n; c.children[2].textContent = d; c.children[3].textContent = s; if (n === 'Alchemik') { c.classList.add('open'); c.style.cursor = 'pointer'; c.children[3].textContent = 'Otwórz'; c.onclick = () => { ov.hidden = true; if (window.Potions) Potions.open(); }; } g.append(c); });
     document.body.append(ov);
     const close = () => { ov.hidden = true; document.body.classList.remove('inv-open'); };
     ov.querySelector('.x').onclick = close; ov.onclick = e => { if (e.target === ov) close(); };
