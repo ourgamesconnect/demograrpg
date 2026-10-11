@@ -284,6 +284,25 @@ const Server = (() => {
       S.pcfg = { hpOn: !!hpOn, hpThr: th(hpThr, 5, 95), hpId, mpOn: !!mpOn, mpThr: th(mpThr, 5, 95), mpId };
       return { ev: [{ t: 'potion_cfg' }] };
     },
+    // KOWAL: ulepszenie przedmiotu o +1 (złoto + ewentualnie Sosna). Porażka: przedmiot zostaje, koszt przepada.
+    smith_upgrade({ uid }) {
+      if (S.activity && S.activity.kind === 'exp') return { err: 'Kowal jest dostępny dopiero po zakończeniu wyprawy' };
+      const it = S.items[uid]; if (!it) return { err: 'Nie ma takiego przedmiotu' };
+      if (!SMITH_TYPES.includes(it.type)) return { err: 'Tego przedmiotu nie można ulepszać' };
+      if (!find(uid)) return { err: 'Nie ma takiego przedmiotu' };
+      const n = (it.plus | 0) + 1; if (n > 9) return { err: 'Przedmiot ma już maksymalne ulepszenie (+9)' };
+      const cost = SMITH_COST[n], mat = smithMat(n);
+      if (S.gold < cost) return { err: 'Za mało złota (potrzeba ' + cost + ')' };
+      if (mat && !((S.mats[mat] || 0) >= 1)) return { err: 'Brakuje surowca: ' + mat };
+      S.gold -= cost; if (mat) { S.mats[mat]--; if (S.mats[mat] <= 0) delete S.mats[mat]; }
+      const ok = Math.random() < SMITH_P[n];
+      if (ok) {
+        it.plus = n;
+        if (['earrings', 'necklace', 'bracelet', 'ring'].includes(it.type)) it.value = 100 * (1 + 0.5 * it.rarity);
+        else { const st = itemStats(it); it.value = Math.max(2, Math.round((st.atk + st.mag * 0.5 + st.def) * 3.2 * (1 + 0.5 * it.rarity))); }
+      }
+      return { ev: [{ t: 'smith', uid, ok, plus: it.plus | 0, to: n, cost, mat: mat || null, chance: SMITH_P[n] }] };
+    },
     // wyłączanie przedmiotów z łupu na mapie (tylko przed wyprawą)
     drop_filter({ map, off }) {
       if (typeof map !== 'string' || !MAP_DROPS[map] || !Array.isArray(off)) return { err: 'Zły wybór łupu' };
@@ -418,6 +437,8 @@ const Server = (() => {
       for (let k = 0; k <= 5; k++) { const wn = S.cls ? { sword: 'miecz', bow: 'łuk', wand: 'różdżka' }[CLASSES[S.cls].w] : 'miecz'; const base = BASES.find(q => q[0] === ([wn, wn, 'zbroja', wn, 'zbroja', 'hełm'][k])); ev.push({ t: 'item_added', ...putNew(makeItem({ base, tier: 0, rarity: k })) }); }
       return { ev };
     },
+    // test: 10 sztuk Sosny I–III i 100000 złota (do sprawdzenia kowala)
+    debug_smith() { S.gold += 100000; for (const m of ['Sosna I', 'Sosna II', 'Sosna III']) S.mats[m] = (S.mats[m] || 0) + 10; return { ev: [{ t: 'debug_smith' }] }; },
     // test: kolczyki wszystkich 4 rodzajów na +0, +3, +6, +9
     debug_earrings() {
       const ev = []; for (const nm2 of ['bransoletka', 'pierścień życia', 'pierścień many']) for (const p of [0, 4, 9]) { const it = makeItem({ base: BASES.find(q => q[0] === nm2), tier: 0, rarity: 0 }); it.plus = p; ev.push({ t: 'item_added', ...putNew(it) }); }

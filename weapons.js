@@ -148,3 +148,10 @@ function accessoryTotals(items, equip) {
   }
   return o;
 }
+
+// KOWAL: ulepszanie +0 → +9. Koszt w złocie i szansa na każdy plus (dane właściciela).
+// +7 wymaga 1× Sosna I, +8: 1× Sosna II, +9: 1× Sosna III (poziom surowca ze zbieractwa).
+const SMITH_COST = [0, 600, 1200, 2500, 5000, 10000, 20000, 30000, 45000, 75000];
+const SMITH_P = [0, 0.90, 0.85, 0.80, 0.75, 0.70, 0.60, 0.50, 0.40, 0.30];
+const SMITH_TYPES = ['weapon', 'helm', 'armor', 'boots', 'shield', 'earrings', 'necklace', 'bracelet', 'ring'];
+const smithMat = n => (n >= 7 ? 'Sosna ' + ['I', 'II', 'III'][n - 7] : null);   // n = docelowy plus

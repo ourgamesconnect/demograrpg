@@ -199,7 +199,7 @@
       <div class="inv-head"><b>🎒 EKWIPUNEK</b><span class="inv-gold">🪙 <b id="inv-gold">0</b></span><span id="inv-sync" class="sync" title="Zsynchronizowano"></span><button class="x" id="inv-x" aria-label="Zamknij">✕</button></div>
       <div class="inv-body"></div>
       <div class="inv-dev"><small>TEST:</small>
-        <button class="btn" data-d="1">🎁 Drop ×1</button><button class="btn" data-d="5">🎁 Drop ×5</button><button class="btn" data-d="ear">💎 Test kolczyków</button><button class="btn" data-d="bon">🎲 Test bonów (po 1 z 0–5 bonami)</button><button class="btn" data-d="fill">📦 Zapełnij plecak (test skrytki)</button><button class="btn" data-d="stress">🧪 Test spójności (600 operacji)</button>
+        <button class="btn" data-d="1">🎁 Drop ×1</button><button class="btn" data-d="5">🎁 Drop ×5</button><button class="btn" data-d="smith">🔨 Test kowala (+100k zł, Sosna)</button><button class="btn" data-d="ear">💎 Test kolczyków</button><button class="btn" data-d="bon">🎲 Test bonów (po 1 z 0–5 bonami)</button><button class="btn" data-d="fill">📦 Zapełnij plecak (test skrytki)</button><button class="btn" data-d="stress">🧪 Test spójności (600 operacji)</button>
         <span id="inv-report" class="report"></span></div>
     </div>`;
     document.body.append(root);
@@ -211,6 +211,7 @@
       if (d === 'fill') return cmd('debug_drop', { n: 60 });
       if (d === 'bon') return cmd('debug_bonus', {});
       if (d === 'ear') return cmd('debug_earrings', {});
+      if (d === 'smith') return cmd('debug_smith', {});
       cmd('debug_drop', { n: +d });
     });
   }
