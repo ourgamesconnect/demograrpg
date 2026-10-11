@@ -70,13 +70,20 @@
   const SK = { ready: {}, auto: {}, until: {}, charges: 0, dot: null, dotSkill: null, vuln: null, stun: 0, channel: null, windup: null };
   const ranks = () => (window.Inventory && Inventory.state && Inventory.state.skills) || {};
   const rankOf = id => ranks()[id] || 0;
-  const mySkills = () => { const wk = weaponKind(); return SKILLS.filter(s => s.w === wk && rankOf(s.id) > 0); };
+  const sCfg = () => (window.Inventory && Inventory.state && Inventory.state.skillCfg) || { order: [], off: [] };
+  const hasOrder = () => sCfg().order.length > 0;
+  const mySkills = () => {
+    const wk = weaponKind(), base = SKILLS.filter(s => s.w === wk && rankOf(s.id) > 0), o = sCfg().order;
+    if (!o.length) return base;
+    const idx = s => { const i = o.indexOf(s.id); return i < 0 ? 1000 + base.indexOf(s) : i; };
+    return base.slice().sort((a, b) => idx(a) - idx(b));
+  };
   const buffOn = id => (SK.until[id] || 0) > Date.now();
   const hasteMul = () => { const st = window.Inventory && Inventory.state; return 1 - skillHaste(st && st.items, st && st.equip) / 100; };   // naszyjnik skraca odnowienie wszystkich umiejętności
   const cdOf = s => (s.id === 'wd1' ? s.p(rankOf(s.id)).cd : s.cd) * hasteMul();
   const cdLeft = s => Math.max(0, ((SK.ready[s.id] || 0) - Date.now()) / 1000);
   const costOf = s => (buffOn('wd1') && s.id !== 'wd1' ? 0 : s.mana);
-  const isAuto = s => SK.auto[s.id] !== false;     // domyślnie automatyczne użycie włączone
+  const isAuto = s => !sCfg().off.includes(s.id);     // wyłączanie umiejętności ustawia się przed wyprawą (serwer)
   const aspdFactor = () => Math.max(0.4, 1 + bon().aspd / 100 + (() => { const st = window.Inventory && Inventory.state; return accessoryTotals(st && st.items, st && st.equip).aspd / 100; })() + (buffOn('bw1') ? SKILLS.find(s => s.id === 'bw1').p(rankOf('bw1')).aspd : 0) + (buffOn('sw2') ? SKILLS.find(s => s.id === 'sw2').p(rankOf('sw2')).aspd : 0));
   const atkBuff = () => (buffOn('sw1') ? 1 + SKILLS.find(s => s.id === 'sw1').p(rankOf('sw1')).atk : 1);
   function dealDamage(mult, skill) {
@@ -197,7 +204,7 @@
       else { P.mp -= cost; dealDamage(p.mult * (1 + p.ramp * ch.i), ch.s); ch.i++; ch.left--; if (ch.left <= 0) SK.channel = null; }
     } else {
       let did = false;
-      const list = mySkills().filter(s => isAuto(s)).sort((a, b) => (b.kind === 'buff') - (a.kind === 'buff'));
+      let list = mySkills().filter(s => isAuto(s)); if (!hasOrder()) list = list.sort((a, b) => (b.kind === 'buff') - (a.kind === 'buff'));   // własna kolejność gracza ma pierwszeństwo
       for (const s of list) { if (autoWants(s) && cast(s, false)) { did = true; break; } }
       if (!did) {
         dealDamage(atkBuff() * aspdFactor(), null);   // atak podstawowy
@@ -315,7 +322,7 @@
   // ---- pasek umiejętności (kliknięcie = użycie, AUTO = automatycznie) ----
   function flashBtn(id) { const b = root && root.querySelector('.sk[data-id="' + id + '"]'); if (b) { b.classList.remove('cast'); void b.offsetWidth; b.classList.add('cast'); } }
   function drawSkillBar() {
-    if (!root) return; const box = $('#xskills', root), list = mySkills(), sig = list.map(s => s.id + ':' + rankOf(s.id) + ':' + (isAuto(s) ? 1 : 0)).join(',') + '|' + weaponKind();
+    if (!root) return; const box = $('#xskills', root), list = mySkills(), sig = list.map(s => s.id + ':' + rankOf(s.id) + ':' + (isAuto(s) ? 1 : 0)).join(',') + '|' + weaponKind() + '|' + X.on;
     if (box.dataset.sig !== sig) {
       box.dataset.sig = sig; box.replaceChildren();
       if (!list.length) {
@@ -325,8 +332,15 @@
         const b = el('button', 'sk'); b.dataset.id = s.id; b.title = s.n + ' · ranga ' + rankOf(s.id) + '\n' + s.desc(rankOf(s.id));
         b.append(el('span', 'sk-key', String(i + 1)), el('i', 'sk-ic', s.ic), el('b', 'sk-n', s.n), el('small', 'sk-m', (s.mana ? s.mana + ' many' : 'bez many') + ' · ' + Math.round(cdOf(s)) + ' s'), el('em', 'sk-r', 'r.' + rankOf(s.id)));
         const au = el('span', 'sk-auto' + (isAuto(s) ? ' on' : ''), 'AUTO'); au.title = 'Automatyczne użycie';
-        au.onclick = e => { e.stopPropagation(); SK.auto[s.id] = !isAuto(s); box.dataset.sig = ''; drawSkillBar(); };
-        b.append(au); b.onclick = () => cast(s, true); box.append(b);
+        au.title = X.on ? 'Ustawienie zmienisz przed wyprawą' : 'Automatyczne użycie (kliknij, aby włączyć lub wyłączyć)';
+        au.onclick = e => { e.stopPropagation(); if (X.on) return; const cf = sCfg(), off = isAuto(s) ? cf.off.concat(s.id) : cf.off.filter(q => q !== s.id); Inventory.exec('skill_cfg', { order: list.map(q => q.id), off }).then(() => { box.dataset.sig = ''; drawSkillBar(); }); };
+        b.append(au);
+        if (!X.on && list.length > 1) {   // kolejność ustawiasz przed wyprawą: ◀ ▶
+          const mv = el('span', 'sk-mv');
+          [['◀', -1], ['▶', 1]].forEach(([ch, d]) => { const m = el('i', '', ch); m.title = d < 0 ? 'Użyj wcześniej' : 'Użyj później'; m.onclick = e => { e.stopPropagation(); const j = i + d; if (j < 0 || j >= list.length) return; const ord = list.map(q => q.id); [ord[i], ord[j]] = [ord[j], ord[i]]; Inventory.exec('skill_cfg', { order: ord, off: sCfg().off }).then(() => { box.dataset.sig = ''; drawSkillBar(); }); }; mv.append(m); });
+          b.append(mv);
+        }
+        b.onclick = () => cast(s, true); box.append(b);
       });
     }
     box.querySelectorAll('.sk').forEach(b => {

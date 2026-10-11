@@ -55,7 +55,7 @@ const MATS = { 'Złom': '⚙️', 'Szmaty': '🧵', 'Drewno': '🪵', 'Skóra': 
 const Server = (() => {
   let uidSeq = 1000, version = 0;
   const done = new Map(); // cid -> odpowiedź (idempotencja: ta sama komenda nie wykona się dwa razy)
-  const S = { slots: Array(INV_SLOTS).fill(null), items: {}, equip: {}, stash: [], mats: {}, gold: 0, lvl: 1, cls: null, loot: {}, dropOff: {}, potions: {}, pcfg: { hpOn: false, hpThr: 50, hpId: 'auto', mpOn: false, mpThr: 30, mpId: 'auto' }, mobFilter: {}, skills: {}, stats: { life: 0, str: 0, dex: 0, mag: 0 }, enc: {}, activity: null,
+  const S = { slots: Array(INV_SLOTS).fill(null), items: {}, equip: {}, stash: [], mats: {}, gold: 0, lvl: 1, cls: null, skillCfg: { order: [], off: [] }, loot: {}, dropOff: {}, potions: {}, pcfg: { hpOn: false, hpThr: 50, hpId: 'auto', mpOn: false, mpThr: 30, mpId: 'auto' }, mobFilter: {}, skills: {}, stats: { life: 0, str: 0, dex: 0, mag: 0 }, enc: {}, activity: null,
     boards: { mining: Array(BOARD_CELLS).fill(null), sawmill: Array(BOARD_CELLS).fill(null) }, lastDrop: { mining: 0, sawmill: 0 }, lost: { mining: 0, sawmill: 0 }, gatherLvl: { mining: 1, sawmill: 1 } };
   const rnd = (a, b) => a + Math.random() * (b - a), ri = (a, b) => Math.floor(rnd(a, b + 1));
   const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -190,7 +190,7 @@ const Server = (() => {
     },
     // testowo: nowa postać (docelowo: tworzenie nowej postaci na koncie)
     class_reset() {
-      S.cls = null; S.dropOff = {}; S.loot = {}; S.potions = {}; S.mobFilter = {}; S.lvl = 1; S.gold = 0; S.skills = {}; S.stats = { life: 0, str: 0, dex: 0, mag: 0 };
+      S.cls = null; S.skillCfg = { order: [], off: [] }; S.dropOff = {}; S.loot = {}; S.potions = {}; S.mobFilter = {}; S.lvl = 1; S.gold = 0; S.skills = {}; S.stats = { life: 0, str: 0, dex: 0, mag: 0 };
       S.items = {}; S.equip = {}; S.slots = Array(INV_SLOTS).fill(null); S.stash = []; S.mats = {}; S.gold = 0; S.enc = {}; S.activity = null; S.starter = false;
       return { ev: [{ t: 'class_reset' }] };
     },
@@ -308,6 +308,15 @@ const Server = (() => {
         delete S.items[uid]; destroyed = true;
       }
       return { ev: [{ t: 'smith', uid, ok, destroyed, plus: ok ? (it.plus | 0) : (it.plus | 0), to: n, cost, mat: mat || null, chance: SMITH_P[n] }] };
+    },
+    // kolejność używania umiejętności w wyprawie i ich wyłączanie (tylko przed wyprawą)
+    skill_cfg({ order, off }) {
+      if (S.activity && S.activity.kind === 'exp') return { err: 'Umiejętności ustawisz tylko przed wyprawą' };
+      if (!S.cls) return { err: 'Najpierw wybierz klasę' };
+      if (!Array.isArray(order) || !Array.isArray(off)) return { err: 'Zły format' };
+      const ok = new Set(SKILLS.filter(s => s.w === CLASSES[S.cls].w).map(s => s.id));
+      const o = [...new Set(order.filter(id => ok.has(id)))], f = [...new Set(off.filter(id => ok.has(id)))];
+      S.skillCfg = { order: o, off: f }; return { ev: [{ t: 'skill_cfg' }] };
     },
     // wyłączanie przedmiotów z łupu na mapie (tylko przed wyprawą)
     drop_filter({ map, off }) {

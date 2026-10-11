@@ -301,3 +301,10 @@ button.xdrop:hover{transform:translateY(-2px);border-color:#ffd36a}
 .xmobs>b{width:auto!important}
 .xdrops[hidden]{display:none}
 .xdrops{animation:pickin .28s cubic-bezier(.2,1.5,.4,1)}
+
+/* kolejność umiejętności */
+.sk{position:relative}
+.sk-mv{position:absolute;left:4px;bottom:4px;display:flex;gap:3px}
+.sk-mv i{font-style:normal;cursor:pointer;width:20px;height:18px;display:grid;place-items:center;border-radius:6px;background:rgba(0,0,0,.6);border:1px solid var(--line);font-size:10px;color:#ffd36a}
+.sk-mv i:hover{background:#3a2e10;border-color:#ffd36a}
+.sk-auto:not(.on){opacity:.55;text-decoration:line-through}
