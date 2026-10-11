@@ -278,6 +278,7 @@ const Server = (() => {
     // wybór potworów na mapie (co najmniej jeden)
     mob_filter({ map, ids }) {
       if (typeof map !== 'string' || !Array.isArray(ids) || !ids.length || ids.length > 10) return { err: 'Zły wybór potworów' };
+      if (S.activity && S.activity.kind === 'exp') return { err: 'Potwory można wybierać tylko przed wyprawą' };
       const u = [...new Set(ids.map(v => v | 0))].filter(v => v >= 0 && v < 10).sort((a, b) => a - b);
       if (!u.length) return { err: 'Zły wybór potworów' };
       S.mobFilter[map] = u; return { ev: [{ t: 'mob_filter', map, ids: u }] };

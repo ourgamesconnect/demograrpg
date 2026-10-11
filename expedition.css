@@ -288,3 +288,6 @@ button.xdrop:hover{transform:translateY(-2px);border-color:#ffd36a}
 .xdrop.off{opacity:.45;filter:grayscale(1);border-style:dashed}
 .xdrop.off i{opacity:.6}
 .xdropx{position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;display:grid;place-items:center;background:#c21f2f;color:#fff;font-size:10px;text-decoration:none;box-shadow:0 2px 6px rgba(0,0,0,.6)}
+
+.xmob.locked{cursor:not-allowed}
+.xmob:disabled{opacity:.55}

@@ -377,11 +377,12 @@
     drawBag(lootN);
     $('#xstat', root).textContent = `Pokonanych: ${X.kills} · Bossów: ${X.bosses} · Celów specjalnych: ${X.targets}`;
     const rc = $('#xrecent', root); rc.replaceChildren(); X.recent.forEach(r => { const c = el('span', 'xchip', r.ic + ' ' + r.n); c.style.borderColor = r.col; rc.append(c); });
-    { const box = $('#xmobs', root), m = MAPS[X.map], sel = selMobs(), sig = X.map + ':' + sel.join(',');
-      if (box._sig !== sig) { box._sig = sig; box.replaceChildren(); box.append(el('b', '', 'Potwory na mapie (kliknij, aby wyłączyć):'));
+    { const box = $('#xmobs', root), m = MAPS[X.map], sel = selMobs(), sig = X.map + ':' + sel.join(',') + ':' + X.on;
+      if (box._sig !== sig) { box._sig = sig; box.replaceChildren(); box.append(el('b', '', X.on ? 'Potwory na mapie (zmiana możliwa po zatrzymaniu wyprawy):' : 'Potwory na mapie (kliknij, aby wyłączyć):'));
         m.spec.mobs.forEach((mb, i) => { const on = sel.includes(i), c = el('button', 'xmob' + (on ? ' on' : '')); c.title = 'HP ' + mb.hp + ' · atak ' + mb.lo + '–' + mb.hi + '/s · ' + mb.xp + ' EXP';
           c.append(el('i', '', mb.ic), el('span', '', mb.n + ' (poz. ' + mb.lvl + ')'), el('small', '', mb.xp + ' EXP'));
-          c.onclick = async () => { const next = on ? sel.filter(q => q !== i) : sel.concat(i).sort(); if (!next.length) return; await Inventory.exec('mob_filter', { map: m.id, ids: next }); box._sig = ''; sync(); };
+          c.disabled = X.on; if (X.on) c.classList.add('locked');
+          c.onclick = async () => { if (X.on) return; const next = on ? sel.filter(q => q !== i) : sel.concat(i).sort(); if (!next.length) return; await Inventory.exec('mob_filter', { map: m.id, ids: next }); box._sig = ''; sync(); };
           box.append(c); }); } }
     { const box = $('#xdrops', root), m = MAPS[X.map], dr = MAP_DROPS[m.id], sel = selMobs(), cls = Inventory.state && Inventory.state.cls, off = (Inventory.state && Inventory.state.dropOff && Inventory.state.dropOff[m.id]) || [], sig = m.id + ':' + sel.join(',') + ':' + cls + ':' + off.join(',') + ':' + X.on;
       if (dr && box._sig !== sig) { box._sig = sig; box.replaceChildren(); box.append(el('b', '', X.on ? 'Możliwy łup na mapie:' : 'Możliwy łup na mapie (kliknij, aby wyłączyć):'));
