@@ -392,7 +392,7 @@
         const sh = { weapon: 'Broń', helm: 'Hełm', armor: 'Zbroja', boots: 'Buty', shield: 'Tarcza', ear_life: 'Kolczyki Ż', ear_str: 'Kolczyki S', ear_mag: 'Kolczyki M', ear_dex: 'Kolczyki Z', neck: 'Naszyjnik', bracelet: 'Bransoleta', ring_hp: 'Pierścień Ż', ring_mp: 'Pierścień M' };
         const pct = v => (v * 100).toLocaleString('pl-PL', { maximumFractionDigits: 1 }) + '%';
         const base = ['weapon', 'helm', 'armor', 'boots', 'shield'];
-        dr.parts.forEach(p => { const isOff = off.includes(p), c = el(X.on ? 'span' : 'button', 'xdrop' + (isOff ? ' off' : '')); const f = base.includes(p) ? 1 : 0.5; c.title = (isOff ? '✖ WYŁĄCZONY: ' : '') + nm[p] + ' · ' + (lo === hi ? pct(lo * f) : pct(lo * f) + '–' + pct(hi * f)) + ' z potwora' + (base.includes(p) ? '' : ' · od 5 poziomu'); c.append(el('i', '', ic[p]), el('small', '', sh[p])); if (isOff) c.append(el('u', 'xdropx', '✖'));
+        dr.parts.forEach(p => { const isOff = off.includes(p), c = el(X.on ? 'span' : 'button', 'xdrop' + (isOff ? ' off' : '')); const f = base.includes(p) ? 1 : 0.5; c.title = (isOff ? '✖ WYŁĄCZONY: ' : '') + nm[p] + (base.includes(p) ? '' : ' · od 5 poziomu'); c.append(el('i', '', ic[p]), el('small', '', sh[p])); if (isOff) c.append(el('u', 'xdropx', '✖'));
           if (!X.on) c.onclick = async () => { const next = isOff ? off.filter(q => q !== p) : off.concat(p); await Inventory.exec('drop_filter', { map: m.id, off: next }); box._sig = ''; sync(); };
           box.append(c); }); } }
     const tiles = $('#xmaps', root); tiles.replaceChildren();
