@@ -61,8 +61,8 @@
     if (!sel && items.length) sel = items[0].it.uid;
     items.forEach(({ it, w }) => {
       const r = RARITY[it.rarity], b = el('button', 'smitem' + (it.uid === sel ? ' on' : '') + (it.plus >= 9 ? ' max' : ''));
-      b.style.setProperty('--rc', r.c); b.append(el('i', '', it.ic), el('b', '', it.name + ' +' + (it.plus | 0)), el('small', '', TYPE_N[it.type] + ' · ' + w + (it.bonus && it.bonus.length ? ' · ' + it.bonus.length + ' bon.' : '')));
-      b.onclick = () => { sel = it.uid; draw(); }; lst.append(b);
+      b.style.setProperty('--rc', r.c); b.append(el('i', '', it.ic), el('b', '', it.name + ' +' + (it.plus | 0)), el('small', '', TYPE_N[it.type] + ' · ' + w + ' · ' + RARITY[it.rarity].n + (it.bonus && it.bonus.length ? ' (' + it.bonus.length + ' bon.)' : '')));
+      b.title = (it.bonus || []).map(x => BONUSES[x.id].n + ' ' + fmtBonus(x.id, x.v)).join(' · ') || 'Brak bonów'; b.onclick = () => { sel = it.uid; draw(); }; lst.append(b);
     });
     if (!items.length) lst.append(el('p', 'smempty', 'W plecaku nie masz przedmiotów do ulepszenia. Założone przedmioty najpierw zdejmij.'));
     const d = $('#smdetail', root); d.replaceChildren();
@@ -72,6 +72,12 @@
     stage.append(el('div', 'smglow'), el('em', 'smitemic', it.ic), el('span', 'smhammer', '🔨'), el('div', 'smanvil', '⚒'));
     const res = el('div', 'smresult'); res.id = 'smresult'; stage.append(res);
     d.append(stage, el('h3', '', it.name + ' +' + (it.plus | 0)));
+    {   // bony przedmiotu
+      const bw = el('div', 'smbon'); const bl = it.bonus || [];
+      if (!bl.length) bw.append(el('div', 'smbon0', 'Brak bonów'));
+      bl.forEach(b => { const q = BONUSES[b.id], l = el('div', 'smbonl' + (b.v < 0 ? ' neg' : '')); l.append(el('span', '', q.ic + ' ' + q.n + (q.pvp ? ' (PvP)' : '')), el('b', '', fmtBonus(b.id, b.v))); bw.append(l); });
+      d.append(bw);
+    }
     if (n > 9) { d.append(el('p', 'smmax', '★ Maksymalne ulepszenie +9 ★')); return; }
     const cost = SMITH_COST[n], pr = SMITH_P[n], mat = smithMat(n), have = mat ? (s.mats[mat] || 0) : 0;
     const eff = el('div', 'smeff'); eff.append(el('span', '', effect(it, it.plus | 0)), el('b', '', '→'), el('span', 'nxt', effect(it, n))); d.append(eff);

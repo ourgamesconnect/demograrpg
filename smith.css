@@ -65,3 +65,8 @@
 .smbigic{font-size:64px;font-weight:900;line-height:1}
 .smbigt{font-size:30px;font-weight:900;letter-spacing:.08em;margin-top:6px}
 .smbigs{margin-top:6px;font-size:15px;opacity:.9}
+
+.smbon{width:min(360px,100%);display:grid;gap:3px;padding:8px 12px;border-radius:12px;border:1px solid rgba(255,211,106,.4);background:linear-gradient(#1c1810,#0e0c08)}
+.smbonl{display:flex;justify-content:space-between;gap:10px;font-size:13px;text-align:left}
+.smbonl b{color:#5dffa0;font-variant-numeric:tabular-nums}.smbonl.neg b{color:#ff7a7a}
+.smbon0{font-size:12px;color:var(--mut)}
