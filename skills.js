@@ -78,10 +78,14 @@ const STATS = [
   { k: 'mag',  n: 'Magia',     ic: '🔮', c: '#c58bff', per: '+20 maks. many i +2 ataku magicznego na punkt (Mag: +0,67 ataku fizycznego)' },
   { k: 'dex',  n: 'Zręczność', ic: '🎯', c: '#4fe39a', per: 'rating trafienia i unik · Zwiadowca +0,67 ataku na punkt' },
 ];
-const statBonus = (st, cls) => {
-  st = st || {}; const L = st.life || 0, S = st.str || 0, I = st.mag || 0, D = st.dex || 0;
+// Cechy startowe klas (JobInitialPoints Metin2: wojownik ST6 HT4 DX3 IQ3; zabójca ST4 HT3 DX6 IQ3; szaman ST3 HT3 DX4 IQ6). Życie i mana na starcie są już w hp0/mp0.
+const BASE_STATS = { knight: { str: 6, life: 4, dex: 3, mag: 3 }, scout: { str: 4, life: 3, dex: 6, mag: 3 }, mage: { str: 3, life: 3, dex: 4, mag: 6 } };
+// lvl: poziom postaci (w Metin2 atak = 2×poziom + cechy, obrona = poziom + HT/1,25)
+const statBonus = (st, cls, lvl) => {
+  st = st || {}; const B = BASE_STATS[cls] || { str: 0, life: 0, dex: 0, mag: 0 };
+  const L = (st.life || 0) + B.life, S = (st.str || 0) + B.str, I = (st.mag || 0) + B.mag, D = (st.dex || 0) + B.dex, lv = lvl || 0;
   const atk = cls === 'scout' ? (4 * S + 2 * D) / 3 : cls === 'mage' ? (4 * S + 2 * I) / 3 : 2 * S;
-  return { hp: 40 * L, def: L / 1.25, mp: 20 * I, atk, mag: 2 * I, dex: D };
+  return { hp: 40 * (st.life || 0), def: lv + L / 1.25, mp: 20 * (st.mag || 0), atk: atk + 2 * lv, mag: 2 * I + 2 * lv, dex: D, lvAtk: 2 * lv };
 };
 // rating trafienia i unik (CalcAttackRating z serwera Metin2)
 const metinAR = (dx, lvl) => (Math.min(90, (4 * dx + 2 * lvl) / 6) + 210) / 300;

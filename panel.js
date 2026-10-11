@@ -150,7 +150,7 @@ function drawFeed() {
 
 // ---- render ----
 // modele robocze (wiki Metin2 nie podaje liczb HP i SP): życie i mana rosną z poziomem i punktami statystyk
-const stBonus = () => statBonus(window.Inventory && Inventory.state ? Inventory.state.stats : null, window.Inventory && Inventory.state ? Inventory.state.cls : null);
+const stBonus = () => statBonus(window.Inventory && Inventory.state ? Inventory.state.stats : null, window.Inventory && Inventory.state ? Inventory.state.cls : null, P.lvl);
 const clsOf = () => { const c = window.Inventory && Inventory.state ? Inventory.state.cls : null; return CLASSES[c] || null; };
 const eqBon = () => { const s = window.Inventory && Inventory.state; return bonusTotals(s && s.items, s && s.equip); };
 const hpMax = p => Math.round((clsOf() ? clsOf().hp0 : 730) + HP_PER_LEVEL * (p.lvl - 1) + stBonus().hp + eqBon().hp);

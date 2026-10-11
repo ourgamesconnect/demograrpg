@@ -38,8 +38,8 @@
   }
   const equipAtk = (useMag) => { const s = window.Inventory && Inventory.state; if (!s) return 0; const it = s.items[s.equip.weapon], q = itemStats(it); const m = useMag && q.mag, lo = m ? q.mlo : q.lo, hi = m ? q.mhi : q.hi; return Math.round(lo + Math.random() * (hi - lo)); };   // obrażenia losowane z przedziału broni
   const weaponKind = () => { const s = Inventory.state; return (s && s.cls && CLASSES[s.cls].w) || 'sword'; };
-  const stb = () => statBonus(window.Inventory && Inventory.state ? Inventory.state.stats : null, window.Inventory && Inventory.state ? Inventory.state.cls : null);
-  const dexNow = () => { const s = window.Inventory && Inventory.state; return (s && s.stats && s.stats.dex) || 0; };
+  const stb = () => statBonus(window.Inventory && Inventory.state ? Inventory.state.stats : null, window.Inventory && Inventory.state ? Inventory.state.cls : null, P.lvl);
+  const dexNow = () => stb().dex;   // DX = punkty + cecha startowa klasy
   const statAtk = useMag => { const b = stb(); return useMag ? b.mag : b.atk; };   // Magia dodaje się do ataku magicznego (umiejętności Różdżki)
     const bon = () => { const s = window.Inventory && Inventory.state; return bonusTotals(s && s.items, s && s.equip); };
   const playerDmg = useMag => equipAtk(useMag) * (1 + bon().dmg / 100) + statAtk(useMag);   // bon „Zwiększone obrażenia” działa na atak broni   // tylko założona broń + punkty statusu (bez bazy z poziomu i bez mnożników klasy)
@@ -83,7 +83,7 @@
     if (e.lvl - P.lvl >= 4 && Math.random() < 0.3) { if (visible()) fx('skilltxt', { left: '50%', top: '38%' }, 700, '✖ PUDŁO'); return 0; }   // kara za różnicę poziomów
     const B = bon();
     const rating = Math.max(0.2, metinAR(dexNow(), P.lvl) - metinER(0, e.lvl));   // trafienie: Zręczność i poziom (jak w Metin2)
-    let dmg = playerDmg(!!skill) * rating * mult * (1 + B.mob / 100) * (e.kind === 'boss' ? 1 + B.boss / 100 : 1) - (e.def || 0);   // obrona potwora odejmowana od ataku (jak w Metin2)
+    let dmg = (((playerDmg(!!skill) - stb().lvAtk) * rating + stb().lvAtk) * mult) * (1 + B.mob / 100) * (e.kind === 'boss' ? 1 + B.boss / 100 : 1) - (e.def || 0);   // obrona potwora odejmowana od ataku (jak w Metin2)
     if (dmg < 3) dmg = Math.floor(rnd(1, 6));   // Metin2: poniżej 3 obrażeń → losowo 1–5
     const crit = Math.random() * 100 < B.crit;   // szansa na krytyka wyłącznie z bonów ekwipunku (bazowo 0)
     if (crit) dmg *= 2;
