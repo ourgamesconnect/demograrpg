@@ -79,6 +79,8 @@ const STATS = [
   { k: 'dex',  n: 'Zręczność', ic: '🎯', c: '#4fe39a', per: 'unik (mniej obrażeń od potworów), lepsze trafianie i +0,67 ataku łukiem (Zwiadowca) na punkt' },
 ];
 // Cechy startowe klas (JobInitialPoints Metin2: wojownik ST6 HT4 DX3 IQ3; zabójca ST4 HT3 DX6 IQ3; szaman ST3 HT3 DX4 IQ6). Życie i mana na starcie są już w hp0/mp0.
+// limit jak w Metin2: każda cecha (start + wydane punkty) maks. 90
+const STAT_MAX = 90;
 const BASE_STATS = { knight: { str: 6, life: 4, dex: 3, mag: 3 }, scout: { str: 4, life: 3, dex: 6, mag: 3 }, mage: { str: 3, life: 3, dex: 4, mag: 6 } };
 // lvl: poziom postaci (w Metin2 atak = 2×poziom + cechy, obrona = poziom + HT/1,25)
 const statBonus = (st, cls, lvl) => {

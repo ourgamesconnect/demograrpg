@@ -217,7 +217,9 @@ const Server = (() => {
       n = Math.floor(+n); if (!Number.isFinite(n) || n < 1 || n > 300) return { err: 'Nieprawidłowa liczba punktów' };
       const spent = Object.values(S.stats).reduce((a, b) => a + b, 0), left = STAT_PER_LEVEL * (S.lvl - 1) - spent;
       if (left < 1) return { err: 'Brak punktów statusu' };
-      const add = Math.min(n, left); S.stats[stat] += add; return { ev: [{ t: 'stat_add', stat, n: add }] };
+      const base = (BASE_STATS[S.cls] || {})[stat] || 0, room = STAT_MAX - base - S.stats[stat];
+      if (room < 1) return { err: 'Ta cecha osiągnęła maksimum (' + STAT_MAX + ')' };
+      const add = Math.min(n, left, room); S.stats[stat] += add; return { ev: [{ t: 'stat_add', stat, n: add }] };
     },
     // TORBA ŁUPU: odbiór do plecaka (lub skrytki) albo szybka sprzedaż. Wszystko liczy serwer.
     loot_claim({ key, n }) {

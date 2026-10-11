@@ -80,9 +80,9 @@
     STATS.forEach(q => {
       const v = st[q.k] || 0, row = el('div', 'strow'); row.style.setProperty('--sc', q.c);
       const ic = el('i', '', q.ic), mid = el('div', 'stmid'); mid.append(el('b', '', q.n), el('small', '', q.per));
-      const ex = eqStatPoints(S().items, S().equip)[q.k] || 0, val = el('div', 'stval', String(v)); if (ex) val.append(el('small', 'stex', ' +' + ex));
+      const ex = eqStatPoints(S().items, S().equip)[q.k] || 0, bs = ((BASE_STATS[S().cls] || {})[q.k]) || 0, mx = STAT_MAX - bs, val = el('div', 'stval', String(v)); val.append(el('small', 'stex', ' / ' + mx)); if (ex) val.append(el('small', 'stex', ' (+' + ex + ' z kolczyków)'));
       const btns = el('div', 'stbtns');
-      [1, 5, 10].forEach(n => { const bt = el('button', 'stbtn', '＋' + n); bt.disabled = left < 1; bt.onclick = () => addStat(q.k, n); btns.append(bt); });
+      { const bt = el('button', 'stbtn', '＋1'); bt.disabled = left < 1 || v >= mx; bt.onclick = () => addStat(q.k, 1); btns.append(bt); }
       row.append(ic, mid, val, btns); list.append(row);
     });
     box.append(list);
