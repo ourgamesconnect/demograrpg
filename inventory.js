@@ -52,7 +52,7 @@
     tip.replaceChildren();
     const h = el('b', '', it.name + (it.plus ? ` +${it.plus}` : '')); h.style.color = r.c; tip.append(h, el('div', 'tt-r', r.n + ' · ' + ({ weapon: 'broń', helm: 'hełm', armor: 'zbroja', boots: 'buty', shield: 'tarcza', ring: 'pierścień', earrings: 'kolczyki', bracelet: 'bransoleta', necklace: 'naszyjnik' }[it.type] || it.type)));
     tip.append(el('div', 'tt-s', it.type === 'earrings' ? '✨ +' + earringPoints(it) + ' pkt statusu: ' + EARRING_STATS[it.statKey] : it.type === 'necklace' ? '' : (statLine(it) || '—')));
-    if (it.type === 'necklace') tip.append(el('div', 'tt-s', '⚡ −' + necklaceHaste(it) + '% czasu odnowienia wszystkich umiejętności'), el('div', 'tt-nob', '+0…+3: 1% · +4…+6: 2% · +7…+9: 3%'));
+    if (it.type === 'necklace') tip.append(el('div', 'tt-s', '⚡ −' + necklaceHaste(it) + '% czasu odnowienia wszystkich umiejętności'), el('div', 'tt-nob', '+0…+3: 1% · +4…+8: 2% · +9: 3%'));
     if (it.type === 'earrings') tip.append(el('div', 'tt-nob', '+0…+2: 1 pkt · +3…+5: 2 · +6…+8: 3 · +9: 4'));
     if (it.bonus && it.bonus.length) { const bl = el('div', 'tt-b'); it.bonus.forEach(b => { const q = BONUSES[b.id], l = el('div', 'bonline' + (b.v < 0 ? ' neg' : '')); l.textContent = q.ic + ' ' + q.n + ' ' + fmtBonus(b.id, b.v) + (q.pvp ? ' (PvP)' : ''); bl.append(l); }); tip.append(bl); }
     else tip.append(el('div', 'tt-nob', 'Brak bonów'));

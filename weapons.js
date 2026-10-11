@@ -118,8 +118,8 @@ function eqStatPoints(items, equip) {
 // wydane punkty + punkty z kolczyków
 function withEq(st, s) { const e = eqStatPoints(s && s.items, s && s.equip), o = { ...(st || {}) }; for (const k of Object.keys(e)) o[k] = (o[k] || 0) + e[k]; return o; }
 
-// NASZYJNIK (poziom 5): skraca czas odnowienia WSZYSTKICH umiejętności. +0…+3 → 1%, +4…+6 → 2%, +7…+9 → 3%.
-const necklaceHaste = it => { const p = (it && it.plus) | 0; return p >= 7 ? 3 : p >= 4 ? 2 : 1; };
+// NASZYJNIK (poziom 5): skraca czas odnowienia WSZYSTKICH umiejętności. +0…+3 → 1%, +4…+8 → 2%, +9 → 3%.
+const necklaceHaste = it => { const p = (it && it.plus) | 0; return p >= 9 ? 3 : p >= 4 ? 2 : 1; };
 function skillHaste(items, equip) {
   let h = 0; if (items && equip) for (const u of Object.values(equip)) { const it = items[u]; if (it && it.type === 'necklace') h += necklaceHaste(it); }
   return h;
