@@ -9,6 +9,17 @@
   function bar(label, v, max, col) {
     const w = el('div', 'clbar'); w.append(el('span', '', label)); const t = el('div', 'cltrack'), i = el('i'); i.style.width = Math.min(100, 100 * v / max) + '%'; i.style.background = col; t.append(i); w.append(t); return w;
   }
+  const refs = {};
+  // aktualizacja bez przebudowy kart (bez migania i ponownej animacji)
+  function sync() {
+    Object.entries(refs).forEach(([key, o]) => {
+      const c = CLASSES[key], soon = !WEAPON_AVAILABLE[c.w];
+      o.card.classList.toggle('picked', picked === key);
+      o.btn.classList.toggle('confirm', picked === key);
+      o.btn.textContent = soon ? '⏳ WKRÓTCE' : picked === key ? '✔ POTWIERDŹ: klasy nie da się zmienić' : 'WYBIERZ ' + c.n.toUpperCase();
+      o.btn.disabled = busy || soon;
+    });
+  }
   function draw() {
     const wrap = $('#clcards', root); wrap.replaceChildren();
     Object.entries(CLASSES).forEach(([key, c], idx) => {
@@ -25,11 +36,11 @@
       const btn = el('button', 'clbtn' + (picked === key ? ' confirm' : ''), soon ? '⏳ WKRÓTCE' : picked === key ? '✔ POTWIERDŹ: klasy nie da się zmienić' : 'WYBIERZ ' + c.n.toUpperCase());
       btn.disabled = busy || soon;
       btn.onclick = async () => {
-        if (picked !== key) { picked = key; draw(); return; }
-        busy = true; draw(); const r = await Inventory.exec('class_choose', { cls: key }); busy = false;
-        if (r && r.ok) { close(); if (window.GameFeed) GameFeed('⚔️ Wybrano klasę: ' + CLASSES[key].n + '. Powodzenia!', 'good'); } else draw();
+        if (picked !== key) { picked = key; sync(); return; }
+        busy = true; sync(); const r = await Inventory.exec('class_choose', { cls: key }); busy = false;
+        if (r && r.ok) { close(); if (window.GameFeed) GameFeed('⚔️ Wybrano klasę: ' + CLASSES[key].n + '. Powodzenia!', 'good'); } else sync();
       };
-      card.append(btn); wrap.append(card);
+      card.append(btn); wrap.append(card); refs[key] = { card, btn };
     });
   }
   function build() {
