@@ -67,14 +67,15 @@ const skillCap = () => SKILL_MAX;
 
 // PUNKTY STATUSU: 3 za każdy poziom (od poziomu 2). Gracz sam rozdziela je między pięć cech.
 const STAT_PER_LEVEL = 3;
+// Wartości na punkt wg Metin2 (kod serwera): Życie/VIT = 40 HP na punkt, Siła/ST = +2 ataku, Magia/IQ = +20 many i +2 ataku magicznego.
 const STATS = [
-  { k: 'life', n: 'Życie',      ic: '❤️', c: '#ff5a6e', per: '+40 życia i +1 obrony' },
-  { k: 'mana', n: 'Mana',       ic: '💧', c: '#6ab4ff', per: '+20 many i +1% szybkości regeneracji many' },
-  { k: 'str',  n: 'Siła',       ic: '💪', c: '#ff8a45', per: '+2 ataku fizycznego mieczy' },
-  { k: 'dex',  n: 'Zręczność',  ic: '🎯', c: '#4fe39a', per: '+2 ataku łuków' },
-  { k: 'mag',  n: 'Magia',      ic: '🔮', c: '#c58bff', per: '+2 ataku magicznego i +1 obrony magicznej (przeciw umiejętnościom innych graczy)' },
+  { k: 'life', n: 'Życie',     ic: '❤️', c: '#ff5a6e', per: '+40 maks. życia na punkt' },
+  { k: 'str',  n: 'Siła',      ic: '💪', c: '#ff8a45', per: '+2 ataku (miecz)' },
+  { k: 'def',  n: 'Obrona',    ic: '🛡️', c: '#9aa0c8', per: '+1 obrony na punkt' },
+  { k: 'dex',  n: 'Zręczność', ic: '🎯', c: '#4fe39a', per: '+2 ataku (łuk)' },
+  { k: 'mag',  n: 'Magia',     ic: '🔮', c: '#c58bff', per: '+20 maks. many i +2 ataku magicznego na punkt' },
 ];
-const statBonus = st => { st = st || {}; return { hp: 40 * (st.life || 0), def: st.life || 0, mp: 20 * (st.mana || 0), mpRegen: 0.01 * (st.mana || 0), sword: 2 * (st.str || 0), bow: 2 * (st.dex || 0), mag: 2 * (st.mag || 0), magDef: st.mag || 0 }; };
+const statBonus = st => { st = st || {}; return { hp: 40 * (st.life || 0), def: st.def || 0, mp: 20 * (st.mag || 0), sword: 2 * (st.str || 0), bow: 2 * (st.dex || 0), mag: 2 * (st.mag || 0) }; };
 
 // KLASY: Rycerz (Miecz), Zwiadowca (Łuk), Mag (Różdżka). Mnożniki pochodzą z symulatora balansu (balance/params.json).
 // Życie i mana na poziomie 1 zależą od klasy; każdy kolejny poziom daje +30 życia i +10 many (niezależnie od klasy).

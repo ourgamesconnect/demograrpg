@@ -37,7 +37,8 @@
     $('#sklvl', root).textContent = 'Poziom ' + s.lvl;
     const sp = statPoints(); $('#stpts', root).textContent = sp; $('#stpts', root).parentElement.classList.toggle('has', sp > 0);
     root.querySelectorAll('#skmain button').forEach(b => b.classList.toggle('on', b.dataset.v === view));
-    $('#sktabs', root).hidden = true;   // umiejętności tylko klasy gracza (bez zakładek broni) $('#skgrid', root).hidden = view !== 'skills'; $('.sk-grade', root).hidden = view !== 'skills'; $('#skstats', root).hidden = view !== 'stats';
+    $('#sktabs', root).hidden = true;   // umiejętności tylko klasy gracza (bez zakładek broni)
+    $('#skgrid', root).hidden = view !== 'skills'; $('.sk-grade', root).hidden = view !== 'skills'; $('#skstats', root).hidden = view !== 'stats';
     if (view === 'stats') { drawStats(); return; }
     root.style.setProperty('--wc', w.c);
     const tabs = $('#sktabs', root); tabs.replaceChildren();
@@ -74,7 +75,7 @@
   function drawStats() {
     const box = $('#skstats', root), st = statsOf(), left = statPoints(), b = statBonus(st), s = S();
     box.replaceChildren();
-    box.append(el('p', 'sk-info2', 'Za każdy poziom dostajesz ' + STAT_PER_LEVEL + ' punkty statusu. Rozdziel je między pięć cech; każdy punkt daje stały bonus.'));
+    box.append(el('p', 'sk-info2', 'Za każdy poziom dostajesz ' + STAT_PER_LEVEL + ' punkty statusu. Rozdziel je między pięć cech; wartości na punkt jak w Metin2.'));
     const list = el('div', 'stlist');
     STATS.forEach(q => {
       const v = st[q.k] || 0, row = el('div', 'strow'); row.style.setProperty('--sc', q.c);
@@ -86,11 +87,11 @@
     });
     box.append(list);
     const sum = el('div', 'stsum');
-    const items = [['❤️ Maks. życie z punktów', '+' + b.hp], ['🛡️ Obrona z punktów', '+' + b.def], ['💧 Maks. mana z punktów', '+' + b.mp], ['⚡ Regeneracja many', '+' + Math.round(b.mpRegen * 100) + '%'],
-      ['💪 Atak mieczy', '+' + b.sword], ['🎯 Atak łuków', '+' + b.bow], ['🔮 Atak magiczny', '+' + b.mag], ['🔰 Obrona magiczna (PvP)', '+' + b.magDef]];
+    const items = [['❤️ Maks. życie z punktów', '+' + b.hp], ['🛡️ Obrona z punktów', '+' + b.def], ['💧 Maks. mana z punktów', '+' + b.mp],
+      ['💪 Atak mieczy', '+' + b.sword], ['🎯 Atak łuków', '+' + b.bow], ['🔮 Atak magiczny', '+' + b.mag]];
     items.forEach(([n, v]) => { const c = el('div', 'stsrow'); c.append(el('span', '', n), el('b', '', v)); sum.append(c); });
     box.append(el('h4', '', 'Łączne bonusy z punktów statusu'), sum);
-    box.append(el('p', 'sk-info2', 'Obrona zmniejsza obrażenia od potworów z malejącymi przyrostami. Obrona magiczna działa tylko przeciwko umiejętnościom innych graczy.'));
+    box.append(el('p', 'sk-info2', 'Obrona zmniejsza obrażenia od potworów z malejącymi przyrostami.'));
   }
   function build() {
     root = el('div', 'sk-ov'); root.hidden = true;

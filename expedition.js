@@ -182,7 +182,7 @@
     if (!X.enemy) { if (X.wait > 0) { X.wait--; return; } spawn(takeQueued()); }
     const e = X.enemy; if (e.dead) { X.enemy = null; X.wait = 1; syncEnemy(false); return; }
     X.n++;
-    P.mp = Math.min(mm, P.mp + 3 * (1 + stb().mpRegen));
+    P.mp = Math.min(mm, P.mp + 3);
     // obrażenia w czasie (Grad Kłów)
     if (SK.dot && SK.dot.until > Date.now()) dealDamage(SK.dot.dpt, SK.dotSkill);
     if (e.dead) { sync(); return; }
