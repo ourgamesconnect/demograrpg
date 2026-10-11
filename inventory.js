@@ -51,7 +51,8 @@
     const r = RARITY[it.rarity], cmp = !equippedNow && equippedFor(it);
     tip.replaceChildren();
     const h = el('b', '', it.name + (it.plus ? ` +${it.plus}` : '')); h.style.color = r.c; tip.append(h, el('div', 'tt-r', r.n + ' · ' + ({ weapon: 'broń', helm: 'hełm', armor: 'zbroja', boots: 'buty', shield: 'tarcza', ring: 'pierścień', earrings: 'kolczyki', bracelet: 'bransoleta', necklace: 'naszyjnik' }[it.type] || it.type)));
-    tip.append(el('div', 'tt-s', it.type === 'earrings' ? '✨ +' + earringPoints(it) + ' pkt statusu: ' + EARRING_STATS[it.statKey] : (statLine(it) || '—')));
+    tip.append(el('div', 'tt-s', it.type === 'earrings' ? '✨ +' + earringPoints(it) + ' pkt statusu: ' + EARRING_STATS[it.statKey] : it.type === 'necklace' ? '' : (statLine(it) || '—')));
+    if (it.type === 'necklace') tip.append(el('div', 'tt-s', '⚡ −' + necklaceHaste(it) + '% czasu odnowienia wszystkich umiejętności'), el('div', 'tt-nob', '+0…+3: 1% · +4…+6: 2% · +7…+9: 3%'));
     if (it.type === 'earrings') tip.append(el('div', 'tt-nob', '+0…+2: 1 pkt · +3…+5: 2 · +6…+8: 3 · +9: 4'));
     if (it.bonus && it.bonus.length) { const bl = el('div', 'tt-b'); it.bonus.forEach(b => { const q = BONUSES[b.id], l = el('div', 'bonline' + (b.v < 0 ? ' neg' : '')); l.textContent = q.ic + ' ' + q.n + ' ' + fmtBonus(b.id, b.v) + (q.pvp ? ' (PvP)' : ''); bl.append(l); }); tip.append(bl); }
     else tip.append(el('div', 'tt-nob', 'Brak bonów'));
@@ -99,7 +100,7 @@
     const eqUids = Object.values(ST.equip), best = eqUids.length ? Math.max(...eqUids.map(u => ST.items[u].rarity)) : -1;
     pd.style.setProperty('--aura', best >= 0 ? RARITY[best].c : '#5a5f7a');
     pd.style.setProperty('--p', Math.round(100 * eqUids.length / EQUIP_SLOTS.length));
-    const POS = { helm: 0, earrings: 45, bracelet: 90, ring1: 135, boots: 180, shield: 225, weapon: 270, armor: 315 }, R = 33;
+    const POS = { helm: 0, necklace: 40, earrings: 80, bracelet: 120, ring1: 160, boots: 200, shield: 240, weapon: 280, armor: 320 }, R = 33;
     let beams = '', slotsEls = [];
     EQUIP_SLOTS.forEach(s => {
       const an = POS[s.k] * Math.PI / 180, x = 50 + R * Math.sin(an), y = 50 - R * Math.cos(an), u = ST.equip[s.k], col = u ? RARITY[ST.items[u].rarity].c : '#3a3d52';

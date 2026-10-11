@@ -72,7 +72,8 @@
   const rankOf = id => ranks()[id] || 0;
   const mySkills = () => { const wk = weaponKind(); return SKILLS.filter(s => s.w === wk && rankOf(s.id) > 0); };
   const buffOn = id => (SK.until[id] || 0) > Date.now();
-  const cdOf = s => (s.id === 'wd1' ? s.p(rankOf(s.id)).cd : s.cd);
+  const hasteMul = () => { const st = window.Inventory && Inventory.state; return 1 - skillHaste(st && st.items, st && st.equip) / 100; };   // naszyjnik skraca odnowienie wszystkich umiejętności
+  const cdOf = s => (s.id === 'wd1' ? s.p(rankOf(s.id)).cd : s.cd) * hasteMul();
   const cdLeft = s => Math.max(0, ((SK.ready[s.id] || 0) - Date.now()) / 1000);
   const costOf = s => (buffOn('wd1') && s.id !== 'wd1' ? 0 : s.mana);
   const isAuto = s => SK.auto[s.id] !== false;     // domyślnie automatyczne użycie włączone

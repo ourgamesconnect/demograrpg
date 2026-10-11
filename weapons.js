@@ -19,7 +19,7 @@ function weaponStats(kind, tierIdx, plus) {
 // statystyki przedmiotu z uwzględnieniem ulepszenia (+0..+9) i rzadkości
 function itemStats(it) {
   if (!it) return { atk: 0, mag: 0, def: 0, lo: 0, hi: 0, mlo: 0, mhi: 0 };
-  if (it.type === 'earrings') return { atk: 0, mag: 0, lo: 0, hi: 0, mlo: 0, mhi: 0, def: 0 };
+  if (it.type === 'earrings' || it.type === 'necklace') return { atk: 0, mag: 0, lo: 0, hi: 0, mlo: 0, mhi: 0, def: 0 };
   const m = it.rm || 1;
   if (it.type === 'weapon') { const s = weaponStats(it.kind, it.tier, it.plus), f = v => Math.round(v * m); return { atk: f(s.atk), mag: f(s.mag), lo: f(s.lo), hi: f(s.hi), mlo: f(s.mlo), mhi: f(s.mhi), def: 0 }; }
   if (ARMOR_TABLE[it.type] && ARMOR_TABLE[it.type][it.tier]) return { atk: 0, mag: 0, lo: 0, hi: 0, mlo: 0, mhi: 0, def: Math.round(ARMOR_TABLE[it.type][it.tier][Math.max(0, Math.min(9, it.plus | 0))] * m) };
@@ -41,7 +41,7 @@ const ARMOR_NAMES = { armor: ['Drewniana zbroja'], helm: ['Drewniany hełm'], bo
 // ŁUP NA MAPACH (wspólne dla serwera i klienta). Każda sztuka drewnianego EQ wypada jako +0 lub +1, szansa rolowana osobno dla każdej części.
 // mob: szansa na KAŻDĄ część z jednego zabitego potwora, wg poziomu potwora; boss/target: dokładnie jedna losowa część.
 const MAP_DROPS = {
-  polanka: { parts: ['weapon', 'helm', 'armor', 'boots', 'shield', 'ear_life', 'ear_str', 'ear_mag', 'ear_dex'], mob: { 1: 0.008, 2: 0.010, 3: 0.012, 4: 0.014, 5: 0.016 }, plus1: 0.2, boss: 0, target: 0,
+  polanka: { parts: ['weapon', 'helm', 'armor', 'boots', 'shield', 'ear_life', 'ear_str', 'ear_mag', 'ear_dex', 'neck'], mob: { 1: 0.008, 2: 0.010, 3: 0.012, 4: 0.014, 5: 0.016 }, plus1: 0.2, boss: 0, target: 0,
     gold: { 1: [5, 15], 2: [10, 25], 3: [15, 35], 4: [20, 45], 5: [20, 65] }, goldChance: 0.5, goldMaxGap: 10, bossGold: [100, 300], targetGold: [50, 150] }   // złoto losuje serwer   // boss i Spaczony Korzeń: łup jeszcze nieustalony,
 };
 
@@ -117,3 +117,10 @@ function eqStatPoints(items, equip) {
 }
 // wydane punkty + punkty z kolczyków
 function withEq(st, s) { const e = eqStatPoints(s && s.items, s && s.equip), o = { ...(st || {}) }; for (const k of Object.keys(e)) o[k] = (o[k] || 0) + e[k]; return o; }
+
+// NASZYJNIK (poziom 5): skraca czas odnowienia WSZYSTKICH umiejętności. +0…+3 → 1%, +4…+6 → 2%, +7…+9 → 3%.
+const necklaceHaste = it => { const p = (it && it.plus) | 0; return p >= 7 ? 3 : p >= 4 ? 2 : 1; };
+function skillHaste(items, equip) {
+  let h = 0; if (items && equip) for (const u of Object.values(equip)) { const it = items[u]; if (it && it.type === 'necklace') h += necklaceHaste(it); }
+  return h;
+}
