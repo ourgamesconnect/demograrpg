@@ -108,6 +108,7 @@ const Server = (() => {
       [S.slots[from], S.slots[to]] = [S.slots[to], S.slots[from]]; return { ev: [{ t: 'moved', from, to }] };
     },
     equip({ uid }) {
+      if (S.activity && S.activity.kind !== 'ignore') return { err: 'Zajęty: ' + ACTIVITY_NAMES[S.activity.kind] + '. Zatrzymaj aktywność, aby to zrobić.' };
       if (S.activity && S.activity.kind === 'exp') return { err: 'Podczas wyprawy nie można zmieniać ekwipunku. Zatrzymaj wyprawę.' };
       const f = find(uid); if (!f || f.w !== 'bag') return { err: 'Przedmiot nie jest w plecaku' };
       const it = S.items[uid]; if (!S.cls) return { err: 'Najpierw wybierz klasę' };
@@ -118,6 +119,7 @@ const Server = (() => {
       return { ev: [{ t: 'equipped', uid, slot, swapped: old || null }] };
     },
     unequip({ slot }) {
+      if (S.activity && S.activity.kind !== 'ignore') return { err: 'Zajęty: ' + ACTIVITY_NAMES[S.activity.kind] + '. Zatrzymaj aktywność, aby to zrobić.' };
       if (S.activity && S.activity.kind === 'exp') return { err: 'Podczas wyprawy nie można zmieniać ekwipunku. Zatrzymaj wyprawę.' };
       const uid = S.equip[slot]; if (!uid) return { err: 'Slot jest pusty' };
       const i = freeSlot(); if (i < 0) return { err: 'Plecak jest pełny' };
@@ -201,6 +203,7 @@ const Server = (() => {
     },
     // Umiejętności: 1 punkt za każdy poziom od 2; ranga 1–20; ranga ograniczona poziomem postaci
     skill_up({ id }) {
+      if (S.activity && S.activity.kind !== 'ignore') return { err: 'Zajęty: ' + ACTIVITY_NAMES[S.activity.kind] + '. Zatrzymaj aktywność, aby to zrobić.' };
       const sk = SKILLS.find(x => x.id === id); if (!sk) return { err: 'Nieznana umiejętność' };
       if (!S.cls) return { err: 'Najpierw wybierz klasę' };
       if (sk.w !== CLASSES[S.cls].w) return { err: 'Ta umiejętność należy do innej klasy' };
@@ -210,9 +213,12 @@ const Server = (() => {
       if (points < 1) return { err: 'Brak punktów umiejętności' };
       S.skills[id] = cur + 1; return { ev: [{ t: 'skill_up', id, rank: cur + 1 }] };
     },
-    skill_reset() { S.skills = {}; return { ev: [{ t: 'skill_reset' }] }; },
+    skill_reset() {
+      if (S.activity && S.activity.kind !== 'ignore') return { err: 'Zajęty: ' + ACTIVITY_NAMES[S.activity.kind] + '. Zatrzymaj aktywność, aby to zrobić.' };
+      S.skills = {}; return { ev: [{ t: 'skill_reset' }] }; },
     // Punkty statusu: 3 za każdy poziom od 2; serwer pilnuje puli
     stat_add({ stat, n = 1 }) {
+      if (S.activity && S.activity.kind !== 'ignore') return { err: 'Zajęty: ' + ACTIVITY_NAMES[S.activity.kind] + '. Zatrzymaj aktywność, aby to zrobić.' };
       if (!STATS.some(q => q.k === stat)) return { err: 'Nieznana cecha' };
       n = Math.floor(+n); if (!Number.isFinite(n) || n < 1 || n > 300) return { err: 'Nieprawidłowa liczba punktów' };
       const spent = Object.values(S.stats).reduce((a, b) => a + b, 0), left = STAT_PER_LEVEL * (S.lvl - 1) - spent;
@@ -263,6 +269,7 @@ const Server = (() => {
     },
     // ALCHEMIK: zakup mikstur (do POTION_MAX sztuk każdej), użycie i ustawienia automatu
     potion_buy({ id, n }) {
+      if (S.activity && S.activity.kind !== 'ignore') return { err: 'Zajęty: ' + ACTIVITY_NAMES[S.activity.kind] + '. Zatrzymaj aktywność, aby to zrobić.' };
       const pd = POTIONS[id]; if (!pd) return { err: 'Nieznana mikstura' };
       if (S.activity && S.activity.kind === 'exp') return { err: 'Alchemik jest dostępny dopiero po zakończeniu wyprawy' };
       const have = S.potions[id] || 0, want = Math.max(1, Math.floor(+n) || 1), room = POTION_MAX - have;
@@ -286,6 +293,7 @@ const Server = (() => {
     },
     // KOWAL: ulepszenie przedmiotu o +1 (złoto + ewentualnie Sosna). Porażka: przedmiot przepada na zawsze, surowiec i złoto też.
     smith_upgrade({ uid }) {
+      if (S.activity && S.activity.kind !== 'ignore') return { err: 'Zajęty: ' + ACTIVITY_NAMES[S.activity.kind] + '. Zatrzymaj aktywność, aby to zrobić.' };
       if (S.activity && S.activity.kind === 'exp') return { err: 'Kowal jest dostępny dopiero po zakończeniu wyprawy' };
       const it = S.items[uid]; if (!it) return { err: 'Nie ma takiego przedmiotu' };
       if (!SMITH_TYPES.includes(it.type)) return { err: 'Tego przedmiotu nie można ulepszać' };

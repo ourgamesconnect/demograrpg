@@ -89,7 +89,7 @@ function buildTiles() {
   TILES.forEach(t => {
     const b = document.createElement('button'); b.className = 'tile'; b.dataset.id = t.id; b.style.setProperty('--c', t.c);
     b.innerHTML = `<span class="ic">${t.ic}</span><b>${t.t}</b><small>${t.d}</small><em id="st-${t.id}"></em>`;
-    b.onclick = () => (t.id === 'gear' ? Inventory.open() : t.id === 'exp' ? Expedition.open() : t.id === 'gather' ? Gather.open() : t.id === 'skills' ? Skills.open() : t.id === 'city' ? openCity() : toast(`${t.ic} ${t.t}: ten ekran powstanie w następnym kroku.`));
+    b.onclick = () => (b.classList.contains('locked') ? toast('🔒 Najpierw zatrzymaj trwającą aktywność (wyprawę lub zbieractwo).') : t.id === 'gear' ? Inventory.open() : t.id === 'exp' ? Expedition.open() : t.id === 'gather' ? Gather.open() : t.id === 'skills' ? Skills.open() : t.id === 'city' ? openCity() : toast(`${t.ic} ${t.t}: ten ekran powstanie w następnym kroku.`));
     b.onmousemove = e => { const r = b.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5; b.style.setProperty('--ry', (x * 10).toFixed(1) + 'deg'); b.style.setProperty('--rx', (-y * 10).toFixed(1) + 'deg'); };
     b.onmouseleave = () => { b.style.setProperty('--rx', '0deg'); b.style.setProperty('--ry', '0deg'); };
     box.append(b);
@@ -99,7 +99,7 @@ function renderTiles() {
   const a = window.Inventory && Inventory.state && Inventory.state.activity, NAMES = { exp: 'Wyprawy', gather: 'Zbieractwo', craft: 'Rzemiosło' };
   for (const t of TILES) {
     let [txt, live] = status(t.id), locked = false;
-    if (a && NAMES[a.kind] && ['exp', 'gather'].includes(t.id)) {
+    if (a && NAMES[a.kind] && ['exp', 'gather'].includes(a.kind)) {   // podczas wyprawy lub zbierania wszystkie inne kafelki są zablokowane
       if (t.id === a.kind) { txt = '● W TOKU · ' + ({ mining: 'Górnictwo', sawmill: 'Tartak' }[a.detail] || a.detail || NAMES[a.kind]); live = true; }
       else { txt = '🔒 Zajęty: ' + NAMES[a.kind]; live = false; locked = true; }
     }
