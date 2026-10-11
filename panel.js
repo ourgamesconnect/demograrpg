@@ -153,8 +153,9 @@ function drawFeed() {
 const stBonus = () => statBonus(withEq(window.Inventory && Inventory.state ? Inventory.state.stats : null, window.Inventory && Inventory.state), window.Inventory && Inventory.state ? Inventory.state.cls : null, P.lvl);
 const clsOf = () => { const c = window.Inventory && Inventory.state ? Inventory.state.cls : null; return CLASSES[c] || null; };
 const eqBon = () => { const s = window.Inventory && Inventory.state; return bonusTotals(s && s.items, s && s.equip); };
-const hpMax = p => Math.round((clsOf() ? clsOf().hp0 : 730) + HP_PER_LEVEL * (p.lvl - 1) + stBonus().hp + eqBon().hp);
-const mpMax = p => Math.round((clsOf() ? clsOf().mp0 : 260) + MP_PER_LEVEL * (p.lvl - 1) + stBonus().mp + eqBon().mp);
+const accEq = () => { const s = window.Inventory && Inventory.state; return accessoryTotals(s && s.items, s && s.equip); };
+const hpMax = p => Math.round((clsOf() ? clsOf().hp0 : 730) + HP_PER_LEVEL * (p.lvl - 1) + stBonus().hp + eqBon().hp + accEq().hp);
+const mpMax = p => Math.round((clsOf() ? clsOf().mp0 : 260) + MP_PER_LEVEL * (p.lvl - 1) + stBonus().mp + eqBon().mp + accEq().mp);
 // EXP potrzebny na kolejny poziom: tabela Metin2 (wiki), poziomy 1→2 … 99→100
 const EXP_TABLE = [300,800,1500,2500,4300,7200,11000,17000,24000,33000,43000,58000,76000,100000,130000,169000,219000,283000,365000,472000,610000,705000,813000,937000,1077000,1237000,1418000,1624000,1857000,2122000,2421000,2761000,3145000,3580000,4073000,4632000,5194000,5717000,6264000,6837000,7600000,8274000,8990000,9753000,10560000,11410000,12320000,13270000,14280000,15340000,16870000,18960000,19980000,21420000,22930000,24580000,26200000,27960000,29800000,32780000,36060000,39670000,43640000,48000000,52800000,58080000,63890000,70280000,77310000,85040000,93540000,102900000,113200000,124500000,137000000,150700000,165700000,236990000,260650000,286780000,315000000,346970000,381680000,419770000,461760000,508040000,558740000,614640000,676130000,743730000,1041222000,1145344200,1259878620,1385866482,1524453130,1676898443,1844588288,2029047116,2050000000];
 function expFor(lvl) { return EXP_TABLE[Math.min(lvl, EXP_TABLE.length) - 1]; }

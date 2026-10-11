@@ -77,7 +77,7 @@
   const cdLeft = s => Math.max(0, ((SK.ready[s.id] || 0) - Date.now()) / 1000);
   const costOf = s => (buffOn('wd1') && s.id !== 'wd1' ? 0 : s.mana);
   const isAuto = s => SK.auto[s.id] !== false;     // domyślnie automatyczne użycie włączone
-  const aspdFactor = () => Math.max(0.4, 1 + bon().aspd / 100 + (buffOn('bw1') ? SKILLS.find(s => s.id === 'bw1').p(rankOf('bw1')).aspd : 0) + (buffOn('sw2') ? SKILLS.find(s => s.id === 'sw2').p(rankOf('sw2')).aspd : 0));
+  const aspdFactor = () => Math.max(0.4, 1 + bon().aspd / 100 + (() => { const st = window.Inventory && Inventory.state; return accessoryTotals(st && st.items, st && st.equip).aspd / 100; })() + (buffOn('bw1') ? SKILLS.find(s => s.id === 'bw1').p(rankOf('bw1')).aspd : 0) + (buffOn('sw2') ? SKILLS.find(s => s.id === 'sw2').p(rankOf('sw2')).aspd : 0));
   const atkBuff = () => (buffOn('sw1') ? 1 + SKILLS.find(s => s.id === 'sw1').p(rankOf('sw1')).atk : 1);
   function dealDamage(mult, skill) {
     const e = X.enemy; if (!e || e.dead) return 0;
@@ -386,10 +386,13 @@
     { const box = $('#xdrops', root), m = MAPS[X.map], dr = MAP_DROPS[m.id], sel = selMobs(), cls = Inventory.state && Inventory.state.cls, sig = m.id + ':' + sel.join(',') + ':' + cls;
       if (dr && box._sig !== sig) { box._sig = sig; box.replaceChildren(); box.append(el('b', '', 'Możliwy łup na mapie:'));
         const lv = sel.map(i => m.spec.mobs[i].lvl), lo = Math.min(...lv.map(l => dr.mob[l] || 0)), hi = Math.max(...lv.map(l => dr.mob[l] || 0));
-        const nm = { weapon: cls ? WEAPON_NAMES[CLASSES[cls].w][0] : 'Drewniana broń', helm: ARMOR_NAMES.helm[0], armor: ARMOR_NAMES.armor[0], boots: ARMOR_NAMES.boots[0], shield: ARMOR_NAMES.shield[0] };
-        const ic = { weapon: cls ? { sword: '🗡️', bow: '🏹', wand: '🪄' }[CLASSES[cls].w] : '⚔️', helm: '🪖', armor: '🥋', boots: '🥾', shield: '🛡️' };
+        const wnm = cls ? WEAPON_NAMES[CLASSES[cls].w][0] : 'Drewniana broń', wic = cls ? { sword: '🗡️', bow: '🏹', wand: '🪄' }[CLASSES[cls].w] : '⚔️';
+        const nm = { weapon: wnm, helm: ARMOR_NAMES.helm[0], armor: ARMOR_NAMES.armor[0], boots: ARMOR_NAMES.boots[0], shield: ARMOR_NAMES.shield[0], ear_life: 'Drewniane kolczyki Życia', ear_str: 'Drewniane kolczyki Siły', ear_mag: 'Drewniane kolczyki Magii', ear_dex: 'Drewniane kolczyki Zręczności', neck: 'Drewniany naszyjnik', bracelet: 'Drewniana bransoletka', ring_hp: 'Drewniany pierścień Życia', ring_mp: 'Drewniany pierścień Many' };
+        const ic = { weapon: wic, helm: '🪖', armor: '🥋', boots: '🥾', shield: '🛡️', ear_life: '💎', ear_str: '💎', ear_mag: '💎', ear_dex: '💎', neck: '🔗', bracelet: '📿', ring_hp: '💍', ring_mp: '💍' };
+        const sh = { weapon: 'Broń', helm: 'Hełm', armor: 'Zbroja', boots: 'Buty', shield: 'Tarcza', ear_life: 'Kolczyki Ż', ear_str: 'Kolczyki S', ear_mag: 'Kolczyki M', ear_dex: 'Kolczyki Z', neck: 'Naszyjnik', bracelet: 'Bransoleta', ring_hp: 'Pierścień Ż', ring_mp: 'Pierścień M' };
         const pct = v => (v * 100).toLocaleString('pl-PL', { maximumFractionDigits: 1 }) + '%';
-        dr.parts.forEach(p => { const c = el('span', 'xdrop'); c.title = nm[p] + ' +0 lub +1 · ' + (lo === hi ? pct(lo) : pct(lo) + '–' + pct(hi)) + ' z potwora · boss i korzeń: łup wkrótce'; c.append(el('i', '', ic[p]), el('small', '', '+0/+1')); box.append(c); }); } }
+        const base = ['weapon', 'helm', 'armor', 'boots', 'shield'];
+        dr.parts.forEach(p => { const c = el('span', 'xdrop'); const f = base.includes(p) ? 1 : 0.5; c.title = nm[p] + ' · ' + (lo === hi ? pct(lo * f) : pct(lo * f) + '–' + pct(hi * f)) + ' z potwora' + (base.includes(p) ? '' : ' · od 5 poziomu'); c.append(el('i', '', ic[p]), el('small', '', sh[p])); box.append(c); }); } }
     const tiles = $('#xmaps', root); tiles.replaceChildren();
     MAPS.forEach((m, i) => { const open = P.lvl >= m.req, b = el('button', 'xmap' + (X.map === i ? ' on' : '') + (open ? '' : ' lock')); b.disabled = !open || X.on || pending; if (X.on && open && X.map !== i) b.title = 'Zatrzymaj wyprawę, aby zmienić mapę'; b.append(el('i', '', open ? m.ic : '🔒'), el('b', '', m.k), el('small', '', open ? (m.range || `poziom potworów ${m.lvl}+`) : `od poziomu ${m.req}`)); b.onclick = () => { if (X.map === i) return; X.map = i; X.enemy = null; X.wait = 0; initSched(); stageEl.dataset.map = i; syncEnemy(false); sync(); }; tiles.append(b); });
   }
