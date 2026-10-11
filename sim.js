@@ -284,7 +284,7 @@ const Server = (() => {
       S.pcfg = { hpOn: !!hpOn, hpThr: th(hpThr, 5, 95), hpId, mpOn: !!mpOn, mpThr: th(mpThr, 5, 95), mpId };
       return { ev: [{ t: 'potion_cfg' }] };
     },
-    // KOWAL: ulepszenie przedmiotu o +1 (złoto + ewentualnie Sosna). Porażka: przedmiot zostaje, koszt przepada.
+    // KOWAL: ulepszenie przedmiotu o +1 (złoto + ewentualnie Sosna). Porażka: przedmiot przepada na zawsze, surowiec i złoto też.
     smith_upgrade({ uid }) {
       if (S.activity && S.activity.kind === 'exp') return { err: 'Kowal jest dostępny dopiero po zakończeniu wyprawy' };
       const it = S.items[uid]; if (!it) return { err: 'Nie ma takiego przedmiotu' };
@@ -301,7 +301,13 @@ const Server = (() => {
         if (['earrings', 'necklace', 'bracelet', 'ring'].includes(it.type)) it.value = 100 * (1 + 0.5 * it.rarity);
         else { const st = itemStats(it); it.value = Math.max(2, Math.round((st.atk + st.mag * 0.5 + st.def) * 3.2 * (1 + 0.5 * it.rarity))); }
       }
-      return { ev: [{ t: 'smith', uid, ok, plus: it.plus | 0, to: n, cost, mat: mat || null, chance: SMITH_P[n] }] };
+      let destroyed = false;
+      if (!ok) {   // porażka: przedmiot przepada na zawsze
+        const f = find(uid);
+        if (f) { if (f.w === 'bag') S.slots[f.i] = null; else if (f.w === 'equip') delete S.equip[f.k]; else if (f.w === 'stash') S.stash.splice(f.s, 1); }
+        delete S.items[uid]; destroyed = true;
+      }
+      return { ev: [{ t: 'smith', uid, ok, destroyed, plus: ok ? (it.plus | 0) : (it.plus | 0), to: n, cost, mat: mat || null, chance: SMITH_P[n] }] };
     },
     // wyłączanie przedmiotów z łupu na mapie (tylko przed wyprawą)
     drop_filter({ map, off }) {

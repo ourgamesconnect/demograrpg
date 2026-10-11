@@ -47,3 +47,8 @@
 @keyframes smsp{to{transform:translate(var(--dx),var(--dy)) scale(.3) rotate(240deg);opacity:0}}
 @media(max-width:760px){.sm-body{grid-template-columns:1fr}.sm-list{max-height:220px}}
 @media(prefers-reduced-motion:reduce){.smglow,.smbtn,.smstage.hit .smhammer{animation:none}}
+
+.smnote.warn{color:#ff9b9b}
+.smbtn.armed{background:linear-gradient(#a81a2a,#5e0e17);border-color:#ff6b6b}
+.smstage.lose.broken .smitemic{animation:smbreak .8s ease-in forwards}
+@keyframes smbreak{to{transform:translateY(40px) rotate(25deg) scale(.6);opacity:0;filter:grayscale(1)}}

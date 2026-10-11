@@ -1,11 +1,11 @@
-// KOWAL — ulepszanie przedmiotów +0 … +9 (serwer: smith_upgrade). Porażka: przedmiot zostaje, koszt przepada.
+// KOWAL — ulepszanie przedmiotów +0 … +9 (serwer: smith_upgrade). Porażka: przedmiot przepada na zawsze.
 'use strict';
 (() => {
   const $ = (s, r = document) => r.querySelector(s);
   const el = (t, c, txt) => { const e = document.createElement(t); if (c) e.className = c; if (txt !== undefined) e.textContent = txt; return e; };
   const fmt = n => Math.round(n).toLocaleString('pl-PL');
   const TYPE_N = { weapon: 'Broń', helm: 'Hełm', armor: 'Zbroja', boots: 'Buty', shield: 'Tarcza', earrings: 'Kolczyki', necklace: 'Naszyjnik', bracelet: 'Bransoletka', ring: 'Pierścień' };
-  let root, sel = null, busy = false;
+  let root, sel = null, busy = false, armed = false;
   const S = () => (window.Inventory && Inventory.state) || { items: {}, equip: {}, slots: [], stash: [], gold: 0, mats: {} };
   function effect(it, plus) {
     const t = { ...it, plus };
@@ -35,7 +35,7 @@
     const ev = res && res.ok && res.events && res.events.find(e => e.t === 'smith');
     const r1 = stage.getBoundingClientRect(), banner = $('#smresult', root);
     if (ev && ev.ok) { stage.classList.add('win'); spark(r1.x + r1.width / 2, r1.y + r1.height / 2, 40, '#ffe066'); banner.textContent = '✨ SUKCES! +' + ev.plus; banner.className = 'smresult win show'; }
-    else if (ev) { stage.classList.add('lose'); spark(r1.x + r1.width / 2, r1.y + r1.height / 2, 12, '#ff5a6e'); banner.textContent = '💥 NIEPOWODZENIE — przedmiot został, koszt przepadł'; banner.className = 'smresult lose show'; }
+    else if (ev) { stage.classList.add('lose'); spark(r1.x + r1.width / 2, r1.y + r1.height / 2, 12, '#ff5a6e'); banner.textContent = '💥 PRZEDMIOT ZNISZCZONY'; stage.classList.add('broken'); banner.className = 'smresult lose show'; }
     else { banner.textContent = '⚠ ' + ((res && res.error) || 'Błąd'); banner.className = 'smresult err show'; }
     setTimeout(() => { stage.classList.remove('win', 'lose'); banner.classList.remove('show'); }, 1800);
     busy = false; draw();
@@ -67,10 +67,10 @@
     const need = el('div', 'smneed'); need.append(el('div', s.gold >= cost ? 'ok' : 'bad', '🪙 Koszt: ' + fmt(cost) + ' (masz ' + fmt(s.gold) + ')'));
     if (mat) need.append(el('div', have >= 1 ? 'ok' : 'bad', '🪵 Wymagany surowiec: 1× ' + mat + ' (masz ' + have + ')'));
     d.append(need);
-    d.append(el('p', 'smnote', 'Porażka: przedmiot zostaje na tym samym poziomie, ale złoto i surowiec przepadają.'));
+    d.append(el('p', 'smnote warn', '⚠ Porażka niszczy przedmiot na zawsze — złoto i surowiec też przepadają.'));
     const btn = el('button', 'smbtn', '🔨 ULEPSZ NA +' + n); btn.id = 'smbtn';
     btn.disabled = busy || s.gold < cost || (mat && have < 1) || (Inventory.state.activity && Inventory.state.activity.kind === 'exp');
-    btn.onclick = upgrade; d.append(btn);
+    btn.onclick = () => { if (n >= 5 && !armed) { armed = true; btn.textContent = '⚠ POTWIERDŹ RYZYKO (' + Math.round((1 - pr) * 100) + '% szans na zniszczenie)'; btn.classList.add('armed'); setTimeout(() => { armed = false; if (btn.isConnected) { btn.textContent = '🔨 ULEPSZ NA +' + n; btn.classList.remove('armed'); } }, 4000); return; } armed = false; upgrade(); }; d.append(btn);
   }
   function build() {
     root = el('div', 'sm-ov'); root.hidden = true;
