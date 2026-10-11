@@ -383,8 +383,8 @@
           c.append(el('i', '', mb.ic), el('span', '', mb.n + ' (poz. ' + mb.lvl + ')'), el('small', '', mb.xp + ' EXP'));
           c.onclick = async () => { const next = on ? sel.filter(q => q !== i) : sel.concat(i).sort(); if (!next.length) return; await Inventory.exec('mob_filter', { map: m.id, ids: next }); box._sig = ''; sync(); };
           box.append(c); }); } }
-    { const box = $('#xdrops', root), m = MAPS[X.map], dr = MAP_DROPS[m.id], sel = selMobs(), cls = Inventory.state && Inventory.state.cls, sig = m.id + ':' + sel.join(',') + ':' + cls;
-      if (dr && box._sig !== sig) { box._sig = sig; box.replaceChildren(); box.append(el('b', '', 'Możliwy łup na mapie:'));
+    { const box = $('#xdrops', root), m = MAPS[X.map], dr = MAP_DROPS[m.id], sel = selMobs(), cls = Inventory.state && Inventory.state.cls, off = (Inventory.state && Inventory.state.dropOff && Inventory.state.dropOff[m.id]) || [], sig = m.id + ':' + sel.join(',') + ':' + cls + ':' + off.join(',') + ':' + X.on;
+      if (dr && box._sig !== sig) { box._sig = sig; box.replaceChildren(); box.append(el('b', '', X.on ? 'Możliwy łup na mapie:' : 'Możliwy łup na mapie (kliknij, aby wyłączyć):'));
         const lv = sel.map(i => m.spec.mobs[i].lvl), lo = Math.min(...lv.map(l => dr.mob[l] || 0)), hi = Math.max(...lv.map(l => dr.mob[l] || 0));
         const wnm = cls ? WEAPON_NAMES[CLASSES[cls].w][0] : 'Drewniana broń', wic = cls ? { sword: '🗡️', bow: '🏹', wand: '🪄' }[CLASSES[cls].w] : '⚔️';
         const nm = { weapon: wnm, helm: ARMOR_NAMES.helm[0], armor: ARMOR_NAMES.armor[0], boots: ARMOR_NAMES.boots[0], shield: ARMOR_NAMES.shield[0], ear_life: 'Drewniane kolczyki Życia', ear_str: 'Drewniane kolczyki Siły', ear_mag: 'Drewniane kolczyki Magii', ear_dex: 'Drewniane kolczyki Zręczności', neck: 'Drewniany naszyjnik', bracelet: 'Drewniana bransoletka', ring_hp: 'Drewniany pierścień Życia', ring_mp: 'Drewniany pierścień Many' };
@@ -392,7 +392,9 @@
         const sh = { weapon: 'Broń', helm: 'Hełm', armor: 'Zbroja', boots: 'Buty', shield: 'Tarcza', ear_life: 'Kolczyki Ż', ear_str: 'Kolczyki S', ear_mag: 'Kolczyki M', ear_dex: 'Kolczyki Z', neck: 'Naszyjnik', bracelet: 'Bransoleta', ring_hp: 'Pierścień Ż', ring_mp: 'Pierścień M' };
         const pct = v => (v * 100).toLocaleString('pl-PL', { maximumFractionDigits: 1 }) + '%';
         const base = ['weapon', 'helm', 'armor', 'boots', 'shield'];
-        dr.parts.forEach(p => { const c = el('span', 'xdrop'); const f = base.includes(p) ? 1 : 0.5; c.title = nm[p] + ' · ' + (lo === hi ? pct(lo * f) : pct(lo * f) + '–' + pct(hi * f)) + ' z potwora' + (base.includes(p) ? '' : ' · od 5 poziomu'); c.append(el('i', '', ic[p]), el('small', '', sh[p])); box.append(c); }); } }
+        dr.parts.forEach(p => { const isOff = off.includes(p), c = el(X.on ? 'span' : 'button', 'xdrop' + (isOff ? ' off' : '')); const f = base.includes(p) ? 1 : 0.5; c.title = (isOff ? '✖ WYŁĄCZONY: ' : '') + nm[p] + ' · ' + (lo === hi ? pct(lo * f) : pct(lo * f) + '–' + pct(hi * f)) + ' z potwora' + (base.includes(p) ? '' : ' · od 5 poziomu'); c.append(el('i', '', ic[p]), el('small', '', sh[p])); if (isOff) c.append(el('u', 'xdropx', '✖'));
+          if (!X.on) c.onclick = async () => { const next = isOff ? off.filter(q => q !== p) : off.concat(p); await Inventory.exec('drop_filter', { map: m.id, off: next }); box._sig = ''; sync(); };
+          box.append(c); }); } }
     const tiles = $('#xmaps', root); tiles.replaceChildren();
     MAPS.forEach((m, i) => { const open = P.lvl >= m.req, b = el('button', 'xmap' + (X.map === i ? ' on' : '') + (open ? '' : ' lock')); b.disabled = !open || X.on || pending; if (X.on && open && X.map !== i) b.title = 'Zatrzymaj wyprawę, aby zmienić mapę'; b.append(el('i', '', open ? m.ic : '🔒'), el('b', '', m.k), el('small', '', open ? (m.range || `poziom potworów ${m.lvl}+`) : `od poziomu ${m.req}`)); b.onclick = () => { if (X.map === i) return; X.map = i; X.enemy = null; X.wait = 0; initSched(); stageEl.dataset.map = i; syncEnemy(false); sync(); }; tiles.append(b); });
   }

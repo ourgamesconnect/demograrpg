@@ -55,7 +55,7 @@ const MATS = { 'Złom': '⚙️', 'Szmaty': '🧵', 'Drewno': '🪵', 'Skóra': 
 const Server = (() => {
   let uidSeq = 1000, version = 0;
   const done = new Map(); // cid -> odpowiedź (idempotencja: ta sama komenda nie wykona się dwa razy)
-  const S = { slots: Array(INV_SLOTS).fill(null), items: {}, equip: {}, stash: [], mats: {}, gold: 0, lvl: 1, cls: null, loot: {}, potions: {}, pcfg: { hpOn: false, hpThr: 50, hpId: 'auto', mpOn: false, mpThr: 30, mpId: 'auto' }, mobFilter: {}, skills: {}, stats: { life: 0, str: 0, dex: 0, mag: 0 }, enc: {}, activity: null,
+  const S = { slots: Array(INV_SLOTS).fill(null), items: {}, equip: {}, stash: [], mats: {}, gold: 0, lvl: 1, cls: null, loot: {}, dropOff: {}, potions: {}, pcfg: { hpOn: false, hpThr: 50, hpId: 'auto', mpOn: false, mpThr: 30, mpId: 'auto' }, mobFilter: {}, skills: {}, stats: { life: 0, str: 0, dex: 0, mag: 0 }, enc: {}, activity: null,
     boards: { mining: Array(BOARD_CELLS).fill(null), sawmill: Array(BOARD_CELLS).fill(null) }, lastDrop: { mining: 0, sawmill: 0 }, lost: { mining: 0, sawmill: 0 }, gatherLvl: { mining: 1, sawmill: 1 } };
   const rnd = (a, b) => a + Math.random() * (b - a), ri = (a, b) => Math.floor(rnd(a, b + 1));
   const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -190,7 +190,7 @@ const Server = (() => {
     },
     // testowo: nowa postać (docelowo: tworzenie nowej postaci na koncie)
     class_reset() {
-      S.cls = null; S.loot = {}; S.potions = {}; S.mobFilter = {}; S.lvl = 1; S.gold = 0; S.skills = {}; S.stats = { life: 0, str: 0, dex: 0, mag: 0 };
+      S.cls = null; S.dropOff = {}; S.loot = {}; S.potions = {}; S.mobFilter = {}; S.lvl = 1; S.gold = 0; S.skills = {}; S.stats = { life: 0, str: 0, dex: 0, mag: 0 };
       S.items = {}; S.equip = {}; S.slots = Array(INV_SLOTS).fill(null); S.stash = []; S.mats = {}; S.gold = 0; S.enc = {}; S.activity = null; S.starter = false;
       return { ev: [{ t: 'class_reset' }] };
     },
@@ -267,6 +267,13 @@ const Server = (() => {
       if (!(hpId === 'auto' || (POTIONS[hpId] && POTIONS[hpId].kind === 'hp')) || !(mpId === 'auto' || (POTIONS[mpId] && POTIONS[mpId].kind === 'mp'))) return { err: 'Zła mikstura' };
       S.pcfg = { hpOn: !!hpOn, hpThr: th(hpThr, 5, 95), hpId, mpOn: !!mpOn, mpThr: th(mpThr, 5, 95), mpId };
       return { ev: [{ t: 'potion_cfg' }] };
+    },
+    // wyłączanie przedmiotów z łupu na mapie (tylko przed wyprawą)
+    drop_filter({ map, off }) {
+      if (typeof map !== 'string' || !MAP_DROPS[map] || !Array.isArray(off)) return { err: 'Zły wybór łupu' };
+      if (S.activity && S.activity.kind === 'exp') return { err: 'Łup można zmieniać tylko przed wyprawą' };
+      const ok = new Set(MAP_DROPS[map].parts), u = [...new Set(off.filter(p => ok.has(p)))];
+      S.dropOff[map] = u; return { ev: [{ t: 'drop_filter', map, off: u }] };
     },
     // wybór potworów na mapie (co najmniej jeden)
     mob_filter({ map, ids }) {
@@ -345,6 +352,7 @@ const Server = (() => {
         const wn = { sword: 'miecz', bow: 'łuk', wand: 'różdżka' }[CLASSES[S.cls].w], nameOf = { weapon: wn, helm: 'hełm', armor: 'zbroja', boots: 'buty', shield: 'tarcza', ear_life: 'kolczyki życia', ear_str: 'kolczyki siły', ear_mag: 'kolczyki magii', ear_dex: 'kolczyki zręczności', neck: 'naszyjnik', bracelet: 'bransoletka', ring_hp: 'pierścień życia', ring_mp: 'pierścień many' };
         const pc = dr.mob[Math.max(1, Math.min(5, Math.floor(+lvl) || 1))] || 0;
         for (const part of dr.parts) {
+          if ((S.dropOff[String(map)] || []).includes(part)) continue;   // gracz wyłączył ten przedmiot z łupu
           if (Math.random() >= (['weapon', 'helm', 'armor', 'boots', 'shield'].includes(part) ? pc : pc / 2)) continue;
           const it = makeItem({ base: BASES.find(q => q[0] === nameOf[part]), tier: 0 }); it.plus = Math.random() < dr.plus1 ? 1 : 0;
           const st = itemStats(it); it.value = Math.max(2, Math.round((st.atk + st.mag * 0.5 + st.def) * 3.2 * (1 + 0.5 * it.rarity)));
