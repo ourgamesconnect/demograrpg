@@ -19,7 +19,7 @@
   function list() {
     const s = S(), out = [], where = u => (Object.values(s.equip).includes(u) ? 'założony' : s.stash.includes(u) ? 'skrytka' : 'plecak');
     const seen = new Set(); const add = u => { if (!u || seen.has(u)) return; const it = s.items[u]; if (it && SMITH_TYPES.includes(it.type)) { seen.add(u); out.push({ it, w: where(u) }); } };
-    Object.values(s.equip).forEach(add); s.slots.forEach(add); s.stash.forEach(add);
+    s.slots.forEach(add);   // tylko plecak (jak w Metin2: założonego przedmiotu nie ulepszysz)
     return out;
   }
   function spark(x, y, n, col) {
@@ -51,7 +51,7 @@
       b.style.setProperty('--rc', r.c); b.append(el('i', '', it.ic), el('b', '', it.name + ' +' + (it.plus | 0)), el('small', '', TYPE_N[it.type] + ' · ' + w + (it.bonus && it.bonus.length ? ' · ' + it.bonus.length + ' bon.' : '')));
       b.onclick = () => { sel = it.uid; draw(); }; lst.append(b);
     });
-    if (!items.length) lst.append(el('p', 'smempty', 'Nie masz żadnych przedmiotów do ulepszenia.'));
+    if (!items.length) lst.append(el('p', 'smempty', 'W plecaku nie masz przedmiotów do ulepszenia. Założone przedmioty najpierw zdejmij.'));
     const d = $('#smdetail', root); d.replaceChildren();
     const it = sel && s.items[sel]; if (!it) { d.append(el('p', 'smempty', 'Wybierz przedmiot z listy.')); return; }
     const n = (it.plus | 0) + 1, r = RARITY[it.rarity];

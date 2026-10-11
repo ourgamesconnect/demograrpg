@@ -289,7 +289,7 @@ const Server = (() => {
       if (S.activity && S.activity.kind === 'exp') return { err: 'Kowal jest dostępny dopiero po zakończeniu wyprawy' };
       const it = S.items[uid]; if (!it) return { err: 'Nie ma takiego przedmiotu' };
       if (!SMITH_TYPES.includes(it.type)) return { err: 'Tego przedmiotu nie można ulepszać' };
-      if (!find(uid)) return { err: 'Nie ma takiego przedmiotu' };
+      { const f = find(uid); if (!f) return { err: 'Nie ma takiego przedmiotu' }; if (f.w !== 'bag') return { err: 'Ulepszać można tylko przedmioty z plecaka (zdejmij założony przedmiot)' }; }
       const n = (it.plus | 0) + 1; if (n > 9) return { err: 'Przedmiot ma już maksymalne ulepszenie (+9)' };
       const cost = SMITH_COST[n], mat = smithMat(n);
       if (S.gold < cost) return { err: 'Za mało złota (potrzeba ' + cost + ')' };
