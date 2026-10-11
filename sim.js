@@ -353,8 +353,25 @@ const Server = (() => {
       const t = Math.max(0, Math.min(9, Math.floor(+tier) || 0)), ev = [];
       const rollR = () => { const x = Math.random() * 100; return kind === 'boss' ? (x < 45 ? 2 : x < 85 ? 3 : 4) : kind === 'target' ? (x < 50 ? 1 : x < 82 ? 2 : x < 96 ? 3 : 4) : (x < 70 ? 0 : x < 90 ? 1 : x < 98 ? 2 : 3); };
       {   // boss / Korzeń: jedna z czterech nagród po 25% (księgi zbieractwa lub 10 małych mikstur)
-        const sp = MAP_DROPS[String(map)] && MAP_DROPS[String(map)].special;
-        if (kind !== 'mob' && sp && sp.length) {
+        const dm = MAP_DROPS[String(map)], bd = dm && dm.bossDrop;
+        if (kind === 'boss' && bd && S.cls) {   // 100%: część EQ +3 z min. 1 bonem; 50%: 25 małych mikstur życia i many
+          const wn2 = { sword: 'miecz', bow: 'łuk', wand: 'różdżka' }[CLASSES[S.cls].w];
+          const nameOf2 = { weapon: wn2, helm: 'hełm', armor: 'zbroja', boots: 'buty', shield: 'tarcza', ear_life: 'kolczyki życia', ear_str: 'kolczyki siły', ear_mag: 'kolczyki magii', ear_dex: 'kolczyki zręczności', neck: 'naszyjnik', bracelet: 'bransoletka', ring_hp: 'pierścień życia', ring_mp: 'pierścień many' };
+          const part = dm.parts[Math.floor(Math.random() * dm.parts.length)];
+          let x2 = Math.random() * bd.bonusW.reduce((a, q) => a + q, 0), cnt = 1; for (let i = 0; i < bd.bonusW.length; i++) { x2 -= bd.bonusW[i]; if (x2 <= 0) { cnt = Math.max(1, i); break; } }
+          const it = makeItem({ base: BASES.find(q => q[0] === nameOf2[part]), tier: 0, rarity: cnt }); it.plus = bd.plus;
+          const st = itemStats(it); if (!['earrings', 'necklace', 'bracelet', 'ring'].includes(it.type)) it.value = Math.max(2, Math.round((st.atk + st.mag * 0.5 + st.def) * 3.2 * (1 + 0.5 * it.rarity)));
+          const key = it.name + '|' + it.plus + '|' + (it.bonus || []).map(b => b.id + b.v).sort().join(','), tpl = { ...it }; delete tpl.uid;
+          const e = S.loot[key] || (S.loot[key] = { key, it: tpl, qty: 0 }); e.qty++;
+          ev.push({ t: 'loot_added', key, name: it.name, ic: it.ic, plus: it.plus, qty: e.qty });
+          if (Math.random() < bd.potChance) for (const pid of ['hp_s', 'mp_s']) {
+            const k2 = 'misc|boss_pot_' + pid, tpl2 = { type: 'misc', misc: 'potion', potion: pid, name: POTIONS[pid].n, ic: POTIONS[pid].ic, rarity: 0, plus: 0, bonus: [], req: 1, value: Math.floor(POTIONS[pid].price / 2), desc: 'Trafia do Twoich mikstur.' };
+            const e2 = S.loot[k2] || (S.loot[k2] = { key: k2, it: tpl2, qty: 0 }); e2.qty += bd.potQty;
+            ev.push({ t: 'loot_added', key: k2, name: tpl2.name, ic: tpl2.ic, plus: 0, qty: e2.qty });
+          }
+        }
+        const sp = dm && dm.special;
+        if (kind === 'target' && sp && sp.length) {
           const g = sp[Math.floor(Math.random() * sp.length)], key = 'misc|' + g.id;
           const tpl = g.type === 'book'
             ? { type: 'misc', misc: 'book', board: g.board, name: g.n, ic: g.ic, rarity: 0, plus: 0, bonus: [], req: 1, value: 0, desc: 'Podnosi poziom zbieractwa (' + BOARDS[g.board].n + ') o 1.' }
