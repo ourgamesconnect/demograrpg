@@ -52,3 +52,16 @@
 .smbtn.armed{background:linear-gradient(#a81a2a,#5e0e17);border-color:#ff6b6b}
 .smstage.lose.broken .smitemic{animation:smbreak .8s ease-in forwards}
 @keyframes smbreak{to{transform:translateY(40px) rotate(25deg) scale(.6);opacity:0;filter:grayscale(1)}}
+
+.smlast{margin:0 0 10px;padding:0;font-weight:800;font-size:14px;border-radius:12px;text-align:center;transition:all .25s}
+.smlast.win{padding:10px 12px;color:#9af0b8;background:rgba(62,207,142,.14);border:1px solid #3ecf8e}
+.smlast.lose{padding:10px 12px;color:#ff9b9b;background:rgba(255,90,110,.14);border:1px solid #ff5a6e}
+.smlast.err{padding:8px 12px;color:#ffd36a;background:rgba(255,200,80,.1);border:1px solid #ffd36a}
+.smbig{position:fixed;left:50%;top:50%;z-index:130;transform:translate(-50%,-50%) scale(.6);opacity:0;pointer-events:none;text-align:center;padding:24px 40px;border-radius:24px;transition:all .28s cubic-bezier(.2,1.6,.4,1);max-width:90vw}
+.smbig.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+.smbig.win{background:radial-gradient(circle,#1d4a2e,#0b1a10);border:2px solid #3ecf8e;box-shadow:0 0 80px rgba(62,207,142,.6);color:#dfffe9}
+.smbig.lose{background:radial-gradient(circle,#4a1d22,#1a0b0d);border:2px solid #ff5a6e;box-shadow:0 0 80px rgba(255,90,110,.6);color:#ffe0e3}
+.smbig.err{background:#2a2310;border:2px solid #ffd36a;color:#ffe9b0}
+.smbigic{font-size:64px;font-weight:900;line-height:1}
+.smbigt{font-size:30px;font-weight:900;letter-spacing:.08em;margin-top:6px}
+.smbigs{margin-top:6px;font-size:15px;opacity:.9}
