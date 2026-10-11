@@ -42,6 +42,13 @@ const ARMOR_NAMES = { armor: ['Drewniana zbroja'], helm: ['Drewniany hełm'], bo
 // mob: szansa na KAŻDĄ część z jednego zabitego potwora, wg poziomu potwora; boss/target: dokładnie jedna losowa część.
 const MAP_DROPS = {
   polanka: { parts: ['weapon', 'helm', 'armor', 'boots', 'shield', 'ear_life', 'ear_str', 'ear_mag', 'ear_dex', 'neck', 'bracelet', 'ring_hp', 'ring_mp'], mob: { 1: 0.008, 2: 0.010, 3: 0.012, 4: 0.014, 5: 0.016 }, plus1: 0.2, boss: 0, target: 0,
+    // Boss i Spaczony Korzeń: po 25% na JEDNĄ z czterech rzeczy (losowo)
+    special: [
+      { id: 'book_sawmill', type: 'book', board: 'sawmill', n: 'Księga zbieractwa: Tartak', ic: '📕', qty: 1 },
+      { id: 'book_mining', type: 'book', board: 'mining', n: 'Księga zbieractwa: Górnictwo', ic: '📘', qty: 1 },
+      { id: 'pot_hp_s', type: 'potion', potion: 'hp_s', n: '10 × Mała mikstura życia', ic: '🧪', qty: 10 },
+      { id: 'pot_mp_s', type: 'potion', potion: 'mp_s', n: '10 × Mała mikstura many', ic: '💧', qty: 10 },
+    ],
     gold: { 1: [5, 15], 2: [10, 25], 3: [15, 35], 4: [20, 45], 5: [20, 65] }, goldChance: 0.5, goldMaxGap: 10, bossGold: [100, 300], targetGold: [50, 150] }   // złoto losuje serwer   // boss i Spaczony Korzeń: łup jeszcze nieustalony,
 };
 

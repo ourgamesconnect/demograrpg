@@ -393,6 +393,7 @@
         const sh = { weapon: 'Broń', helm: 'Hełm', armor: 'Zbroja', boots: 'Buty', shield: 'Tarcza', ear_life: 'Kolczyki Ż', ear_str: 'Kolczyki S', ear_mag: 'Kolczyki M', ear_dex: 'Kolczyki Z', neck: 'Naszyjnik', bracelet: 'Bransoleta', ring_hp: 'Pierścień Ż', ring_mp: 'Pierścień M' };
         const pct = v => (v * 100).toLocaleString('pl-PL', { maximumFractionDigits: 1 }) + '%';
         const base = ['weapon', 'helm', 'armor', 'boots', 'shield'];
+        if (dr.special) { box.append(el('b', 'xdropsep', '☠ Boss i 🌳 Korzeń:')); dr.special.forEach(g => { const c = el('span', 'xdrop special'); c.title = g.n + ' (jedna z czterech nagród)'; c.append(el('i', '', g.ic), el('small', '', g.type === 'book' ? (g.board === 'sawmill' ? 'Księga: Tartak' : 'Księga: Górnictwo') : (g.potion.startsWith('hp') ? '10× życie' : '10× mana'))); box.append(c); }); }
         dr.parts.forEach(p => { const isOff = off.includes(p), c = el(X.on ? 'span' : 'button', 'xdrop' + (isOff ? ' off' : '')); const f = base.includes(p) ? 1 : 0.5; c.title = (isOff ? '✖ WYŁĄCZONY: ' : '') + nm[p] + (base.includes(p) ? '' : ' · od 5 poziomu'); c.append(el('i', '', ic[p]), el('small', '', sh[p])); if (isOff) c.append(el('u', 'xdropx', '✖'));
           if (!X.on) c.onclick = async () => { const next = isOff ? off.filter(q => q !== p) : off.concat(p); await Inventory.exec('drop_filter', { map: m.id, off: next }); box._sig = ''; sync(); };
           box.append(c); }); } }
@@ -457,7 +458,8 @@
     if (pending) return; pending = true; if (cardEl) cardEl.classList.add('fly'); else root.querySelectorAll('.xbagcard').forEach(q => q.classList.add('fly'));
     await new Promise(q => setTimeout(q, 380));
     const res = await Inventory.exec(cmd, payload); pending = false;
-    if (res && res.ok) { const ev = res.events || []; const g = ev.filter(q => q.t === 'loot_sold').reduce((a, q) => a + q.gold, 0), n = ev.filter(q => q.t === 'loot_claimed' || q.t === 'loot_sold').reduce((a, q) => a + q.n, 0);
+    if (res && res.ok) { const ev = res.events || []; const rb = ev.find(q => q.t === 'book_read'); if (rb) say('📖 KSIĘGA PRZECZYTANA', BOARDS[rb.board].n + ': poziom zbieractwa ' + rb.lvl);
+      const g = ev.filter(q => q.t === 'loot_sold').reduce((a, q) => a + q.gold, 0), n = ev.filter(q => q.t === 'loot_claimed' || q.t === 'loot_sold').reduce((a, q) => a + q.n, 0);
       if (g) { say('💰 SPRZEDANO ×' + n, '+' + fmt(g) + ' złota'); } else say('🎒 ODEBRANO ×' + n, 'przedmioty są w plecaku'); }
     else if (res && res.error) say('⚠', res.error);
     sync();
@@ -473,9 +475,11 @@
     const row = el('div', 'xbagrow');
     keys.forEach(k => {
       const e = L[k], it = e.it, c = el('div', 'xbagcard' + (bagPrev[k] !== undefined && e.qty > bagPrev[k] ? ' pop' : bagPrev[k] === undefined ? ' newc' : ''));
-      c.append(el('i', 'xbagic', it.ic), el('b', '', it.name + (it.plus ? ' +' + it.plus : ' +0')), el('span', 'xbagq', '×' + e.qty));
-      const bt = el('div', 'xbagbt'); const a = el('button', 'xclaim', '🎒 Do EQ'), sl = el('button', 'xsell', '💰 +' + fmt(e.qty * it.value));
-      a.onclick = () => bagAct('loot_claim', { key: k }, c); sl.onclick = () => bagAct('loot_sell', { key: k }, c); bt.append(a, sl); c.append(bt); row.append(c);
+      const misc = it.type === 'misc';
+      c.append(el('i', 'xbagic', it.ic), el('b', '', misc ? it.name : it.name + (it.plus ? ' +' + it.plus : ' +0')), el('span', 'xbagq', '×' + e.qty));
+      if (misc) c.classList.add('special');
+      const bt = el('div', 'xbagbt'); const a = el('button', 'xclaim', misc ? (it.misc === 'book' ? '📖 Przeczytaj' : '🎒 Do mikstur') : '🎒 Do EQ'), sl = el('button', 'xsell', '💰 +' + fmt(e.qty * it.value));
+      a.onclick = () => bagAct('loot_claim', { key: k }, c); sl.onclick = () => bagAct('loot_sell', { key: k }, c); bt.append(a); if (!(misc && it.misc === 'book')) bt.append(sl); c.append(bt); row.append(c);
       c.onmouseenter = ev => { const m = { ...it, uid: 'loot' }; Inventory.tip.show(m, ev, false); }; c.onmousemove = ev => Inventory.tip.move(ev); c.onmouseleave = () => Inventory.tip.hide();
       bagPrev[k] = e.qty;
     });

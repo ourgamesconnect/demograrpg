@@ -291,3 +291,7 @@ button.xdrop:hover{transform:translateY(-2px);border-color:#ffd36a}
 
 .xmob.locked{cursor:not-allowed}
 .xmob:disabled{opacity:.55}
+
+.xdropsep{width:100%;margin-top:6px;font-size:12px;color:#ffe9b0;letter-spacing:.06em}
+.xdrop.special{border-color:#ffd36a88;background:linear-gradient(#2a2314,#14110a)}
+.xbagcard.special{border-color:#ffd36a;box-shadow:0 0 18px rgba(255,200,80,.35)}

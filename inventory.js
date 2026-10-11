@@ -48,6 +48,7 @@
   let tip;
   function showTip(it, e, equippedNow) {
     if (!tip) { tip = el('div', 'inv-tip'); document.body.append(tip); }
+    if (it.type === 'misc') { tip.replaceChildren(); const h2 = el('b', '', it.name); h2.style.color = '#ffd36a'; tip.append(h2, el('div', 'tt-s', it.desc || ''), el('div', 'tt-v', it.misc === 'potion' ? 'Wartość: ' + fmt(it.value) + ' 🪙' : 'Księgi nie można sprzedać')); tip.classList.add('on'); moveTip(e); return; }
     const r = RARITY[it.rarity], cmp = !equippedNow && equippedFor(it);
     tip.replaceChildren();
     const h = el('b', '', it.name + (it.plus ? ` +${it.plus}` : '')); h.style.color = r.c; tip.append(h, el('div', 'tt-r', r.n + ' · ' + ({ weapon: 'broń', helm: 'hełm', armor: 'zbroja', boots: 'buty', shield: 'tarcza', ring: 'pierścień', earrings: 'kolczyki', bracelet: 'bransoleta', necklace: 'naszyjnik' }[it.type] || it.type)));

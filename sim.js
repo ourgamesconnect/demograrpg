@@ -222,6 +222,19 @@ const Server = (() => {
     // TORBA ŁUPU: odbiór do plecaka (lub skrytki) albo szybka sprzedaż. Wszystko liczy serwer.
     loot_claim({ key, n }) {
       const e = S.loot[key]; if (!e) return { err: 'Brak takiego łupu' };
+      if (e.it.type === 'misc') {   // księgi i mikstury z bossa / Korzenia
+        const want = n === undefined ? e.qty : Math.max(1, Math.floor(+n) || 1);
+        if (e.it.misc === 'book') {
+          const take = Math.min(e.qty, want), b = e.it.board;
+          if (!BOARDS[b]) return { err: 'Zła księga' };
+          S.gatherLvl[b] = Math.min(GATHER_MAX, S.gatherLvl[b] + take); e.qty -= take; if (e.qty <= 0) delete S.loot[key];
+          return { ev: [{ t: 'book_read', board: b, n: take, lvl: S.gatherLvl[b] }, { t: 'loot_claimed', key, n: take }] };
+        }
+        const have = S.potions[e.it.potion] || 0, room = POTION_MAX - have, take = Math.min(e.qty, want, room);
+        if (take < 1) return { err: 'Masz już maksimum tej mikstury (' + POTION_MAX + ')' };
+        S.potions[e.it.potion] = have + take; e.qty -= take; if (e.qty <= 0) delete S.loot[key];
+        return { ev: [{ t: 'loot_claimed', key, n: take }] };
+      }
       const space = S.slots.filter(q => q === null).length + (STASH_MAX - S.stash.length);
       const take = Math.min(e.qty, n === undefined ? e.qty : Math.max(1, Math.floor(+n) || 1), space);
       if (take < 1) return { err: 'Brak miejsca w plecaku i skrytce' };
@@ -232,6 +245,7 @@ const Server = (() => {
     },
     loot_sell({ key, n }) {
       const e = S.loot[key]; if (!e) return { err: 'Brak takiego łupu' };
+      if (e.it.misc === 'book') return { err: 'Księgi nie można sprzedać — przeczytaj ją' };
       const take = Math.min(e.qty, n === undefined ? e.qty : Math.max(1, Math.floor(+n) || 1)), gold = take * e.it.value;
       S.gold += gold; e.qty -= take; if (e.qty <= 0) delete S.loot[key];
       return { ev: [{ t: 'loot_sold', key, n: take, gold }] };
@@ -338,6 +352,17 @@ const Server = (() => {
       }
       const t = Math.max(0, Math.min(9, Math.floor(+tier) || 0)), ev = [];
       const rollR = () => { const x = Math.random() * 100; return kind === 'boss' ? (x < 45 ? 2 : x < 85 ? 3 : 4) : kind === 'target' ? (x < 50 ? 1 : x < 82 ? 2 : x < 96 ? 3 : 4) : (x < 70 ? 0 : x < 90 ? 1 : x < 98 ? 2 : 3); };
+      {   // boss / Korzeń: jedna z czterech nagród po 25% (księgi zbieractwa lub 10 małych mikstur)
+        const sp = MAP_DROPS[String(map)] && MAP_DROPS[String(map)].special;
+        if (kind !== 'mob' && sp && sp.length) {
+          const g = sp[Math.floor(Math.random() * sp.length)], key = 'misc|' + g.id;
+          const tpl = g.type === 'book'
+            ? { type: 'misc', misc: 'book', board: g.board, name: g.n, ic: g.ic, rarity: 0, plus: 0, bonus: [], req: 1, value: 0, desc: 'Podnosi poziom zbieractwa (' + BOARDS[g.board].n + ') o 1.' }
+            : { type: 'misc', misc: 'potion', potion: g.potion, name: g.n.replace(/^10 × /, ''), ic: g.ic, rarity: 0, plus: 0, bonus: [], req: 1, value: Math.floor(POTIONS[g.potion].price / 2), desc: 'Trafia do Twoich mikstur.' };
+          const e = S.loot[key] || (S.loot[key] = { key, it: tpl, qty: 0 }); e.qty += g.qty;
+          ev.push({ t: 'loot_added', key, name: tpl.name, ic: tpl.ic, plus: 0, qty: e.qty });
+        }
+      }
       {   // złoto: losuje serwer (tabela MAP_DROPS); poziom gracza − poziom potwora ≤ 10
         const dg = MAP_DROPS[String(map)];
         if (dg) {
