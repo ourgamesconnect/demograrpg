@@ -27,7 +27,7 @@
   let pending = false;
   const serverExp = () => { const s = window.Inventory && Inventory.state; return !!(s && s.activity && s.activity.kind === 'exp'); };
   const ACT_NAMES = { exp: 'Wyprawy', gather: 'Zbieractwo', craft: 'Rzemiosło' };
-  const X = { heals: [], potLock: { hp: 0, mp: 0 }, on: false, map: 0, enemy: null, wait: 0, rest: 0, n: 0, kills: 0, bosses: 0, targets: 0, recent: [] };
+  const X = { info: false, heals: [], potLock: { hp: 0, mp: 0 }, on: false, map: 0, enemy: null, wait: 0, rest: 0, n: 0, kills: 0, bosses: 0, targets: 0, recent: [] };
   let root, stageEl;
 
   // mnożnik EXP za różnicę poziomów (poziom potwora − poziom gracza): tabela Metin2
@@ -377,15 +377,17 @@
     drawBag(lootN);
     $('#xstat', root).textContent = `Pokonanych: ${X.kills} · Bossów: ${X.bosses} · Celów specjalnych: ${X.targets}`;
     const rc = $('#xrecent', root); rc.replaceChildren(); X.recent.forEach(r => { const c = el('span', 'xchip', r.ic + ' ' + r.n); c.style.borderColor = r.col; rc.append(c); });
-    { const box = $('#xmobs', root), m = MAPS[X.map], sel = selMobs(), sig = X.map + ':' + sel.join(',') + ':' + X.on;
+    { const box = $('#xmobs', root), m = MAPS[X.map], sel = selMobs(), sig = X.map + ':' + sel.join(',') + ':' + X.on + ':' + X.info;
       if (box._sig !== sig) { box._sig = sig; box.replaceChildren(); box.append(el('b', '', X.on ? 'Potwory na mapie (zmiana możliwa po zatrzymaniu wyprawy):' : 'Potwory na mapie (kliknij, aby wyłączyć):'));
+        { const ib = el('button', 'xinfo' + (X.info ? ' on' : ''), 'i'); ib.title = 'Możliwy łup na mapie'; ib.onclick = () => { X.info = !X.info; box._sig = ''; const d = $('#xdrops', root); if (d) d._sig = ''; sync(); }; box.append(ib); }
         m.spec.mobs.forEach((mb, i) => { const on = sel.includes(i), c = el('button', 'xmob' + (on ? ' on' : '')); c.title = 'HP ' + mb.hp + ' · atak ' + mb.lo + '–' + mb.hi + '/s · ' + mb.xp + ' EXP';
           c.append(el('i', '', mb.ic), el('span', '', mb.n + ' (poz. ' + mb.lvl + ')'), el('small', '', mb.xp + ' EXP'));
           c.disabled = X.on; if (X.on) c.classList.add('locked');
           c.onclick = async () => { if (X.on) return; const next = on ? sel.filter(q => q !== i) : sel.concat(i).sort(); if (!next.length) return; await Inventory.exec('mob_filter', { map: m.id, ids: next }); box._sig = ''; sync(); };
           box.append(c); }); } }
-    { const box = $('#xdrops', root), m = MAPS[X.map], dr = MAP_DROPS[m.id], sel = selMobs(), cls = Inventory.state && Inventory.state.cls, off = (Inventory.state && Inventory.state.dropOff && Inventory.state.dropOff[m.id]) || [], sig = m.id + ':' + sel.join(',') + ':' + cls + ':' + off.join(',') + ':' + X.on;
-      if (dr && box._sig !== sig) { box._sig = sig; box.replaceChildren(); box.append(el('b', '', X.on ? 'Możliwy łup na mapie:' : 'Możliwy łup na mapie (kliknij, aby wyłączyć):'));
+    { const box = $('#xdrops', root), m = MAPS[X.map], dr = MAP_DROPS[m.id], sel = selMobs(), cls = Inventory.state && Inventory.state.cls, off = (Inventory.state && Inventory.state.dropOff && Inventory.state.dropOff[m.id]) || [], sig = m.id + ':' + sel.join(',') + ':' + cls + ':' + off.join(',') + ':' + X.on + ':' + X.info;
+      box.hidden = !X.info;
+      if (dr && X.info && box._sig !== sig) { box._sig = sig; box.replaceChildren(); box.append(el('b', 'xdropsep', X.on ? '🐾 Potwory:' : '🐾 Potwory (kliknij, aby wyłączyć):'));
         const lv = sel.map(i => m.spec.mobs[i].lvl), lo = Math.min(...lv.map(l => dr.mob[l] || 0)), hi = Math.max(...lv.map(l => dr.mob[l] || 0));
         const wnm = cls ? WEAPON_NAMES[CLASSES[cls].w][0] : 'Drewniana broń', wic = cls ? { sword: '🗡️', bow: '🏹', wand: '🪄' }[CLASSES[cls].w] : '⚔️';
         const nm = { weapon: wnm, helm: ARMOR_NAMES.helm[0], armor: ARMOR_NAMES.armor[0], boots: ARMOR_NAMES.boots[0], shield: ARMOR_NAMES.shield[0], ear_life: 'Drewniane kolczyki Życia', ear_str: 'Drewniane kolczyki Siły', ear_mag: 'Drewniane kolczyki Magii', ear_dex: 'Drewniane kolczyki Zręczności', neck: 'Drewniany naszyjnik', bracelet: 'Drewniana bransoletka', ring_hp: 'Drewniany pierścień Życia', ring_mp: 'Drewniany pierścień Many' };
@@ -393,11 +395,12 @@
         const sh = { weapon: 'Broń', helm: 'Hełm', armor: 'Zbroja', boots: 'Buty', shield: 'Tarcza', ear_life: 'Kolczyki Ż', ear_str: 'Kolczyki S', ear_mag: 'Kolczyki M', ear_dex: 'Kolczyki Z', neck: 'Naszyjnik', bracelet: 'Bransoleta', ring_hp: 'Pierścień Ż', ring_mp: 'Pierścień M' };
         const pct = v => (v * 100).toLocaleString('pl-PL', { maximumFractionDigits: 1 }) + '%';
         const base = ['weapon', 'helm', 'armor', 'boots', 'shield'];
-        if (dr.bossDrop) { box.append(el('b', 'xdropsep', '☠ Boss:')); [['🎁', 'Część EQ', 'Część drewnianego EQ +3 z bonami'], ['🧪', '25× życie', '25 małych mikstur życia'], ['💧', '25× mana', '25 małych mikstur many']].forEach(([i, s, t]) => { const c = el('span', 'xdrop special'); c.title = t; c.append(el('i', '', i), el('small', '', s)); box.append(c); }); }
-        if (dr.special) { box.append(el('b', 'xdropsep', '🌳 Korzeń:')); dr.special.forEach(g => { const c = el('span', 'xdrop special'); c.title = g.n + ' (jedna z czterech nagród)'; c.append(el('i', '', g.ic), el('small', '', g.type === 'book' ? (g.board === 'sawmill' ? 'Księga: Tartak' : 'Księga: Górnictwo') : (g.potion.startsWith('hp') ? '10× życie' : '10× mana'))); box.append(c); }); }
         dr.parts.forEach(p => { const isOff = off.includes(p), c = el(X.on ? 'span' : 'button', 'xdrop' + (isOff ? ' off' : '')); const f = base.includes(p) ? 1 : 0.5; c.title = (isOff ? '✖ WYŁĄCZONY: ' : '') + nm[p] + (base.includes(p) ? '' : ' · od 5 poziomu'); c.append(el('i', '', ic[p]), el('small', '', sh[p])); if (isOff) c.append(el('u', 'xdropx', '✖'));
           if (!X.on) c.onclick = async () => { const next = isOff ? off.filter(q => q !== p) : off.concat(p); await Inventory.exec('drop_filter', { map: m.id, off: next }); box._sig = ''; sync(); };
-          box.append(c); }); } }
+          box.append(c); });
+        if (dr.bossDrop) { box.append(el('b', 'xdropsep', '☠ Boss:')); [['🎁', 'Część EQ', 'Część drewnianego EQ +3 z bonami'], ['🧪', '25× życie', '25 małych mikstur życia'], ['💧', '25× mana', '25 małych mikstur many']].forEach(([i, s, t]) => { const c = el('span', 'xdrop special'); c.title = t; c.append(el('i', '', i), el('small', '', s)); box.append(c); }); }
+        if (dr.special) { box.append(el('b', 'xdropsep', '🌳 Korzeń:')); dr.special.forEach(g => { const c = el('span', 'xdrop special'); c.title = g.n + ' (jedna z czterech nagród)'; c.append(el('i', '', g.ic), el('small', '', g.type === 'book' ? (g.board === 'sawmill' ? 'Księga: Tartak' : 'Księga: Górnictwo') : (g.potion.startsWith('hp') ? '10× życie' : '10× mana'))); box.append(c); }); }
+      } }
     const tiles = $('#xmaps', root); tiles.replaceChildren();
     MAPS.forEach((m, i) => { const open = P.lvl >= m.req, b = el('button', 'xmap' + (X.map === i ? ' on' : '') + (open ? '' : ' lock')); b.disabled = !open || X.on || pending; if (X.on && open && X.map !== i) b.title = 'Zatrzymaj wyprawę, aby zmienić mapę'; b.append(el('i', '', open ? m.ic : '🔒'), el('b', '', m.k), el('small', '', open ? (m.range || `poziom potworów ${m.lvl}+`) : `od poziomu ${m.req}`)); b.onclick = () => { if (X.map === i) return; X.map = i; X.enemy = null; X.wait = 0; initSched(); stageEl.dataset.map = i; syncEnemy(false); sync(); }; tiles.append(b); });
   }
