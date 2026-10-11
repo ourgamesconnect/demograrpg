@@ -90,7 +90,7 @@
     const cls = s && s.cls, r1 = v => Math.round(v * 100) / 100;
     const rating = metinAR(b.dex, s.lvl);
     const items = [['❤️ Maks. życie z punktów', '+' + b.hp], ['🛡️ Obrona z cech i poziomu', '+' + r1(b.def)], ['💧 Maks. mana z punktów', '+' + b.mp],
-      ['⚔️ Atak fizyczny (poziom + cechy)', '+' + r1(b.atk)], ['🔮 Atak magiczny (poziom + cechy)', '+' + r1(b.mag)], ['🎯 Rating trafienia', Math.round(rating * 100) + '%']];
+      ['⚔️ Atak fizyczny (poziom + cechy)', '+' + r1(b.atk)], ['🔮 Atak magiczny (poziom + cechy)', '+' + r1(b.mag)], ['🎯 Rating trafienia', Math.round(rating * 100) + '%'], ['💨 Unik (mniej obrażeń od potworów)', '−' + Math.round(100 * (1 - Math.max(0.3, (metinAR(0, s.lvl) - metinER(b.dex, s.lvl)) / (metinAR(0, s.lvl) - metinER(0, s.lvl))))) + '%']];
     items.forEach(([n, v]) => { const c = el('div', 'stsrow'); c.append(el('span', '', n), el('b', '', v)); sum.append(c); });
     box.append(el('h4', '', 'Łączne bonusy z punktów statusu'), sum);
     box.append(el('p', 'sk-info2', 'Obrona zmniejsza obrażenia od potworów z malejącymi przyrostami.'));

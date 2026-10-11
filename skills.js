@@ -76,7 +76,7 @@ const STATS = [
   { k: 'life', n: 'Życie',     ic: '❤️', c: '#ff5a6e', per: '+40 maks. życia i +0,8 obrony na punkt' },
   { k: 'str',  n: 'Siła',      ic: '💪', c: '#ff8a45', per: 'Rycerz +2 ataku · Zwiadowca i Mag +1,33 ataku na punkt' },
   { k: 'mag',  n: 'Magia',     ic: '🔮', c: '#c58bff', per: '+20 maks. many i +2 ataku magicznego na punkt (Mag: +0,67 ataku fizycznego)' },
-  { k: 'dex',  n: 'Zręczność', ic: '🎯', c: '#4fe39a', per: 'rating trafienia i unik · Zwiadowca +0,67 ataku na punkt' },
+  { k: 'dex',  n: 'Zręczność', ic: '🎯', c: '#4fe39a', per: 'unik (mniej obrażeń od potworów), lepsze trafianie i +0,67 ataku łukiem (Zwiadowca) na punkt' },
 ];
 // Cechy startowe klas (JobInitialPoints Metin2: wojownik ST6 HT4 DX3 IQ3; zabójca ST4 HT3 DX6 IQ3; szaman ST3 HT3 DX4 IQ6). Życie i mana na starcie są już w hp0/mp0.
 const BASE_STATS = { knight: { str: 6, life: 4, dex: 3, mag: 3 }, scout: { str: 4, life: 3, dex: 6, mag: 3 }, mage: { str: 3, life: 3, dex: 4, mag: 6 } };
