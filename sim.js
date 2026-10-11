@@ -53,7 +53,7 @@ const MATS = { 'Złom': '⚙️', 'Szmaty': '🧵', 'Drewno': '🪵', 'Skóra': 
 const Server = (() => {
   let uidSeq = 1000, version = 0;
   const done = new Map(); // cid -> odpowiedź (idempotencja: ta sama komenda nie wykona się dwa razy)
-  const S = { slots: Array(INV_SLOTS).fill(null), items: {}, equip: {}, stash: [], mats: {}, gold: 0, lvl: 1, cls: null, loot: {}, potions: {}, pcfg: { hpOn: false, hpThr: 50, hpId: 'auto', mpOn: false, mpThr: 30, mpId: 'auto' }, mobFilter: {}, skills: {}, stats: { life: 0, str: 0, def: 0, dex: 0, mag: 0 }, enc: {}, activity: null,
+  const S = { slots: Array(INV_SLOTS).fill(null), items: {}, equip: {}, stash: [], mats: {}, gold: 0, lvl: 1, cls: null, loot: {}, potions: {}, pcfg: { hpOn: false, hpThr: 50, hpId: 'auto', mpOn: false, mpThr: 30, mpId: 'auto' }, mobFilter: {}, skills: {}, stats: { life: 0, str: 0, dex: 0, mag: 0 }, enc: {}, activity: null,
     boards: { mining: Array(BOARD_CELLS).fill(null), sawmill: Array(BOARD_CELLS).fill(null) }, lastDrop: { mining: 0, sawmill: 0 }, lost: { mining: 0, sawmill: 0 }, gatherLvl: { mining: 1, sawmill: 1 } };
   const rnd = (a, b) => a + Math.random() * (b - a), ri = (a, b) => Math.floor(rnd(a, b + 1));
   const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -185,7 +185,7 @@ const Server = (() => {
     },
     // testowo: nowa postać (docelowo: tworzenie nowej postaci na koncie)
     class_reset() {
-      S.cls = null; S.loot = {}; S.potions = {}; S.mobFilter = {}; S.lvl = 1; S.gold = 0; S.skills = {}; S.stats = { life: 0, str: 0, def: 0, dex: 0, mag: 0 };
+      S.cls = null; S.loot = {}; S.potions = {}; S.mobFilter = {}; S.lvl = 1; S.gold = 0; S.skills = {}; S.stats = { life: 0, str: 0, dex: 0, mag: 0 };
       S.items = {}; S.equip = {}; S.slots = Array(INV_SLOTS).fill(null); S.stash = []; S.mats = {}; S.gold = 0; S.enc = {}; S.activity = null; S.starter = false;
       return { ev: [{ t: 'class_reset' }] };
     },

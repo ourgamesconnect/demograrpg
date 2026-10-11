@@ -73,7 +73,7 @@
   // ---- punkty statusu ----
   async function addStat(k, n) { if (busy) return; busy = true; await Inventory.exec('stat_add', { stat: k, n }); busy = false; draw(true); }
   function drawStats() {
-    const box = $('#skstats', root), st = statsOf(), left = statPoints(), b = statBonus(st), s = S();
+    const box = $('#skstats', root), st = statsOf(), left = statPoints(), s = S(), b = statBonus(st, s && s.cls);
     box.replaceChildren();
     box.append(el('p', 'sk-info2', 'Za każdy poziom dostajesz ' + STAT_PER_LEVEL + ' punkty statusu. Rozdziel je między pięć cech; wartości na punkt jak w Metin2.'));
     const list = el('div', 'stlist');
@@ -87,8 +87,10 @@
     });
     box.append(list);
     const sum = el('div', 'stsum');
-    const items = [['❤️ Maks. życie z punktów', '+' + b.hp], ['🛡️ Obrona z punktów', '+' + b.def], ['💧 Maks. mana z punktów', '+' + b.mp],
-      ['💪 Atak mieczy', '+' + b.sword], ['🎯 Atak łuków', '+' + b.bow], ['🔮 Atak magiczny', '+' + b.mag]];
+    const cls = s && s.cls, r1 = v => Math.round(v * 100) / 100;
+    const dxv = st.dex || 0, rating = metinAR(dxv, s.lvl);
+    const items = [['❤️ Maks. życie z punktów', '+' + b.hp], ['🛡️ Obrona z punktów', '+' + r1(b.def)], ['💧 Maks. mana z punktów', '+' + b.mp],
+      ['⚔️ Atak fizyczny ze statusu', '+' + r1(b.atk)], ['🔮 Atak magiczny ze statusu', '+' + b.mag], ['🎯 Rating trafienia', Math.round(rating * 100) + '%']];
     items.forEach(([n, v]) => { const c = el('div', 'stsrow'); c.append(el('span', '', n), el('b', '', v)); sum.append(c); });
     box.append(el('h4', '', 'Łączne bonusy z punktów statusu'), sum);
     box.append(el('p', 'sk-info2', 'Obrona zmniejsza obrażenia od potworów z malejącymi przyrostami.'));

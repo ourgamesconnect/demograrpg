@@ -67,15 +67,25 @@ const skillCap = () => SKILL_MAX;
 
 // PUNKTY STATUSU: 3 za każdy poziom (od poziomu 2). Gracz sam rozdziela je między pięć cech.
 const STAT_PER_LEVEL = 3;
-// Wartości na punkt wg Metin2 (kod serwera): Życie/VIT = 40 HP na punkt, Siła/ST = +2 ataku, Magia/IQ = +20 many i +2 ataku magicznego.
+// 4 CECHY jak w Metin2 (kod serwera, ComputePoints/ComputeBattlePoints):
+//  Życie  (HT): +40 maks. HP na punkt (hp_per_ht) i +0,8 obrony (poziom + HT/1,25)
+//  Siła   (ST): atak Rycerza (wojownik) = 2×ST; Zwiadowcy (zabójca) = (4×ST+2×DX)/3; Maga (szaman) = (4×ST+2×IQ)/3
+//  Magia  (IQ): +20 maks. many (sp_per_iq), atak magiczny = 2×IQ (i udział w ataku fizycznym Maga)
+//  Zręczność (DX): rating trafienia (mnożnik ataku) i unik przed potworami; w ataku Zwiadowcy (2/3 pkt na punkt)
 const STATS = [
-  { k: 'life', n: 'Życie',     ic: '❤️', c: '#ff5a6e', per: '+40 maks. życia na punkt' },
-  { k: 'str',  n: 'Siła',      ic: '💪', c: '#ff8a45', per: '+2 ataku (miecz)' },
-  { k: 'def',  n: 'Obrona',    ic: '🛡️', c: '#9aa0c8', per: '+1 obrony na punkt' },
-  { k: 'dex',  n: 'Zręczność', ic: '🎯', c: '#4fe39a', per: '+2 ataku (łuk)' },
-  { k: 'mag',  n: 'Magia',     ic: '🔮', c: '#c58bff', per: '+20 maks. many i +2 ataku magicznego na punkt' },
+  { k: 'life', n: 'Życie',     ic: '❤️', c: '#ff5a6e', per: '+40 maks. życia i +0,8 obrony na punkt' },
+  { k: 'str',  n: 'Siła',      ic: '💪', c: '#ff8a45', per: 'Rycerz +2 ataku · Zwiadowca i Mag +1,33 ataku na punkt' },
+  { k: 'mag',  n: 'Magia',     ic: '🔮', c: '#c58bff', per: '+20 maks. many i +2 ataku magicznego na punkt (Mag: +0,67 ataku fizycznego)' },
+  { k: 'dex',  n: 'Zręczność', ic: '🎯', c: '#4fe39a', per: 'rating trafienia i unik · Zwiadowca +0,67 ataku na punkt' },
 ];
-const statBonus = st => { st = st || {}; return { hp: 40 * (st.life || 0), def: st.def || 0, mp: 20 * (st.mag || 0), sword: 2 * (st.str || 0), bow: 2 * (st.dex || 0), mag: 2 * (st.mag || 0) }; };
+const statBonus = (st, cls) => {
+  st = st || {}; const L = st.life || 0, S = st.str || 0, I = st.mag || 0, D = st.dex || 0;
+  const atk = cls === 'scout' ? (4 * S + 2 * D) / 3 : cls === 'mage' ? (4 * S + 2 * I) / 3 : 2 * S;
+  return { hp: 40 * L, def: L / 1.25, mp: 20 * I, atk, mag: 2 * I, dex: D };
+};
+// rating trafienia i unik (CalcAttackRating z serwera Metin2)
+const metinAR = (dx, lvl) => (Math.min(90, (4 * dx + 2 * lvl) / 6) + 210) / 300;
+const metinER = (dx, lvl) => { const m = Math.min(90, (4 * dx + 2 * lvl) / 6); return ((m * 2 + 5) / (m + 95)) * 0.3; };
 
 // KLASY: Rycerz (Miecz), Zwiadowca (Łuk), Mag (Różdżka). Mnożniki pochodzą z symulatora balansu (balance/params.json).
 // Życie i mana na poziomie 1 zależą od klasy; każdy kolejny poziom daje +30 życia i +10 many (niezależnie od klasy).
