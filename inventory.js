@@ -51,7 +51,8 @@
     const r = RARITY[it.rarity], cmp = !equippedNow && equippedFor(it);
     tip.replaceChildren();
     const h = el('b', '', it.name + (it.plus ? ` +${it.plus}` : '')); h.style.color = r.c; tip.append(h, el('div', 'tt-r', r.n + ' · ' + ({ weapon: 'broń', helm: 'hełm', armor: 'zbroja', boots: 'buty', shield: 'tarcza', ring: 'pierścień', earrings: 'kolczyki', bracelet: 'bransoleta', necklace: 'naszyjnik' }[it.type] || it.type)));
-    tip.append(el('div', 'tt-s', statLine(it) || '—'));
+    tip.append(el('div', 'tt-s', it.type === 'earrings' ? '✨ +' + earringPoints(it) + ' pkt statusu: ' + EARRING_STATS[it.statKey] : (statLine(it) || '—')));
+    if (it.type === 'earrings') tip.append(el('div', 'tt-nob', '+0…+2: 1 pkt · +3…+5: 2 · +6…+8: 3 · +9: 4'));
     if (it.bonus && it.bonus.length) { const bl = el('div', 'tt-b'); it.bonus.forEach(b => { const q = BONUSES[b.id], l = el('div', 'bonline' + (b.v < 0 ? ' neg' : '')); l.textContent = q.ic + ' ' + q.n + ' ' + fmtBonus(b.id, b.v) + (q.pvp ? ' (PvP)' : ''); bl.append(l); }); tip.append(bl); }
     else tip.append(el('div', 'tt-nob', 'Brak bonów'));
     if (cmp) { const qa = itemStats(it), qc = itemStats(cmp), da = (qa.atk + qa.mag) - (qc.atk + qc.mag), dd = qa.def - qc.def; const c = el('div', 'tt-c', `W porównaniu z założonym: ${da ? (da > 0 ? '▲ +' : '▼ ') + da + ' atak  ' : ''}${dd ? (dd > 0 ? '▲ +' : '▼ ') + dd + ' obrona' : ''}` || '—'); c.classList.add(da > 0 || dd > 0 ? 'up' : 'down'); tip.append(c); }
@@ -194,7 +195,7 @@
       <div class="inv-head"><b>🎒 EKWIPUNEK</b><span class="inv-gold">🪙 <b id="inv-gold">0</b></span><span id="inv-sync" class="sync" title="Zsynchronizowano"></span><button class="x" id="inv-x" aria-label="Zamknij">✕</button></div>
       <div class="inv-body"></div>
       <div class="inv-dev"><small>TEST:</small>
-        <button class="btn" data-d="1">🎁 Drop ×1</button><button class="btn" data-d="5">🎁 Drop ×5</button><button class="btn" data-d="bon">🎲 Test bonów (po 1 z 0–5 bonami)</button><button class="btn" data-d="fill">📦 Zapełnij plecak (test skrytki)</button><button class="btn" data-d="stress">🧪 Test spójności (600 operacji)</button>
+        <button class="btn" data-d="1">🎁 Drop ×1</button><button class="btn" data-d="5">🎁 Drop ×5</button><button class="btn" data-d="ear">💎 Test kolczyków</button><button class="btn" data-d="bon">🎲 Test bonów (po 1 z 0–5 bonami)</button><button class="btn" data-d="fill">📦 Zapełnij plecak (test skrytki)</button><button class="btn" data-d="stress">🧪 Test spójności (600 operacji)</button>
         <span id="inv-report" class="report"></span></div>
     </div>`;
     document.body.append(root);
@@ -205,6 +206,7 @@
       if (d === 'stress') { Server.execSync({ type: 'activity_stop', cid: 'st-' + Date.now() }); const r = stress(); Server.execSync({ type: 'activity_stop', cid: 'st2-' + Date.now() }); ST = Server.snapshot(); selUid = null; draw(); const rep = $('#inv-report', root); rep.className = 'report ' + (r.bad.length ? 'bad' : 'good'); rep.textContent = r.bad.length ? '✖ BŁĘDY: ' + r.bad.slice(0, 3).join('; ') : `✔ Spójność OK · wykonano ${r.ok}, odrzucono ${r.rej}, powtórzeń ${r.dup} · przedmiotów ${r.items} (plecak ${r.bag}, skrytka ${r.stash})`; return; }
       if (d === 'fill') return cmd('debug_drop', { n: 60 });
       if (d === 'bon') return cmd('debug_bonus', {});
+      if (d === 'ear') return cmd('debug_earrings', {});
       cmd('debug_drop', { n: +d });
     });
   }

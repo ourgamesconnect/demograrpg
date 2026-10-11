@@ -38,7 +38,7 @@
   }
   const equipAtk = (useMag) => { const s = window.Inventory && Inventory.state; if (!s) return 0; const it = s.items[s.equip.weapon], q = itemStats(it); const m = useMag && q.mag, lo = m ? q.mlo : q.lo, hi = m ? q.mhi : q.hi; return Math.round(lo + Math.random() * (hi - lo)); };   // obrażenia losowane z przedziału broni
   const weaponKind = () => { const s = Inventory.state; return (s && s.cls && CLASSES[s.cls].w) || 'sword'; };
-  const stb = () => statBonus(window.Inventory && Inventory.state ? Inventory.state.stats : null, window.Inventory && Inventory.state ? Inventory.state.cls : null, P.lvl);
+  const stb = () => statBonus(withEq(window.Inventory && Inventory.state ? Inventory.state.stats : null, window.Inventory && Inventory.state), window.Inventory && Inventory.state ? Inventory.state.cls : null, P.lvl);
   const dexNow = () => stb().dex;   // DX = punkty + cecha startowa klasy
   const statAtk = useMag => { const b = stb(); return useMag ? b.mag : b.atk; };   // Magia dodaje się do ataku magicznego (umiejętności Różdżki)
     const bon = () => { const s = window.Inventory && Inventory.state; return bonusTotals(s && s.items, s && s.equip); };

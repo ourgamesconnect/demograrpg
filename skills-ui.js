@@ -73,14 +73,14 @@
   // ---- punkty statusu ----
   async function addStat(k, n) { if (busy) return; busy = true; await Inventory.exec('stat_add', { stat: k, n }); busy = false; draw(true); }
   function drawStats() {
-    const box = $('#skstats', root), st = statsOf(), left = statPoints(), s = S(), b = statBonus(st, s && s.cls, s && s.lvl);
+    const box = $('#skstats', root), st = statsOf(), left = statPoints(), s = S(), b = statBonus(withEq(st, s), s && s.cls, s && s.lvl);
     box.replaceChildren();
     box.append(el('p', 'sk-info2', 'Za każdy poziom dostajesz ' + STAT_PER_LEVEL + ' punkty statusu. Rozdziel je między pięć cech; wartości na punkt jak w Metin2.'));
     const list = el('div', 'stlist');
     STATS.forEach(q => {
       const v = st[q.k] || 0, row = el('div', 'strow'); row.style.setProperty('--sc', q.c);
       const ic = el('i', '', q.ic), mid = el('div', 'stmid'); mid.append(el('b', '', q.n), el('small', '', q.per));
-      const val = el('div', 'stval', String(v));
+      const ex = eqStatPoints(S().items, S().equip)[q.k] || 0, val = el('div', 'stval', String(v)); if (ex) val.append(el('small', 'stex', ' +' + ex));
       const btns = el('div', 'stbtns');
       [1, 5, 10].forEach(n => { const bt = el('button', 'stbtn', '＋' + n); bt.disabled = left < 1; bt.onclick = () => addStat(q.k, n); btns.append(bt); });
       row.append(ic, mid, val, btns); list.append(row);

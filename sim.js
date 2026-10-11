@@ -18,7 +18,8 @@ const RARITY = [   // rzadkość = liczba bonów (0–5)
 const BASES = [
   ['miecz', '🗡️', 0, 'weapon'], ['łuk', '🏹', 0, 'weapon'], ['różdżka', '🪄', 1, 'weapon'],
   ['hełm', '🪖', 0, 'helm'], ['zbroja', '🥋', 1, 'armor'], ['buty', '🥾', 2, 'boots'], ['tarcza', '🛡️', 1, 'shield'],
-  // pozostałe przedmioty (pierścienie, kolczyki, bransoletka) zostały usunięte do czasu podania ich tabel przez właściciela
+  ['kolczyki życia', '💎', 2, 'earrings'], ['kolczyki siły', '💎', 2, 'earrings'], ['kolczyki magii', '💎', 2, 'earrings'], ['kolczyki zręczności', '💎', 2, 'earrings'],
+  // pozostałe przedmioty (pierścienie, bransoletka) zostały usunięte do czasu podania ich tabel przez właściciela
 ];
 const ACTIVITY_NAMES = { exp: 'Wyprawy', gather: 'Zbieractwo', craft: 'Rzemiosło' };
 // PLANSZE ZBIERACTWA (scalanie): dwa takie same surowce tego samego poziomu = jeden wyższego poziomu
@@ -72,8 +73,9 @@ const Server = (() => {
     const sw = ARMOR_BASE[tier], rm = 1;   // wartości z tabel właściciela bez podbicia rzadkością (rzadkość = liczba bonusów, później)
     const slotW = { helm: 0.4, armor: 0.6, boots: 0.35, ring: 0.2, earrings: 0.2, bracelet: 0.2 }[b[3]] || 0.3;
     const st = isWeapon ? weaponStats(kind, tier, 0) : { atk: 0, mag: 0 };
-    const it = { uid: 'i' + (uidSeq++), name: isWeapon ? WEAPON_NAMES[kind][tier] : isArmor ? ARMOR_NAMES[b[3]][tier] : TIERS[tier][b[2]] + ' ' + b[0], ic: b[1], type: b[3], kind, tier, rarity: r, rm, plus: 0,
+    const it = { uid: 'i' + (uidSeq++), name: b[3] === 'earrings' ? 'Drewniane ' + b[0].replace(/(życia|siły|magii|zręczności)$/, m => m[0].toUpperCase() + m.slice(1)) : isWeapon ? WEAPON_NAMES[kind][tier] : isArmor ? ARMOR_NAMES[b[3]][tier] : TIERS[tier][b[2]] + ' ' + b[0], ic: b[1], type: b[3], kind, tier, rarity: r, rm, plus: 0,
       atk: Math.round(st.atk * rm), mag: Math.round(st.mag * rm), def: isWeapon ? 0 : isArmor ? Math.round(ARMOR_TABLE[b[3]][tier][0] * rm) : Math.max(1, Math.round(sw * slotW * rm)), req: lvl };
+    if (b[3] === 'earrings') { it.statKey = { 'kolczyki życia': 'life', 'kolczyki siły': 'str', 'kolczyki magii': 'mag', 'kolczyki zręczności': 'dex' }[b[0]]; it.req = 5; it.def = 0; }
     // bony: r różnych, pasujących do typu przedmiotu
     { const pool = Object.keys(BONUSES).filter(id => bonusFits(id, it.type)), bon = [];
       while (bon.length < r && pool.length) {
@@ -82,7 +84,7 @@ const Server = (() => {
       }
       it.bonus = bon; it.rarity = bon.length; }
     const power = it.atk + Math.round(it.mag * 0.5) + it.def;
-    it.value = Math.max(2, Math.round(power * 3.2 * (1 + 0.5 * it.rarity)));
+    it.value = it.type === 'earrings' ? 100 * (1 + 0.5 * it.rarity) : Math.max(2, Math.round(power * 3.2 * (1 + 0.5 * it.rarity)));
     return it;
   }
   const freeSlot = () => S.slots.indexOf(null);
@@ -337,10 +339,10 @@ const Server = (() => {
       // łup z mapy: drewniane EQ +0/+1 (MAP_DROPS) trafia do TORBY ŁUPU (stosy), gracz odbiera go po wyprawie
       const dr = MAP_DROPS[String(map)];
       if (dr && S.cls && kind === 'mob') {
-        const wn = { sword: 'miecz', bow: 'łuk', wand: 'różdżka' }[CLASSES[S.cls].w], nameOf = { weapon: wn, helm: 'hełm', armor: 'zbroja', boots: 'buty', shield: 'tarcza' };
+        const wn = { sword: 'miecz', bow: 'łuk', wand: 'różdżka' }[CLASSES[S.cls].w], nameOf = { weapon: wn, helm: 'hełm', armor: 'zbroja', boots: 'buty', shield: 'tarcza', ear_life: 'kolczyki życia', ear_str: 'kolczyki siły', ear_mag: 'kolczyki magii', ear_dex: 'kolczyki zręczności' };
         const pc = dr.mob[Math.max(1, Math.min(5, Math.floor(+lvl) || 1))] || 0;
         for (const part of dr.parts) {
-          if (Math.random() >= pc) continue;
+          if (Math.random() >= (part.startsWith('ear_') ? pc / 2 : pc)) continue;
           const it = makeItem({ base: BASES.find(q => q[0] === nameOf[part]), tier: 0 }); it.plus = Math.random() < dr.plus1 ? 1 : 0;
           const st = itemStats(it); it.value = Math.max(2, Math.round((st.atk + st.mag * 0.5 + st.def) * 3.2 * (1 + 0.5 * it.rarity)));
           const key = it.name + '|' + it.plus + '|' + (it.bonus || []).map(b => b.id + b.v).sort().join(','), tpl = { ...it }; delete tpl.uid;
@@ -357,6 +359,11 @@ const Server = (() => {
     debug_bonus() {
       const ev = [], nm = ['hełm', 'zbroja', 'buty', 'tarcza'];
       for (let k = 0; k <= 5; k++) { const wn = S.cls ? { sword: 'miecz', bow: 'łuk', wand: 'różdżka' }[CLASSES[S.cls].w] : 'miecz'; const base = BASES.find(q => q[0] === ([wn, wn, 'zbroja', wn, 'zbroja', 'hełm'][k])); ev.push({ t: 'item_added', ...putNew(makeItem({ base, tier: 0, rarity: k })) }); }
+      return { ev };
+    },
+    // test: kolczyki wszystkich 4 rodzajów na +0, +3, +6, +9
+    debug_earrings() {
+      const ev = []; for (const nm of ['kolczyki życia', 'kolczyki siły', 'kolczyki magii', 'kolczyki zręczności']) for (const p of [0, 3, 6, 9]) { const it = makeItem({ base: BASES.find(q => q[0] === nm), tier: 0, rarity: 0 }); it.plus = p; ev.push({ t: 'item_added', ...putNew(it) }); }
       return { ev };
     },
     debug_drop({ n = 1, boss = false }) {
