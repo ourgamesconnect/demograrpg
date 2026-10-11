@@ -364,7 +364,8 @@ const Server = (() => {
           const key = it.name + '|' + it.plus + '|' + (it.bonus || []).map(b => b.id + b.v).sort().join(','), tpl = { ...it }; delete tpl.uid;
           const e = S.loot[key] || (S.loot[key] = { key, it: tpl, qty: 0 }); e.qty++;
           ev.push({ t: 'loot_added', key, name: it.name, ic: it.ic, plus: it.plus, qty: e.qty });
-          if (Math.random() < bd.potChance) for (const pid of ['hp_s', 'mp_s']) {
+          for (const pid of ['hp_s', 'mp_s']) {
+            if (Math.random() >= bd.potChance) continue;   // osobne 50% dla życia i dla many
             const k2 = 'misc|boss_pot_' + pid, tpl2 = { type: 'misc', misc: 'potion', potion: pid, name: POTIONS[pid].n, ic: POTIONS[pid].ic, rarity: 0, plus: 0, bonus: [], req: 1, value: Math.floor(POTIONS[pid].price / 2), desc: 'Trafia do Twoich mikstur.' };
             const e2 = S.loot[k2] || (S.loot[k2] = { key: k2, it: tpl2, qty: 0 }); e2.qty += bd.potQty;
             ev.push({ t: 'loot_added', key: k2, name: tpl2.name, ic: tpl2.ic, plus: 0, qty: e2.qty });

@@ -42,7 +42,7 @@ const ARMOR_NAMES = { armor: ['Drewniana zbroja'], helm: ['Drewniany hełm'], bo
 // mob: szansa na KAŻDĄ część z jednego zabitego potwora, wg poziomu potwora; boss/target: dokładnie jedna losowa część.
 const MAP_DROPS = {
   polanka: { parts: ['weapon', 'helm', 'armor', 'boots', 'shield', 'ear_life', 'ear_str', 'ear_mag', 'ear_dex', 'neck', 'bracelet', 'ring_hp', 'ring_mp'], mob: { 1: 0.008, 2: 0.010, 3: 0.012, 4: 0.014, 5: 0.016 }, plus1: 0.2, boss: 0, target: 0,
-    // Boss: 100% jedna część drewnianego EQ z mapy (+3, min. 1 bon, większa szansa na więcej bonów) i 50% szans na 25 małych mikstur życia i 25 many. Nie da się wyłączyć.
+    // Boss: 100% jedna część drewnianego EQ z mapy (+3, min. 1 bon, większa szansa na więcej bonów) i po 50% (osobno) na 25 małych mikstur życia i na 25 małych mikstur many. Nie da się wyłączyć.
     bossDrop: { plus: 3, bonusW: [0, 50, 30, 13, 5, 2], potChance: 0.5, potQty: 25 },
     // Spaczony Korzeń: jedna z czterech rzeczy po 25% (losowo). Nie da się wyłączyć.
     special: [
